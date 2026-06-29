@@ -24,6 +24,8 @@ const parseEnvFile = (content) => {
 };
 
 const loadLocalEnv = async () => {
+  // 读取顺序：显式指定的 FEISHU_ENV_FILE 优先，其次读取当前目录的 .env.local。
+  // 这样同一份脚本可以同时适配本地目录、git worktree 和 CI。
   const envPaths = [
     process.env.FEISHU_ENV_FILE,
     path.resolve(".env.local"),
@@ -45,12 +47,12 @@ const secret = process.env.FEISHU_WEBHOOK_SECRET || localEnv.FEISHU_WEBHOOK_SECR
 const file = process.argv[2];
 
 if (!webhook) {
-  console.error("Missing FEISHU_WEBHOOK_URL.");
+  console.error("缺少 FEISHU_WEBHOOK_URL。请设置环境变量或在 .env.local 中配置。");
   process.exit(2);
 }
 
 if (!file) {
-  console.error("Usage: node scripts/push-ai-daily-to-feishu.mjs <daily-markdown-file>");
+  console.error("用法：node scripts/push-ai-daily-to-feishu.mjs <日报Markdown文件>");
   process.exit(2);
 }
 
@@ -195,7 +197,7 @@ const requestPayload = {
   card: payload.card,
 };
 
-// Feishu signature verification signs "timestamp\nsecret" with HMAC-SHA256.
+// 飞书签名校验要求用 "timestamp\nsecret" 做 HMAC-SHA256。
 if (secret) {
   const timestamp = String(Math.floor(Date.now() / 1000));
   const sign = createHmac("sha256", `${timestamp}\n${secret}`).digest("base64");
@@ -211,7 +213,7 @@ const response = await fetch(webhook, {
 
 const body = await response.text();
 if (!response.ok) {
-  console.error(`Feishu webhook failed: HTTP ${response.status}`);
+  console.error(`飞书 webhook 请求失败：HTTP ${response.status}`);
   console.error(body);
   process.exit(1);
 }
@@ -224,9 +226,9 @@ try {
 }
 
 if (result.code && result.code !== 0) {
-  console.error("Feishu webhook returned an error:");
+  console.error("飞书 webhook 返回错误：");
   console.error(JSON.stringify(result, null, 2));
   process.exit(1);
 }
 
-console.log("Feishu notification sent.");
+console.log("飞书通知已发送。");

@@ -21,11 +21,11 @@ export const parseEnvFile = (content) => {
 };
 
 export const loadLocalEnv = async () => {
-  // 读取顺序：显式指定的 FEISHU_ENV_FILE / WECOM_ENV_FILE 优先，其次读取当前目录的 .env.local。
+  // 读取顺序：显式指定的 FEISHU_ENV_FILE / SERVERCHAN_ENV_FILE 优先，其次读取当前目录的 .env.local。
   // 这样同一份脚本可以同时适配本地目录、git worktree 和 CI。
   const envPaths = [
     process.env.FEISHU_ENV_FILE,
-    process.env.WECOM_ENV_FILE,
+    process.env.SERVERCHAN_ENV_FILE,
     path.resolve(".env.local"),
   ].filter(Boolean);
 

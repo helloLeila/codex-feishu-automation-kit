@@ -4,19 +4,19 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { loadLocalEnv } from "./lib/env.mjs";
 import { extractTopLevelSection, stripMarkdown, truncate } from "./lib/markdown-utils.mjs";
-import { sendWeComMarkdown } from "./lib/wecom.mjs";
+import { sendServerChan } from "./lib/serverchan.mjs";
 
 const localEnv = await loadLocalEnv();
-const webhook = process.env.WECOM_WEBHOOK_URL || localEnv.WECOM_WEBHOOK_URL;
+const sendKey = process.env.SERVERCHAN_SENDKEY || localEnv.SERVERCHAN_SENDKEY;
 const file = process.argv[2];
 
-if (!webhook) {
-  console.error("缺少 WECOM_WEBHOOK_URL。请设置环境变量或在 .env.local 中配置。");
+if (!sendKey) {
+  console.error("缺少 SERVERCHAN_SENDKEY。请设置环境变量或在 .env.local 中配置。");
   process.exit(2);
 }
 
 if (!file) {
-  console.error("用法：node scripts/push-gba-events-to-wecom.mjs <活动Markdown文件>");
+  console.error("用法：node scripts/push-gba-events-to-serverchan.mjs <活动Markdown文件>");
   process.exit(2);
 }
 
@@ -32,10 +32,10 @@ const linesStarting = (prefix, limit = 8) =>
     .map((line) => line.replace(prefix, "").trim());
 
 const overview = [
-  ...linesStarting("- 时间范围：", 1).map((item) => `- 时间范围：${truncate(item, 120)}`),
-  ...linesStarting("- 本次找到：", 1).map((item) => `- 本次找到：${truncate(item, 80)}`),
-  ...linesStarting("- 城市分布：", 1).map((item) => `- 城市分布：${truncate(item, 100)}`),
-  ...linesStarting("- 最值得优先看：", 1).map((item) => `- 最值得优先看：${truncate(item, 160)}`),
+  ...linesStarting("- 时间范围：", 1).map((item) => `- 时间范围：${truncate(item, 140)}`),
+  ...linesStarting("- 本次找到：", 1).map((item) => `- 本次找到：${truncate(item, 100)}`),
+  ...linesStarting("- 城市分布：", 1).map((item) => `- 城市分布：${truncate(item, 120)}`),
+  ...linesStarting("- 最值得优先看：", 1).map((item) => `- 最值得优先看：${truncate(item, 180)}`),
 ].join("\n");
 
 const cards = [...extractTopLevelSection(text, "快速卡片").matchAll(/^##\s+(.+?)\n([\s\S]*?)(?=\n## |\n# |$)/gm)]
@@ -47,11 +47,11 @@ const cards = [...extractTopLevelSection(text, "快速卡片").matchAll(/^##\s+(
     const city = body.match(/^- 城市：(.+)$/m)?.[1] || "官方未明确";
     const worth = body.match(/^- 值不值得去：(.+)$/m)?.[1] || "官方未明确";
     const reason = body.match(/^- 一句话理由：(.+)$/m)?.[1] || "";
-    return `${index + 1}. ${truncate(heading, 80)}\n   时间：${truncate(time, 60)}｜城市：${truncate(city, 30)}｜判断：${truncate(worth, 30)}\n   理由：${truncate(reason, 120)}`;
+    return `${index + 1}. ${truncate(heading, 90)}\n   时间：${truncate(time, 70)}｜城市：${truncate(city, 40)}｜判断：${truncate(worth, 40)}\n   理由：${truncate(reason, 140)}`;
   })
   .join("\n\n");
 
-const markdown = [
+const desp = [
   `# ${stripMarkdown(title)}`,
   "",
   "## 检索概览",
@@ -63,4 +63,8 @@ const markdown = [
   `完整活动清单：${path.resolve(file)}`,
 ].join("\n");
 
-await sendWeComMarkdown({ webhook, title, markdown });
+await sendServerChan({
+  sendKey,
+  title: stripMarkdown(title),
+  desp,
+});

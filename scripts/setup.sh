@@ -29,6 +29,8 @@ fi
 echo "==> 检查脚本语法"
 node --check skills/feishu-automation-reporter/scripts/push-ai-daily-to-feishu.mjs
 node --check skills/feishu-automation-reporter/scripts/push-gba-events-to-feishu.mjs
+node --check skills/feishu-automation-reporter/scripts/push-ai-daily-to-wecom.mjs
+node --check skills/feishu-automation-reporter/scripts/push-gba-events-to-wecom.mjs
 
 echo "==> 运行 dry-run 验证"
 FEISHU_DRY_RUN=1 FEISHU_WEBHOOK_URL=https://example.com \
@@ -39,8 +41,18 @@ FEISHU_DRY_RUN=1 FEISHU_WEBHOOK_URL=https://example.com \
   node skills/feishu-automation-reporter/scripts/push-gba-events-to-feishu.mjs \
   examples/gba-events-example.md >/tmp/codex-feishu-gba-events-card.json
 
+WECOM_DRY_RUN=1 WECOM_WEBHOOK_URL=https://example.com \
+  node skills/feishu-automation-reporter/scripts/push-ai-daily-to-wecom.mjs \
+  examples/ai-daily-example.md >/tmp/codex-wecom-ai-daily-message.json
+
+WECOM_DRY_RUN=1 WECOM_WEBHOOK_URL=https://example.com \
+  node skills/feishu-automation-reporter/scripts/push-gba-events-to-wecom.mjs \
+  examples/gba-events-example.md >/tmp/codex-wecom-gba-events-message.json
+
 echo "已生成 dry-run 输出："
 echo "- /tmp/codex-feishu-ai-daily-card.json"
 echo "- /tmp/codex-feishu-gba-events-card.json"
+echo "- /tmp/codex-wecom-ai-daily-message.json"
+echo "- /tmp/codex-wecom-gba-events-message.json"
 echo
 echo "配置完成。下一步：编辑 .env.local，然后运行真实推送命令。"

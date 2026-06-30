@@ -8,9 +8,9 @@
 Codex 自动化
   -> 生成 Markdown 文件
   -> 运行飞书推送脚本
-  -> 脚本读取 FEISHU_WEBHOOK_URL
-  -> 脚本生成飞书 interactive card
-  -> 飞书自定义机器人发送到群
+  -> 脚本读取 FEISHU_WEBHOOK_URL 或 WECOM_WEBHOOK_URL
+  -> 脚本生成飞书 interactive card 或企业微信 markdown 消息
+  -> 群机器人发送到群
 ```
 
 ## 密钥读取顺序
@@ -20,16 +20,17 @@ Codex 自动化
 1. 进程环境变量：
    - `FEISHU_WEBHOOK_URL`
    - `FEISHU_WEBHOOK_SECRET`
-2. `FEISHU_ENV_FILE` 指向的 env 文件。
+   - `WECOM_WEBHOOK_URL`
+2. `FEISHU_ENV_FILE` 或 `WECOM_ENV_FILE` 指向的 env 文件。
 3. 当前运行目录下的 `.env.local`。
 
 这样可以避免硬编码本地路径，也能兼容本地目录、git worktree 和 CI。
 
 ## 为什么使用 interactive card
 
-飞书自定义机器人的普通 `post` 消息在不同客户端里对 Markdown 的渲染并不稳定。
+飞书自定义机器人的普通 `post` 消息在不同客户端里对 Markdown 的渲染并不稳定，因此飞书侧使用 interactive card。
 
-interactive card 更适合自动化推送，因为脚本可以把 Markdown 拆成稳定区块，比如摘要、热点、候补链接、备注和来源列表。
+企业微信群机器人天然支持 `markdown` 消息，脚本会把原始 Markdown 精简成适合群里阅读的摘要。
 
 ## AI 日报 Markdown 结构约定
 
@@ -68,7 +69,7 @@ AI 日报脚本默认识别这些标题：
 ```text
 生成 Markdown 文件后，如果环境变量 FEISHU_WEBHOOK_URL 已配置，或当前目录 .env.local 中配置了 FEISHU_WEBHOOK_URL，请运行：
 node <script-path> <生成的Markdown文件路径>
-如果未配置，请只生成文件并说明未推送飞书。
+如果未配置，请只生成文件并说明未推送。
 ```
 
 ## 验证与排查
@@ -78,6 +79,8 @@ node <script-path> <生成的Markdown文件路径>
 ```bash
 node --check skills/feishu-automation-reporter/scripts/push-ai-daily-to-feishu.mjs
 node --check skills/feishu-automation-reporter/scripts/push-gba-events-to-feishu.mjs
+node --check skills/feishu-automation-reporter/scripts/push-ai-daily-to-wecom.mjs
+node --check skills/feishu-automation-reporter/scripts/push-gba-events-to-wecom.mjs
 ```
 
 只生成卡片 JSON，不真实发送：
@@ -86,8 +89,14 @@ node --check skills/feishu-automation-reporter/scripts/push-gba-events-to-feishu
 FEISHU_DRY_RUN=1 node skills/feishu-automation-reporter/scripts/push-ai-daily-to-feishu.mjs examples/ai-daily-example.md
 ```
 
+企业微信 dry-run：
+
+```bash
+WECOM_DRY_RUN=1 WECOM_WEBHOOK_URL=https://example.com node skills/feishu-automation-reporter/scripts/push-ai-daily-to-wecom.mjs examples/ai-daily-example.md
+```
+
 检查 `.env.local` 是否配置了 webhook，但不打印真实值：
 
 ```bash
-node -e "const fs=require('fs'); const text=fs.readFileSync('.env.local','utf8'); console.log({hasWebhook:/^FEISHU_WEBHOOK_URL=.+/m.test(text)});"
+node -e "const fs=require('fs'); const text=fs.readFileSync('.env.local','utf8'); console.log({hasFeishu:/^FEISHU_WEBHOOK_URL=.+/m.test(text), hasWeCom:/^WECOM_WEBHOOK_URL=.+/m.test(text)});"
 ```

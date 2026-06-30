@@ -94,7 +94,7 @@ FEISHU_DRY_RUN=1 node skills/feishu-automation-reporter/scripts/push-ai-daily-to
 Server 酱 dry-run：
 
 ```bash
-SERVERCHAN_DRY_RUN=1 SERVERCHAN_SENDKEY=serverchan-test-key node skills/feishu-automation-reporter/scripts/push-ai-daily-to-serverchan.mjs examples/ai-daily-example.md
+SERVERCHAN_DRY_RUN=1 SERVERCHAN_SENDKEY=<SERVERCHAN_TEST_SENDKEY> node skills/feishu-automation-reporter/scripts/push-ai-daily-to-serverchan.mjs examples/ai-daily-example.md
 ```
 
 检查 `.env.local` 是否配置了密钥，但不打印真实值：

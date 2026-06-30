@@ -22,10 +22,10 @@ node --check skills/feishu-automation-reporter/scripts/push-ai-daily-to-feishu.m
 node --check skills/feishu-automation-reporter/scripts/push-gba-events-to-feishu.mjs
 node --check skills/feishu-automation-reporter/scripts/push-ai-daily-to-serverchan.mjs
 node --check skills/feishu-automation-reporter/scripts/push-gba-events-to-serverchan.mjs
-FEISHU_DRY_RUN=1 FEISHU_WEBHOOK_URL=https://example.com node skills/feishu-automation-reporter/scripts/push-ai-daily-to-feishu.mjs examples/ai-daily-example.md
-FEISHU_DRY_RUN=1 FEISHU_WEBHOOK_URL=https://example.com node skills/feishu-automation-reporter/scripts/push-gba-events-to-feishu.mjs examples/gba-events-example.md
-SERVERCHAN_DRY_RUN=1 SERVERCHAN_SENDKEY=serverchan-test-key node skills/feishu-automation-reporter/scripts/push-ai-daily-to-serverchan.mjs examples/ai-daily-example.md
-SERVERCHAN_DRY_RUN=1 SERVERCHAN_SENDKEY=serverchan-test-key node skills/feishu-automation-reporter/scripts/push-gba-events-to-serverchan.mjs examples/gba-events-example.md
+FEISHU_DRY_RUN=1 FEISHU_WEBHOOK_URL=<WEBHOOK_URL_FOR_DRY_RUN> node skills/feishu-automation-reporter/scripts/push-ai-daily-to-feishu.mjs examples/ai-daily-example.md
+FEISHU_DRY_RUN=1 FEISHU_WEBHOOK_URL=<WEBHOOK_URL_FOR_DRY_RUN> node skills/feishu-automation-reporter/scripts/push-gba-events-to-feishu.mjs examples/gba-events-example.md
+SERVERCHAN_DRY_RUN=1 SERVERCHAN_SENDKEY=<SERVERCHAN_TEST_SENDKEY> node skills/feishu-automation-reporter/scripts/push-ai-daily-to-serverchan.mjs examples/ai-daily-example.md
+SERVERCHAN_DRY_RUN=1 SERVERCHAN_SENDKEY=<SERVERCHAN_TEST_SENDKEY> node skills/feishu-automation-reporter/scripts/push-gba-events-to-serverchan.mjs examples/gba-events-example.md
 ```
 
 预期：

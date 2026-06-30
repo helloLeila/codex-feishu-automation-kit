@@ -33,19 +33,19 @@ node --check skills/feishu-automation-reporter/scripts/push-ai-daily-to-serverch
 node --check skills/feishu-automation-reporter/scripts/push-gba-events-to-serverchan.mjs
 
 echo "==> 运行 dry-run 验证"
-FEISHU_DRY_RUN=1 FEISHU_WEBHOOK_URL=https://example.com \
+FEISHU_DRY_RUN=1 FEISHU_WEBHOOK_URL=dry-run-webhook-url \
   node skills/feishu-automation-reporter/scripts/push-ai-daily-to-feishu.mjs \
   examples/ai-daily-example.md >/tmp/codex-feishu-ai-daily-card.json
 
-FEISHU_DRY_RUN=1 FEISHU_WEBHOOK_URL=https://example.com \
+FEISHU_DRY_RUN=1 FEISHU_WEBHOOK_URL=dry-run-webhook-url \
   node skills/feishu-automation-reporter/scripts/push-gba-events-to-feishu.mjs \
   examples/gba-events-example.md >/tmp/codex-feishu-gba-events-card.json
 
-SERVERCHAN_DRY_RUN=1 SERVERCHAN_SENDKEY=serverchan-test-key \
+SERVERCHAN_DRY_RUN=1 SERVERCHAN_SENDKEY=dry-run-serverchan-key \
   node skills/feishu-automation-reporter/scripts/push-ai-daily-to-serverchan.mjs \
   examples/ai-daily-example.md >/tmp/codex-serverchan-ai-daily-message.json
 
-SERVERCHAN_DRY_RUN=1 SERVERCHAN_SENDKEY=serverchan-test-key \
+SERVERCHAN_DRY_RUN=1 SERVERCHAN_SENDKEY=dry-run-serverchan-key \
   node skills/feishu-automation-reporter/scripts/push-gba-events-to-serverchan.mjs \
   examples/gba-events-example.md >/tmp/codex-serverchan-gba-events-message.json
 

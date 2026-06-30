@@ -56,8 +56,8 @@ bash scripts/setup.sh
 然后编辑 `.env.local`：
 
 ```bash
-FEISHU_WEBHOOK_URL="https://open.feishu.cn/open-apis/bot/v2/hook/replace-me"
-# SERVERCHAN_SENDKEY="serverchan-sendkey"
+FEISHU_WEBHOOK_URL="<FEISHU_WEBHOOK_URL>"
+# SERVERCHAN_SENDKEY="<SERVERCHAN_SENDKEY>"
 ```
 
 如果飞书机器人开启了签名校验，再加：
@@ -91,7 +91,7 @@ FEISHU_DRY_RUN=1 node skills/feishu-automation-reporter/scripts/push-ai-daily-to
 只生成 Server 酱请求 JSON，不发送：
 
 ```bash
-SERVERCHAN_DRY_RUN=1 SERVERCHAN_SENDKEY=serverchan-test-key node skills/feishu-automation-reporter/scripts/push-ai-daily-to-serverchan.mjs examples/ai-daily-example.md
+SERVERCHAN_DRY_RUN=1 SERVERCHAN_SENDKEY=<SERVERCHAN_TEST_SENDKEY> node skills/feishu-automation-reporter/scripts/push-ai-daily-to-serverchan.mjs examples/ai-daily-example.md
 ```
 
 ## 推送大湾区活动清单
@@ -117,7 +117,7 @@ FEISHU_DRY_RUN=1 node skills/feishu-automation-reporter/scripts/push-gba-events-
 只生成 Server 酱请求 JSON，不发送：
 
 ```bash
-SERVERCHAN_DRY_RUN=1 SERVERCHAN_SENDKEY=serverchan-test-key node skills/feishu-automation-reporter/scripts/push-gba-events-to-serverchan.mjs examples/gba-events-example.md
+SERVERCHAN_DRY_RUN=1 SERVERCHAN_SENDKEY=<SERVERCHAN_TEST_SENDKEY> node skills/feishu-automation-reporter/scripts/push-gba-events-to-serverchan.mjs examples/gba-events-example.md
 ```
 
 ## 在 Codex 自动化里使用
@@ -164,10 +164,10 @@ node --check skills/feishu-automation-reporter/scripts/push-ai-daily-to-feishu.m
 node --check skills/feishu-automation-reporter/scripts/push-gba-events-to-feishu.mjs
 node --check skills/feishu-automation-reporter/scripts/push-ai-daily-to-serverchan.mjs
 node --check skills/feishu-automation-reporter/scripts/push-gba-events-to-serverchan.mjs
-FEISHU_DRY_RUN=1 FEISHU_WEBHOOK_URL=https://example.com node skills/feishu-automation-reporter/scripts/push-ai-daily-to-feishu.mjs examples/ai-daily-example.md
-FEISHU_DRY_RUN=1 FEISHU_WEBHOOK_URL=https://example.com node skills/feishu-automation-reporter/scripts/push-gba-events-to-feishu.mjs examples/gba-events-example.md
-SERVERCHAN_DRY_RUN=1 SERVERCHAN_SENDKEY=serverchan-test-key node skills/feishu-automation-reporter/scripts/push-ai-daily-to-serverchan.mjs examples/ai-daily-example.md
-SERVERCHAN_DRY_RUN=1 SERVERCHAN_SENDKEY=serverchan-test-key node skills/feishu-automation-reporter/scripts/push-gba-events-to-serverchan.mjs examples/gba-events-example.md
+FEISHU_DRY_RUN=1 FEISHU_WEBHOOK_URL=<WEBHOOK_URL_FOR_DRY_RUN> node skills/feishu-automation-reporter/scripts/push-ai-daily-to-feishu.mjs examples/ai-daily-example.md
+FEISHU_DRY_RUN=1 FEISHU_WEBHOOK_URL=<WEBHOOK_URL_FOR_DRY_RUN> node skills/feishu-automation-reporter/scripts/push-gba-events-to-feishu.mjs examples/gba-events-example.md
+SERVERCHAN_DRY_RUN=1 SERVERCHAN_SENDKEY=<SERVERCHAN_TEST_SENDKEY> node skills/feishu-automation-reporter/scripts/push-ai-daily-to-serverchan.mjs examples/ai-daily-example.md
+SERVERCHAN_DRY_RUN=1 SERVERCHAN_SENDKEY=<SERVERCHAN_TEST_SENDKEY> node skills/feishu-automation-reporter/scripts/push-gba-events-to-serverchan.mjs examples/gba-events-example.md
 ```
 
 ## 安全提醒

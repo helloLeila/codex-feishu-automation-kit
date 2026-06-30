@@ -20,9 +20,9 @@ description: Use when configuring Codex automations or Markdown-producing workfl
 2. 配置本地 secret 文件或环境变量：
 
 ```bash
-FEISHU_WEBHOOK_URL="https://open.feishu.cn/open-apis/bot/v2/hook/..."
+FEISHU_WEBHOOK_URL="<FEISHU_WEBHOOK_URL>"
 # FEISHU_WEBHOOK_SECRET="可选的飞书签名密钥"
-# SERVERCHAN_SENDKEY="serverchan-sendkey"
+# SERVERCHAN_SENDKEY="<SERVERCHAN_SENDKEY>"
 ```
 
 3. 确认 `.gitignore` 忽略 `.env.local`。
@@ -70,8 +70,8 @@ dry-run：
 ```bash
 FEISHU_DRY_RUN=1 node scripts/push-ai-daily-to-feishu.mjs examples/ai-daily-example.md
 FEISHU_DRY_RUN=1 node scripts/push-gba-events-to-feishu.mjs examples/gba-events-example.md
-SERVERCHAN_DRY_RUN=1 SERVERCHAN_SENDKEY=serverchan-test-key node scripts/push-ai-daily-to-serverchan.mjs examples/ai-daily-example.md
-SERVERCHAN_DRY_RUN=1 SERVERCHAN_SENDKEY=serverchan-test-key node scripts/push-gba-events-to-serverchan.mjs examples/gba-events-example.md
+SERVERCHAN_DRY_RUN=1 SERVERCHAN_SENDKEY=<SERVERCHAN_TEST_SENDKEY> node scripts/push-ai-daily-to-serverchan.mjs examples/ai-daily-example.md
+SERVERCHAN_DRY_RUN=1 SERVERCHAN_SENDKEY=<SERVERCHAN_TEST_SENDKEY> node scripts/push-gba-events-to-serverchan.mjs examples/gba-events-example.md
 ```
 
 ## 排查

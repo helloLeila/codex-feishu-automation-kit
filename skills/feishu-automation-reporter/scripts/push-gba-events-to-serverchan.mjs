@@ -39,17 +39,41 @@ const overview = [
 ].join("\n");
 
 const cards = [...extractTopLevelSection(text, "快速卡片").matchAll(/^##\s+(.+?)\n([\s\S]*?)(?=\n## |\n# |$)/gm)]
-  .slice(0, 6)
+  .slice(0, 10)
   .map((match, index) => {
     const heading = stripMarkdown(match[1]);
     const body = match[2];
     const time = body.match(/^- 时间：(.+)$/m)?.[1] || "官方未明确";
     const city = body.match(/^- 城市：(.+)$/m)?.[1] || "官方未明确";
+    const topic = body.match(/^- 主题：(.+)$/m)?.[1] || "官方未明确";
     const worth = body.match(/^- 值不值得去：(.+)$/m)?.[1] || "官方未明确";
     const reason = body.match(/^- 一句话理由：(.+)$/m)?.[1] || "";
-    return `${index + 1}. ${truncate(heading, 90)}\n   时间：${truncate(time, 70)}｜城市：${truncate(city, 40)}｜判断：${truncate(worth, 40)}\n   理由：${truncate(reason, 140)}`;
+    const link = body.match(/^- 链接：(.+)$/m)?.[1] || "";
+    return [
+      `${index + 1}. ${truncate(heading, 100)}`,
+      `   时间：${truncate(time, 80)}｜城市：${truncate(city, 40)}｜判断：${truncate(worth, 40)}`,
+      `   主题：${truncate(topic, 120)}`,
+      reason ? `   理由：${truncate(reason, 180)}` : "",
+      link ? `   链接：${truncate(link, 180)}` : "",
+    ].filter(Boolean).join("\n");
   })
   .join("\n\n");
+
+const candidates = extractTopLevelSection(text, "候补链接")
+  .split("\n")
+  .map((line) => line.trim())
+  .filter((line) => line.startsWith("- "))
+  .slice(0, 10)
+  .map((line) => truncate(line, 220))
+  .join("\n");
+
+const notes = extractTopLevelSection(text, "备注")
+  .split("\n")
+  .map((line) => line.trim())
+  .filter((line) => line.startsWith("- "))
+  .slice(0, 6)
+  .map((line) => truncate(line, 220))
+  .join("\n");
 
 const desp = [
   `# ${stripMarkdown(title)}`,
@@ -59,6 +83,12 @@ const desp = [
   "",
   "## 快速卡片",
   cards || "本次未检索到符合条件的活动。",
+  "",
+  "## 候补链接",
+  candidates || "本节无内容。",
+  "",
+  "## 备注",
+  notes || "本节无内容。",
   "",
   `完整活动清单：${path.resolve(file)}`,
 ].join("\n");

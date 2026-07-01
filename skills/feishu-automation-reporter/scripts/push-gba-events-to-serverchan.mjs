@@ -95,6 +95,6 @@ const desp = [
 
 await sendServerChan({
   sendKey,
-  title: stripMarkdown(title),
+  title: "Codex｜大湾区活动",
   desp,
 });

@@ -89,6 +89,6 @@ const desp = [
 
 await sendServerChan({
   sendKey,
-  title: stripMarkdown(title),
+  title: "Codex｜AI 行业日报",
   desp,
 });

@@ -1,13 +1,178 @@
 # Codex 飞书 / Server 酱自动化工具包
 
-把 Codex 自动化生成的 Markdown 日报、周报、活动清单等内容，推送到飞书群或 Server 酱。飞书适合展示完整卡片，Server 酱适合把手机提醒送到微信相关通知通道。
+把 Codex 自动化生成的 Markdown 日报、周报、活动清单等内容，推送到飞书群或 Server 酱。飞书适合展示结构化卡片，Server 酱适合把手机提醒送到微信相关通知通道。
 
-这个仓库适合这些场景：
+GitHub 仓库地址：<https://github.com/helloLeila/codex-feishu-automation-kit>
+
+适合这些场景：
 
 - AI 行业日报生成后自动推送。
 - 大湾区技术活动清单生成后自动推送。
 - 周报、监控结果、调研摘要等 Markdown 文件需要变成通知。
 - 想把“配置 webhook / SendKey、生成卡片、dry-run 验证、排查未推送”沉淀成可复用 Codex Skill。
+
+## 快速开始
+
+先克隆仓库并进入目录：
+
+```bash
+git clone https://github.com/helloLeila/codex-feishu-automation-kit.git
+cd codex-feishu-automation-kit
+```
+
+运行一键配置：
+
+```bash
+bash scripts/setup.sh
+```
+
+这个脚本会：
+
+1. 检查 Node.js 版本是否为 18 或更高。
+2. 如果没有 `.env.local`，从 `examples/.env.local.example` 创建一份。
+3. 对四个推送脚本做 `node --check` 语法检查。
+4. 使用示例 Markdown 生成 dry-run 输出，不会真实发送消息。
+
+然后编辑 `.env.local`：
+
+```bash
+FEISHU_WEBHOOK_URL="<FEISHU_WEBHOOK_URL>"
+# FEISHU_WEBHOOK_SECRET="<FEISHU_WEBHOOK_SECRET>"
+SERVERCHAN_SENDKEY="<SERVERCHAN_SENDKEY>"
+```
+
+只用飞书就只填 `FEISHU_WEBHOOK_URL`；只用 Server 酱就只填 `SERVERCHAN_SENDKEY`。`.env.local` 已被 `.gitignore` 忽略，不要提交到 GitHub。
+
+## 去哪里拿密钥
+
+飞书机器人：
+
+1. 打开飞书开放平台文档：<https://open.feishu.cn/document/client-docs/bot-v3/add-custom-bot>
+2. 在飞书群里进入“群设置”。
+3. 找到“机器人”或“群机器人”，添加“自定义机器人”。
+4. 复制生成的 webhook，填到 `.env.local` 的 `FEISHU_WEBHOOK_URL`。
+5. 如果你在机器人安全设置里开启了“签名校验”，把签名密钥填到 `FEISHU_WEBHOOK_SECRET`。
+
+飞书开放平台入口：<https://open.feishu.cn/>
+
+Server 酱：
+
+1. 打开 Server 酱官网：<https://sct.ftqq.com/>
+2. 登录后进入 SendKey 页面。
+3. 复制自己的 SendKey，填到 `.env.local` 的 `SERVERCHAN_SENDKEY`。
+4. 按 Server 酱页面提示绑定微信相关通知通道。
+
+## 在自己的 Codex 工作区使用
+
+如果你的日报和活动文件已经在另一个 Codex 工作区生成，可以把脚本复制过去。从本仓库根目录执行：
+
+```bash
+mkdir -p /path/to/your-codex-workspace/scripts/lib
+cp skills/feishu-automation-reporter/scripts/push-ai-daily-to-feishu.mjs /path/to/your-codex-workspace/scripts/
+cp skills/feishu-automation-reporter/scripts/push-gba-events-to-feishu.mjs /path/to/your-codex-workspace/scripts/
+cp skills/feishu-automation-reporter/scripts/push-ai-daily-to-serverchan.mjs /path/to/your-codex-workspace/scripts/
+cp skills/feishu-automation-reporter/scripts/push-gba-events-to-serverchan.mjs /path/to/your-codex-workspace/scripts/
+cp skills/feishu-automation-reporter/scripts/lib/*.mjs /path/to/your-codex-workspace/scripts/lib/
+cp examples/.env.local.example /path/to/your-codex-workspace/.env.local
+```
+
+把 `/path/to/your-codex-workspace` 替换成你的实际工作区路径。复制完成后，在目标工作区编辑 `.env.local`，填入真实密钥。
+
+## 推送 AI 日报
+
+推送到飞书：
+
+```bash
+node skills/feishu-automation-reporter/scripts/push-ai-daily-to-feishu.mjs examples/ai-daily-example.md
+```
+
+推送到 Server 酱：
+
+```bash
+node skills/feishu-automation-reporter/scripts/push-ai-daily-to-serverchan.mjs examples/ai-daily-example.md
+```
+
+如果你已经把脚本复制到自己的工作区 `scripts/` 目录，命令改成：
+
+```bash
+node scripts/push-ai-daily-to-feishu.mjs ai-daily/YYYY-MM-DD-ai-daily.md
+node scripts/push-ai-daily-to-serverchan.mjs ai-daily/YYYY-MM-DD-ai-daily.md
+```
+
+## 推送大湾区活动清单
+
+推送到飞书：
+
+```bash
+node skills/feishu-automation-reporter/scripts/push-gba-events-to-feishu.mjs examples/gba-events-example.md
+```
+
+推送到 Server 酱：
+
+```bash
+node skills/feishu-automation-reporter/scripts/push-gba-events-to-serverchan.mjs examples/gba-events-example.md
+```
+
+如果你已经把脚本复制到自己的工作区 `scripts/` 目录，命令改成：
+
+```bash
+node scripts/push-gba-events-to-feishu.mjs gba-events/YYYY-MM-DD-gba-events.md
+node scripts/push-gba-events-to-serverchan.mjs gba-events/YYYY-MM-DD-gba-events.md
+```
+
+## Codex 自动化提示词模板
+
+把下面片段追加到对应自动化 prompt 的结尾。重点是让 Codex 在生成 Markdown 后，根据 `.env.local` 或环境变量自动决定是否推送。
+
+AI 行业日报：
+
+```text
+生成 Markdown 文件后，如果环境变量 FEISHU_WEBHOOK_URL 已配置，或当前目录 .env.local 中配置了 FEISHU_WEBHOOK_URL，请运行：
+node scripts/push-ai-daily-to-feishu.mjs <生成的Markdown文件路径>
+如果环境变量 SERVERCHAN_SENDKEY 已配置，或当前目录 .env.local 中配置了 SERVERCHAN_SENDKEY，请运行：
+node scripts/push-ai-daily-to-serverchan.mjs <生成的Markdown文件路径>
+如果两者都配置，请两个都推送；如果都未配置，请只生成文件并说明未推送。
+```
+
+大湾区活动清单：
+
+```text
+生成 Markdown 文件后，如果环境变量 FEISHU_WEBHOOK_URL 已配置，或当前目录 .env.local 中配置了 FEISHU_WEBHOOK_URL，请运行：
+node scripts/push-gba-events-to-feishu.mjs <生成的Markdown文件路径>
+如果环境变量 SERVERCHAN_SENDKEY 已配置，或当前目录 .env.local 中配置了 SERVERCHAN_SENDKEY，请运行：
+node scripts/push-gba-events-to-serverchan.mjs <生成的Markdown文件路径>
+如果两者都配置，请两个都推送；如果都未配置，请只生成文件并说明未推送。
+```
+
+如果你的自动化运行在 git worktree、CI 或其他目录，推荐把 env 文件路径写清楚：
+
+```text
+如果当前目录读不到 .env.local，请使用 FEISHU_ENV_FILE=/absolute/path/to/.env.local 或 SERVERCHAN_ENV_FILE=/absolute/path/to/.env.local 指定密钥文件。
+```
+
+## Dry-run 验证
+
+dry-run 只生成请求内容，不会真实发送。
+
+```bash
+FEISHU_DRY_RUN=1 FEISHU_WEBHOOK_URL=<FEISHU_WEBHOOK_URL> node skills/feishu-automation-reporter/scripts/push-ai-daily-to-feishu.mjs examples/ai-daily-example.md
+FEISHU_DRY_RUN=1 FEISHU_WEBHOOK_URL=<FEISHU_WEBHOOK_URL> node skills/feishu-automation-reporter/scripts/push-gba-events-to-feishu.mjs examples/gba-events-example.md
+SERVERCHAN_DRY_RUN=1 SERVERCHAN_SENDKEY=<SERVERCHAN_SENDKEY> node skills/feishu-automation-reporter/scripts/push-ai-daily-to-serverchan.mjs examples/ai-daily-example.md
+SERVERCHAN_DRY_RUN=1 SERVERCHAN_SENDKEY=<SERVERCHAN_SENDKEY> node skills/feishu-automation-reporter/scripts/push-gba-events-to-serverchan.mjs examples/gba-events-example.md
+```
+
+## 使用 Skill
+
+`skills/feishu-automation-reporter` 是一个 Codex Skill。把它复制到你的 Codex skills 目录，或通过你的 Codex 环境从该仓库安装。
+
+适合在这些任务中触发：
+
+- 给 Markdown 生成类自动化增加飞书或 Server 酱推送。
+- 配置 `.env.local`、飞书 webhook 和 Server 酱 SendKey。
+- 生成或改造飞书 interactive card 脚本。
+- 生成或改造 Server 酱通知脚本。
+- 排查为什么自动化没有推送。
+- 使用 dry-run 验证卡片或请求结构。
 
 ## 目录结构
 
@@ -31,148 +196,21 @@ scripts/
   setup.sh
 ```
 
-## 环境要求
-
-- Node.js 18 或更高版本。
-- 一个飞书 / Lark 自定义机器人 webhook，或一个 Server 酱 SendKey。
-- 一个由 Codex 自动化或其他流程生成的 Markdown 文件。
-
 脚本只使用 Node.js 内置模块和现代 Node 自带的 `fetch`，不需要安装 npm 依赖。
 
-## 一键配置
+## 常见问题
 
-运行：
+`缺少 FEISHU_WEBHOOK_URL`：没有配置飞书 webhook。检查 `.env.local` 是否在当前运行目录，或用 `FEISHU_ENV_FILE=/absolute/path/to/.env.local` 指定。
 
-```bash
-bash scripts/setup.sh
-```
+`缺少 SERVERCHAN_SENDKEY`：没有配置 Server 酱 SendKey。检查 `.env.local` 是否在当前运行目录，或用 `SERVERCHAN_ENV_FILE=/absolute/path/to/.env.local` 指定。
 
-脚本会做三件事：
+飞书推送失败且提示签名错误：机器人开启了签名校验，但没有配置 `FEISHU_WEBHOOK_SECRET`，或密钥填错。
 
-1. 如果没有 `.env.local`，从 `examples/.env.local.example` 复制一份。
-2. 检查 Node.js 是否可用。
-3. 使用示例 Markdown 跑飞书和 Server 酱 dry-run 验证命令。
-
-然后编辑 `.env.local`：
-
-```bash
-FEISHU_WEBHOOK_URL="<FEISHU_WEBHOOK_URL>"
-# SERVERCHAN_SENDKEY="<SERVERCHAN_SENDKEY>"
-```
-
-如果飞书机器人开启了签名校验，再加：
-
-```bash
-FEISHU_WEBHOOK_SECRET="replace-me"
-```
-
-`.env.local` 已被 `.gitignore` 忽略，不应提交到 GitHub。
-
-## 推送 AI 日报
-
-推送到飞书：
-
-```bash
-node skills/feishu-automation-reporter/scripts/push-ai-daily-to-feishu.mjs examples/ai-daily-example.md
-```
-
-推送到 Server 酱：
-
-```bash
-node skills/feishu-automation-reporter/scripts/push-ai-daily-to-serverchan.mjs examples/ai-daily-example.md
-```
-
-只生成飞书卡片 JSON，不发送：
-
-```bash
-FEISHU_DRY_RUN=1 node skills/feishu-automation-reporter/scripts/push-ai-daily-to-feishu.mjs examples/ai-daily-example.md
-```
-
-只生成 Server 酱请求 JSON，不发送：
-
-```bash
-SERVERCHAN_DRY_RUN=1 SERVERCHAN_SENDKEY=<SERVERCHAN_TEST_SENDKEY> node skills/feishu-automation-reporter/scripts/push-ai-daily-to-serverchan.mjs examples/ai-daily-example.md
-```
-
-## 推送大湾区活动清单
-
-推送到飞书：
-
-```bash
-node skills/feishu-automation-reporter/scripts/push-gba-events-to-feishu.mjs examples/gba-events-example.md
-```
-
-推送到 Server 酱：
-
-```bash
-node skills/feishu-automation-reporter/scripts/push-gba-events-to-serverchan.mjs examples/gba-events-example.md
-```
-
-只生成飞书卡片 JSON，不发送：
-
-```bash
-FEISHU_DRY_RUN=1 node skills/feishu-automation-reporter/scripts/push-gba-events-to-feishu.mjs examples/gba-events-example.md
-```
-
-只生成 Server 酱请求 JSON，不发送：
-
-```bash
-SERVERCHAN_DRY_RUN=1 SERVERCHAN_SENDKEY=<SERVERCHAN_TEST_SENDKEY> node skills/feishu-automation-reporter/scripts/push-gba-events-to-serverchan.mjs examples/gba-events-example.md
-```
-
-## 在 Codex 自动化里使用
-
-把下面内容加到自动化 prompt 的结尾，要求自动化在生成 Markdown 后执行推送。
-
-AI 日报：
-
-```text
-生成 Markdown 文件后，如果环境变量 FEISHU_WEBHOOK_URL 已配置，或当前目录 .env.local 中配置了 FEISHU_WEBHOOK_URL，请运行：
-node skills/feishu-automation-reporter/scripts/push-ai-daily-to-feishu.mjs <生成的Markdown文件路径>
-如果环境变量 SERVERCHAN_SENDKEY 已配置，或当前目录 .env.local 中配置了 SERVERCHAN_SENDKEY，请运行：
-node skills/feishu-automation-reporter/scripts/push-ai-daily-to-serverchan.mjs <生成的Markdown文件路径>
-如果都未配置，请只生成文件并说明未推送。
-```
-
-大湾区活动：
-
-```text
-生成 Markdown 文件后，如果环境变量 FEISHU_WEBHOOK_URL 已配置，或当前目录 .env.local 中配置了 FEISHU_WEBHOOK_URL，请运行：
-node skills/feishu-automation-reporter/scripts/push-gba-events-to-feishu.mjs <生成的Markdown文件路径>
-如果环境变量 SERVERCHAN_SENDKEY 已配置，或当前目录 .env.local 中配置了 SERVERCHAN_SENDKEY，请运行：
-node skills/feishu-automation-reporter/scripts/push-gba-events-to-serverchan.mjs <生成的Markdown文件路径>
-如果都未配置，请只生成文件并说明未推送。
-```
-
-## 使用 Skill
-
-`skills/feishu-automation-reporter` 是一个 Codex Skill。把它复制到你的 Codex skills 目录，或通过你的 Codex 环境从该仓库安装。
-
-适合在这些任务中触发：
-
-- 给 Markdown 生成类自动化增加飞书或 Server 酱推送。
-- 配置 `.env.local`、飞书 webhook 和 Server 酱 SendKey。
-- 生成或改造飞书 interactive card 脚本。
-- 生成或改造 Server 酱通知脚本。
-- 排查为什么自动化没有推送。
-- 使用 dry-run 验证卡片或请求结构。
-
-## 验证命令
-
-```bash
-node --check skills/feishu-automation-reporter/scripts/push-ai-daily-to-feishu.mjs
-node --check skills/feishu-automation-reporter/scripts/push-gba-events-to-feishu.mjs
-node --check skills/feishu-automation-reporter/scripts/push-ai-daily-to-serverchan.mjs
-node --check skills/feishu-automation-reporter/scripts/push-gba-events-to-serverchan.mjs
-FEISHU_DRY_RUN=1 FEISHU_WEBHOOK_URL=<WEBHOOK_URL_FOR_DRY_RUN> node skills/feishu-automation-reporter/scripts/push-ai-daily-to-feishu.mjs examples/ai-daily-example.md
-FEISHU_DRY_RUN=1 FEISHU_WEBHOOK_URL=<WEBHOOK_URL_FOR_DRY_RUN> node skills/feishu-automation-reporter/scripts/push-gba-events-to-feishu.mjs examples/gba-events-example.md
-SERVERCHAN_DRY_RUN=1 SERVERCHAN_SENDKEY=<SERVERCHAN_TEST_SENDKEY> node skills/feishu-automation-reporter/scripts/push-ai-daily-to-serverchan.mjs examples/ai-daily-example.md
-SERVERCHAN_DRY_RUN=1 SERVERCHAN_SENDKEY=<SERVERCHAN_TEST_SENDKEY> node skills/feishu-automation-reporter/scripts/push-gba-events-to-serverchan.mjs examples/gba-events-example.md
-```
+Server 酱消息不完整：Server 酱适合提醒和摘要，不适合完整替代 Obsidian 原文。建议在 Markdown 中保留来源路径或链接，通知里展示摘要和原始文件路径。
 
 ## 安全提醒
 
 - 不要提交 `.env.local`。
-- 不要把真实 webhook 或 SendKey 写进 README、示例、issue、截图或 prompt。
+- 不要把真实 webhook、SendKey 或签名密钥写进 README、示例、issue、截图或 prompt。
 - 如果密钥泄露，立即在对应平台重置。
-- worktree 或 CI 场景建议使用 `FEISHU_ENV_FILE=/absolute/path/to/.env.local` 或 `SERVERCHAN_ENV_FILE=/absolute/path/to/.env.local` 指定密钥文件路径。
+- 开源前运行 `docs/release-checklist.md` 里的扫描命令。

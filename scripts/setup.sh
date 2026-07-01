@@ -23,7 +23,7 @@ if [ -f ".env.local" ]; then
 else
   cp examples/.env.local.example .env.local
   echo "已从 examples/.env.local.example 创建 .env.local。"
-  echo "请把 .env.local 里的 FEISHU_WEBHOOK_URL 替换成真实飞书 webhook。"
+  echo "请把 .env.local 里的占位符替换成真实飞书 webhook 或 Server 酱 SendKey。"
 fi
 
 echo "==> 检查脚本语法"

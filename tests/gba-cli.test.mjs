@@ -40,6 +40,8 @@ test("menu returns after an action so the next number is handled by the CLI", as
 
   assert.equal(status, 0);
   assert.equal((stdout.match(/安装 \/ 更新活动助手/g) ?? []).length, 2);
+  assert.equal((stdout.match(/技术活动助手/g) ?? []).length, 1);
+  assert.equal(stdout.includes("继续选择下一步"), true);
   assert.equal(stderr, "");
 });
 
@@ -78,5 +80,7 @@ test("configuration can be skipped without breaking the menu loop", async () => 
   assert.equal(status, 0);
   assert.equal(stdout.includes("未保存，原配置保持不变"), true);
   assert.equal((stdout.match(/安装 \/ 更新活动助手/g) ?? []).length, 2);
+  assert.equal((stdout.match(/技术活动助手/g) ?? []).length, 1);
+  assert.equal(stdout.includes("继续选择下一步"), true);
   assert.equal(stderr, "");
 });

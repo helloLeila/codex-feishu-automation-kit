@@ -41,8 +41,9 @@ test("banner uses a generic assistant name and wraps every line", () => {
   assert.equal(new Set(widths).size, 1);
   assert.equal(titleOffset, taglineOffset);
   assert.equal(taglineOffset, helperOffset);
-  assert.equal(lines[2].includes("│ •ᴗ•│"), true);
-  assert.equal(lines[3].includes("╰────╯"), true);
+  assert.equal(lines[2].includes("│ •ᴗ• │"), true);
+  assert.equal(lines[3].includes("╰─────╯"), true);
+  assert.match(lines[2], /状态 {3}│$/);
   assert.match(lines[0], /^╭─+╮$/);
   assert.match(lines.at(-1), /^╰─+╯$/);
 });

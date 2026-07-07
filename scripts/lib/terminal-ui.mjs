@@ -73,15 +73,15 @@ export function renderBannerLines(options = {}) {
   const tagline = options.tagline ?? "找活动 · 配推送 · 查状态";
   const helper = options.helper ?? "npm run gba";
   const rows = [
-    { avatar: "╭─🤖─╮", text: title, textColor: "bold" },
-    { avatar: "│ •ᴗ•│", text: tagline, textColor: "yellow" },
-    { avatar: "╰────╯", text: helper, textColor: "gray" },
+    { avatar: "╭─🤖──╮", text: title, textColor: "bold" },
+    { avatar: "│ •ᴗ• │", text: tagline, textColor: "yellow" },
+    { avatar: "╰─────╯", text: helper, textColor: "gray" },
   ];
   const avatarWidth = Math.max(...rows.map((row) => terminalCellWidth(row.avatar)));
   const content = rows.map(
     (row) => `  ${padToCellWidth(row.avatar, avatarWidth)}  ${row.text}`,
   );
-  const innerWidth = Math.max(...content.map(terminalCellWidth)) + 2;
+  const innerWidth = Math.max(...content.map(terminalCellWidth)) + 4;
   const top = `╭${"─".repeat(innerWidth)}╮`;
   const bottom = `╰${"─".repeat(innerWidth)}╯`;
   const body = content.map((line) => `│ ${padToCellWidth(line, innerWidth - 2)} │`);

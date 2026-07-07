@@ -187,9 +187,13 @@ function guideRunOnce() {
   console.log("本工具负责把配置、推送测试和排查步骤收拢到一个入口。");
 }
 
-function printMenu() {
-  printBanner();
-  console.log("");
+function printMenu(options = {}) {
+  if (options.compact) {
+    console.log(color("── 继续选择下一步（0 退出）──", "gray"));
+  } else {
+    printBanner();
+    console.log("");
+  }
   console.log("1. 安装 / 更新活动助手");
   console.log("2. 配置推送和偏好");
   console.log("3. 预览 / 测试推送");
@@ -216,12 +220,16 @@ async function handleChoice(choice, rl) {
 async function menu() {
   const rl = createPromptSession();
   let keepGoing = true;
+  let compact = false;
   try {
     while (keepGoing) {
-      printMenu();
+      printMenu({ compact });
       const choice = await rl.question(color("\n选择一个数字：", "cyan"));
       keepGoing = await handleChoice(choice.trim(), rl);
-      if (keepGoing) console.log("");
+      if (keepGoing) {
+        compact = true;
+        console.log("");
+      }
     }
   } catch (error) {
     if (error.message !== "输入已结束") throw error;

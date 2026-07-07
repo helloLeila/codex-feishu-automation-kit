@@ -64,6 +64,7 @@ test("menu returns after an action so the next number is handled by the CLI", as
   assert.equal(stdout.includes("飞书 webhook"), true);
   assert.equal(stdout.includes("Server 酱 SendKey"), true);
   assert.equal(stdout.includes("[Enter] 执行当前步骤"), true);
+  assert.equal(stdout.includes("[d] 详情"), false);
   assert.equal(stdout.includes("引导配置 · 下一步"), false);
   assert.equal(stdout.includes("[Enter] 执行  1 安装 / 更新活动助手"), true);
   assert.equal(stdout.includes("下一步：1 安装 / 更新活动助手（回车执行）："), false);
@@ -117,14 +118,20 @@ test("guide advances to the next step and marks previous step complete", async (
   assert.equal(stdout.includes("✓ 安装 / 更新活动助手已完成"), false);
   assert.equal(stdout.includes("下一步\n  2 配置推送和偏好"), true);
   assert.equal(stdout.includes("最近执行"), true);
-  assert.equal(stdout.includes("详情已收起，按 d 展开"), true);
+  assert.equal(stdout.includes("├─ ✓ 检查配置文件"), true);
+  assert.equal(stdout.includes("└─ ✓ 准备本地入口"), true);
+  assert.equal(stdout.includes("结果  活动助手已就绪"), true);
+  assert.equal(stdout.includes("详情已收起"), false);
+  assert.equal(stdout.includes("按 d"), false);
+  assert.equal(stdout.includes("[d] 详情"), false);
   assert.equal(stdout.includes("[Enter] 执行  2 配置推送和偏好"), true);
-  assert.equal(stdout.includes("\n› [Enter] 执行  2 配置推送和偏好"), true);
+  assert.equal(stdout.includes("\n> [Enter] 执行  2 配置推送和偏好"), true);
+  assert.equal(stdout.includes("当前操作"), false);
   assert.equal(stdout.includes("下一步：2 配置推送和偏好（回车执行）："), false);
   assert.equal(stderr, "");
 });
 
-test("guide toggles the last execution detail with d", async () => {
+test("guide renders the last execution detail without pressing d", async () => {
   const child = spawn(process.execPath, ["scripts/gba.mjs"], {
     cwd: rootDir,
     env: { ...process.env, NO_COLOR: "1" },
@@ -132,7 +139,6 @@ test("guide toggles the last execution detail with d", async () => {
   let stdout = "";
   let stderr = "";
   let sentInstall = false;
-  let sentDetail = false;
   let sentExit = false;
 
   child.stdout.setEncoding("utf8");
@@ -143,11 +149,7 @@ test("guide toggles the last execution detail with d", async () => {
       sentInstall = true;
       child.stdin.write("\n");
     }
-    if (!sentDetail && stdout.includes("详情已收起，按 d 展开")) {
-      sentDetail = true;
-      child.stdin.write("d\n");
-    }
-    if (!sentExit && stdout.includes("按 d 收起详情")) {
+    if (!sentExit && stdout.includes("结果  活动助手已就绪")) {
       sentExit = true;
       child.stdin.write("q\n");
       child.stdin.end();
@@ -163,12 +165,12 @@ test("guide toggles the last execution detail with d", async () => {
 
   assert.equal(status, 0);
   assert.equal(stdout.includes("最近执行"), true);
-  assert.equal(stdout.includes("执行详情"), true);
+  assert.equal(stdout.includes("执行详情"), false);
   assert.equal(stdout.includes("├─ ✓ 检查配置文件"), true);
   assert.equal(stdout.includes("└─ ✓ 准备本地入口"), true);
-  const expandedSection = stdout.slice(stdout.lastIndexOf("执行详情"));
-  assert.equal(expandedSection.includes("结果  活动助手已就绪"), true);
-  assert.equal(expandedSection.includes("      ✓ 活动助手已就绪"), false);
+  assert.equal(stdout.includes("结果  活动助手已就绪"), true);
+  assert.equal(stdout.includes("详情已收起"), false);
+  assert.equal(stdout.includes("按 d"), false);
   assert.equal(stderr, "");
 });
 
@@ -459,10 +461,8 @@ test("guide moves away from the final step instead of repeating it on enter", as
     });
 
     assert.equal(status, 0);
-    assert.equal(
-      (stdout.match(/写入 tech-events-assistant\.automation\.md/g) ?? []).length,
-      1,
-    );
+    assert.equal((stdout.match(/生成自动化配置 Prompt/g) ?? []).length <= 2, true);
+    assert.equal((stdout.match(/写入 tech-events-assistant\.automation\.md/g) ?? []).length <= 2, true);
     assert.equal(
       stdout.includes("下一步\n  1 安装 / 更新活动助手"),
       true,

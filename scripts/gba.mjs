@@ -182,7 +182,7 @@ async function guideStatusItems() {
   ];
 }
 
-async function printGuide(completedSteps, currentStep, lastRun, detailsExpanded) {
+async function printGuide(completedSteps, currentStep, lastRun) {
   const lines = renderGuideDashboardLines({
     steps: GUIDE_STEPS,
     shortLabels: GUIDE_STEP_SHORT_LABELS,
@@ -190,7 +190,7 @@ async function printGuide(completedSteps, currentStep, lastRun, detailsExpanded)
     currentStep,
     statusItems: await guideStatusItems(),
   });
-  lines.push(...renderLastRunLines(lastRun, { expanded: detailsExpanded }));
+  lines.push(...renderLastRunLines(lastRun));
   console.log(lines.join("\n"));
 }
 
@@ -791,31 +791,25 @@ async function guideMenu() {
   const completedSteps = new Set();
   let currentStep = 0;
   let lastRun = null;
-  let detailsExpanded = false;
 
   try {
     while (true) {
-      await printGuide(completedSteps, currentStep, lastRun, detailsExpanded);
+      await printGuide(completedSteps, currentStep, lastRun);
       const answer = (await rl.question(guidePrompt(currentStep))).trim().toLowerCase();
       if (currentStep === null && answer === "") break;
       if (answer === "q" || answer === "0") break;
-      if (answer === "d") {
-        if (lastRun) {
-          detailsExpanded = !detailsExpanded;
-        } else {
-          console.log("");
-          await printStatus();
-          console.log("");
-        }
-        continue;
-      }
       if (answer === "b") {
         const returnToGuide = await manualMenu(rl);
         if (!returnToGuide) break;
         continue;
       }
 
-      const selectedStep = /^[1-5]$/.test(answer) ? Number(answer) - 1 : currentStep;
+      if (answer !== "" && !/^[1-5]$/.test(answer)) {
+        console.log(statusLine("没识别这个命令；回车执行当前步骤，输入 1-5 跳转", "warn"));
+        continue;
+      }
+
+      const selectedStep = answer === "" ? currentStep : Number(answer) - 1;
       if (selectedStep === null) {
         console.log(statusLine("全部步骤已完成，输入 1-5 可重新执行，或回车退出", "info"));
         continue;
@@ -823,7 +817,6 @@ async function guideMenu() {
       currentStep = selectedStep;
       console.log("");
       lastRun = await runStepByIndex(selectedStep, rl);
-      detailsExpanded = false;
       completedSteps.add(selectedStep);
       const nextStepIndex = nextIncompleteStepIndex(completedSteps, selectedStep);
       currentStep = nextStepIndex;

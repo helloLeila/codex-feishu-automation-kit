@@ -131,24 +131,34 @@ test("step transition separates completed output from the next guide", () => {
   assert.equal(colored.includes("\x1b[36m下一步"), true);
 });
 
-test("guide action prompt uses keyboard-first CTA without a trailing colon", () => {
+test("guide action prompt renders a single gray command row", () => {
   const plain = stripAnsi(renderGuideActionPrompt(4, "状态检查", { color: false }));
   const colored = renderGuideActionPrompt(4, "状态检查", { color: true });
 
-  assert.equal(plain, "\n› [Enter] 执行  4 状态检查 ");
+  assert.equal(plain, "\n> [Enter] 执行  4 状态检查 ");
   assert.equal(plain.includes("："), false);
-  assert.equal(colored.includes("\x1b[36m› "), true);
-  assert.equal(colored.includes("\x1b[36m[Enter]"), true);
-  assert.equal(stripAnsi(colored).includes("› [Enter] 执行  4 状态检查"), true);
+  assert.equal(plain.includes("›"), false);
+  assert.equal(plain.includes("当前操作"), false);
+  assert.equal(plain.includes("╭"), false);
+  assert.equal(plain.includes("│"), false);
+  assert.equal(plain.includes("╰"), false);
+  assert.equal(colored.includes("\x1b[100m"), true);
+  assert.equal(colored.includes("\x1b[36m\x1b[100m[Enter]"), true);
+  assert.equal(stripAnsi(colored), plain);
 });
 
-test("guide complete prompt uses a completion CTA", () => {
+test("guide complete prompt renders a single gray command row", () => {
   const plain = stripAnsi(renderGuideCompletePrompt({ color: false }));
   const colored = renderGuideCompletePrompt({ color: true });
 
-  assert.equal(plain, "\n› [Enter] 退出  [1-5] 重跑步骤 ");
-  assert.equal(colored.includes("\x1b[36m[Enter]"), true);
-  assert.equal(stripAnsi(colored).includes("› [Enter] 退出"), true);
+  assert.equal(plain, "\n> [Enter] 退出  [1-5] 重跑步骤 ");
+  assert.equal(plain.includes("当前操作"), false);
+  assert.equal(plain.includes("╭"), false);
+  assert.equal(plain.includes("│"), false);
+  assert.equal(plain.includes("╰"), false);
+  assert.equal(colored.includes("\x1b[100m"), true);
+  assert.equal(colored.includes("\x1b[36m\x1b[100m[Enter]"), true);
+  assert.equal(stripAnsi(colored), plain);
 });
 
 test("action panel emphasizes title and key values", () => {
@@ -207,7 +217,7 @@ test("guide dashboard renders a compact execution console overview", () => {
     "  ! 飞书 webhook 未配置",
     "  ✓ Server 酱 SendKey 已配置",
     "",
-    "[Enter] 执行当前步骤   [1-5] 跳转   [d] 详情   [b] 菜单   [q] 退出",
+    "[Enter] 执行当前步骤   [1-5] 跳转   [b] 菜单   [q] 退出",
   ]);
 
   const colored = renderGuideDashboardLines({
@@ -227,31 +237,27 @@ test("guide dashboard renders a compact execution console overview", () => {
   assert.equal(colored.includes("↑ 当前步骤"), false);
 });
 
-test("last run details collapse by default and expand on demand", () => {
+test("last run renders full execution details by default", () => {
   const run = {
     title: "1 安装 / 更新活动助手",
     steps: ["检查配置文件", "准备本地入口"],
     result: "活动助手已就绪",
   };
-  const collapsed = renderLastRunLines(run, { color: false }).map(stripAnsi);
-  const expanded = renderLastRunLines(run, {
-    color: false,
-    expanded: true,
-  }).map(stripAnsi);
+  const lines = renderLastRunLines(run, { color: false }).map(stripAnsi);
 
-  assert.deepEqual(collapsed, [
+  assert.deepEqual(lines, [
     "",
     "最近执行",
-    "  ✓ 1 安装 / 更新活动助手 · 活动助手已就绪",
-    "  详情已收起，按 d 展开",
+    `${"━".repeat(11)} 🤖 1 安装 / 更新活动助手 ${"━".repeat(11)}`,
+    "│",
+    "├─ ✓ 检查配置文件",
+    "└─ ✓ 准备本地入口",
+    "",
+    "结果  活动助手已就绪",
   ]);
-  assert.equal(expanded[1], "执行详情");
-  assert.equal(expanded.includes("├─ ✓ 检查配置文件"), true);
-  assert.equal(expanded.includes("└─ ✓ 准备本地入口"), true);
-  assert.equal(expanded.includes("结果  活动助手已就绪"), true);
-  assert.equal(expanded.some((line) => line.startsWith("完成  ")), false);
-  assert.equal(expanded.includes("      ✓ 活动助手已就绪"), false);
-  assert.equal(expanded.includes("  按 d 收起详情"), true);
+  assert.equal(lines.includes("执行详情"), false);
+  assert.equal(lines.some((line) => line.includes("按 d")), false);
+  assert.equal(lines.some((line) => line.startsWith("完成  ")), false);
 });
 
 test("banner uses a generic assistant name and wraps every line", () => {

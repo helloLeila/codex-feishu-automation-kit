@@ -9,9 +9,11 @@ const codes = {
   yellow: "\x1b[33m",
   red: "\x1b[31m",
   black: "\x1b[30m",
+  white: "\x1b[97m",
   gray: "\x1b[90m",
   magenta: "\x1b[35m",
   pink: "\x1b[95m",
+  bgGray: "\x1b[100m",
   bgCyan: "\x1b[46m",
   bgGreen: "\x1b[42m",
 };
@@ -29,6 +31,11 @@ function emphasize(text, colorName, enabled = !process.env.NO_COLOR) {
 function callout(text, backgroundName, enabled = !process.env.NO_COLOR) {
   if (!enabled) return text;
   return `${codes.bold}${codes.black}${codes[backgroundName]} ${text} ${codes.reset}`;
+}
+
+function paintOn(text, colorName, backgroundName, enabled = !process.env.NO_COLOR) {
+  if (!enabled) return text;
+  return `${codes[colorName]}${codes[backgroundName]}${text}${codes.reset}`;
 }
 
 export function stripAnsi(text) {
@@ -261,15 +268,37 @@ export function renderStepTransitionLines(_completedStep, nextStep, options = {}
   return lines;
 }
 
+function renderCommandPrompt(commandParts, options = {}) {
+  const useColor = options.color ?? !process.env.NO_COLOR;
+  const plainCommand = commandParts.map((part) => part.text).join("");
+
+  if (!useColor) return `\n${plainCommand} `;
+
+  const command = commandParts.map((part) => (
+    paintOn(part.text, part.color ?? "white", "bgGray", true)
+  )).join("");
+  return `\n${command}${paintOn(" ", "white", "bgGray", true)}`;
+}
+
 export function renderGuideActionPrompt(stepNumber, stepTitle, options = {}) {
   const useColor = options.color ?? !process.env.NO_COLOR;
-  const action = `${paint("[Enter]", "cyan", useColor)} ${paint("执行", "gray", useColor)}  ${paint(`${stepNumber} ${stepTitle}`, "cyan", useColor)}`;
-  return `\n${paint("› ", "cyan", useColor)}${action} `;
+  return renderCommandPrompt([
+    { text: "> ", color: "white" },
+    { text: "[Enter]", color: "cyan" },
+    { text: " 执行  ", color: "white" },
+    { text: `${stepNumber} ${stepTitle}`, color: "cyan" },
+  ], { color: useColor });
 }
 
 export function renderGuideCompletePrompt(options = {}) {
   const useColor = options.color ?? !process.env.NO_COLOR;
-  return `\n${paint("› ", "cyan", useColor)}${paint("[Enter]", "cyan", useColor)} ${paint("退出", "gray", useColor)}  ${paint("[1-5]", "cyan", useColor)} ${paint("重跑步骤", "gray", useColor)} `;
+  return renderCommandPrompt([
+    { text: "> ", color: "white" },
+    { text: "[Enter]", color: "cyan" },
+    { text: " 退出  ", color: "white" },
+    { text: "[1-5]", color: "cyan" },
+    { text: " 重跑步骤", color: "white" },
+  ], { color: useColor });
 }
 
 export function renderActionPanelLines(title, items, options = {}) {
@@ -370,7 +399,7 @@ export function renderGuideDashboardLines(options = {}) {
 
   lines.push(
     "",
-    `${paint("[Enter]", "cyan", useColor)} 执行当前步骤   ${paint("[1-5]", "cyan", useColor)} 跳转   ${paint("[d]", "cyan", useColor)} 详情   ${paint("[b]", "cyan", useColor)} 菜单   ${paint("[q]", "cyan", useColor)} 退出`,
+    `${paint("[Enter]", "cyan", useColor)} 执行当前步骤   ${paint("[1-5]", "cyan", useColor)} 跳转   ${paint("[b]", "cyan", useColor)} 菜单   ${paint("[q]", "cyan", useColor)} 退出`,
   );
 
   return lines;
@@ -379,27 +408,16 @@ export function renderGuideDashboardLines(options = {}) {
 export function renderLastRunLines(run, options = {}) {
   if (!run) return [];
   const useColor = options.color ?? !process.env.NO_COLOR;
-  const expanded = Boolean(options.expanded);
-
-  if (!expanded) {
-    return [
-      "",
-      emphasize("最近执行", "cyan", useColor),
-      `  ${paint("✓", "green", useColor)} ${bold(run.title, useColor)} ${paint("·", "gray", useColor)} ${paint(run.result, "green", useColor)}`,
-      `  ${paint("详情已收起，按 d 展开", "gray", useColor)}`,
-    ];
-  }
 
   return [
     "",
-    emphasize("执行详情", "cyan", useColor),
+    emphasize("最近执行", "cyan", useColor),
     ...renderStepFlowLines(run.title, run.steps, {
       complete: true,
       color: useColor,
     }),
     "",
     `${emphasize("结果", "green", useColor)}  ${paint(run.result, "green", useColor)}`,
-    `  ${paint("按 d 收起详情", "gray", useColor)}`,
   ];
 }
 

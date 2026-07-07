@@ -9,9 +9,8 @@ import { fileURLToPath } from "node:url";
 import {
   cartoonProgressLine,
   color,
-  completionLine,
-  digitalProgressLine,
   renderBannerLines,
+  renderStepFlowLines,
   spinnerFrame,
   statusLine,
 } from "./lib/terminal-ui.mjs";
@@ -80,6 +79,13 @@ function printBanner() {
   console.log(renderBannerLines().join("\n"));
 }
 
+function printCompletedSteps(title, steps, result) {
+  console.log(renderStepFlowLines(title, steps, {
+    complete: true,
+    result,
+  }).join("\n"));
+}
+
 async function installOrUpdate() {
   const configPath = path.join(rootDir, CONFIG_FILE);
   const examplePath = path.join(rootDir, EXAMPLE_CONFIG_FILE);
@@ -92,31 +98,44 @@ async function installOrUpdate() {
     console.log(statusLine(`${CONFIG_FILE} 已存在，保留当前配置`, "ok"));
   }
 
-  console.log(completionLine());
+  printCompletedSteps("安装 / 更新活动助手", ["检查配置文件", "准备本地入口"], "活动助手已就绪");
 }
 
-async function runSaveProgress() {
-  const frames = [
-    { spinner: "⠋", percent: 20 },
-    { spinner: "⠙", percent: 40 },
-    { spinner: "⠹", percent: 60 },
-    { spinner: "⠸", percent: 80 },
-  ];
+async function runSaveSteps(resultLabel) {
+  const steps = ["读取现有配置", "合并本次输入", "写入本地配置", "准备推送脚本"];
+  const frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧"];
+  const finalLines = renderStepFlowLines("配置推送", steps, {
+    complete: true,
+    result: resultLabel,
+  });
 
   if (!output.isTTY) {
-    console.log(completionLine());
+    console.log(finalLines.join("\n"));
     return;
   }
 
-  for (const frame of frames) {
+  let previousLineCount = 0;
+  for (let index = 0; index < steps.length; index += 1) {
+    const lines = renderStepFlowLines("配置推送", steps, {
+      activeIndex: index,
+      spinner: frames[index % frames.length],
+    });
+    if (previousLineCount > 0) output.moveCursor(0, -previousLineCount);
+    for (const line of lines) {
+      output.cursorTo(0);
+      output.clearLine(0);
+      output.write(`${line}\n`);
+    }
+    previousLineCount = lines.length;
+    await new Promise((resolve) => setTimeout(resolve, 90));
+  }
+
+  output.moveCursor(0, -previousLineCount);
+  for (const line of finalLines) {
     output.cursorTo(0);
     output.clearLine(0);
-    output.write(digitalProgressLine(frame.percent, { label: "保存中", prefix: frame.spinner }));
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    output.write(`${line}\n`);
   }
-  output.cursorTo(0);
-  output.clearLine(0);
-  output.write(`${completionLine()}\n`);
 }
 
 async function printStatus() {
@@ -158,8 +177,7 @@ async function configurePush(rl) {
   }
 
   const writeResult = await writeLocalConfig(rootDir, result.config);
-  await runSaveProgress();
-  console.log(statusLine(`已保存：${path.basename(writeResult.filePath)}`, "ok"));
+  await runSaveSteps(`${path.basename(writeResult.filePath)} 已保存`);
   if (writeResult.backupCreated) {
     console.log(statusLine(`已备份旧配置：${path.basename(writeResult.backupPath)}`, "info"));
   }
@@ -196,8 +214,7 @@ function runDryRun() {
     }
   }
 
-  console.log(completionLine());
-  console.log(statusLine("飞书和 Server 酱 dry-run 已通过，未真实发送", "ok"));
+  printCompletedSteps("预览 / 测试推送", ["生成飞书 dry-run", "生成 Server 酱 dry-run"], "dry-run 已通过，未真实发送");
 }
 
 function guideRunOnce() {

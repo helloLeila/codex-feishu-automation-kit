@@ -5,6 +5,7 @@ import {
   cartoonProgressLine,
   completionLine,
   renderBannerLines,
+  renderStepFlowLines,
   stripAnsi,
   terminalCellWidth,
 } from "../scripts/lib/terminal-ui.mjs";
@@ -35,6 +36,33 @@ test("completionLine mirrors final progress state", () => {
     stripAnsi(completionLine({ color: false })),
     DIGITAL_COMPLETION,
   );
+});
+
+test("step flow renders an active step and final completed state", () => {
+  const activeLines = renderStepFlowLines("配置推送", ["读取现有配置", "写入本地配置"], {
+    activeIndex: 1,
+    color: false,
+  }).map(stripAnsi);
+  const doneLines = renderStepFlowLines("配置推送", ["读取现有配置", "写入本地配置"], {
+    complete: true,
+    result: "tech-events-assistant.local.json 已保存",
+    color: false,
+  }).map(stripAnsi);
+
+  assert.deepEqual(activeLines, [
+    "配置推送",
+    "│",
+    "├─ ✓ 读取现有配置",
+    "└─ ⠙ 写入本地配置",
+  ]);
+  assert.deepEqual(doneLines, [
+    "配置推送",
+    "│",
+    "├─ ✓ 读取现有配置",
+    "└─ ✓ 写入本地配置",
+    "",
+    "完成：tech-events-assistant.local.json 已保存",
+  ]);
 });
 
 test("banner uses a generic assistant name and wraps every line", () => {

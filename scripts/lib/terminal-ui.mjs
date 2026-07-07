@@ -175,6 +175,37 @@ export function classicProgressLine(percent, options = {}) {
   ].join("");
 }
 
+export function renderStepFlowLines(title, steps, options = {}) {
+  const useColor = options.color ?? !process.env.NO_COLOR;
+  const activeIndex = Number.isInteger(options.activeIndex) ? options.activeIndex : -1;
+  const complete = Boolean(options.complete);
+  const spinner = options.spinner ?? "⠙";
+  const safeSteps = Array.isArray(steps) ? steps : [];
+  const lines = [bold(title, useColor), paint("│", "gray", useColor)];
+
+  safeSteps.forEach((step, index) => {
+    const connector = index === safeSteps.length - 1 ? "└─" : "├─";
+    const marker = complete || index < activeIndex
+      ? paint("✓", "green", useColor)
+      : index === activeIndex
+        ? paint(spinner, "cyan", useColor)
+        : paint("·", "gray", useColor);
+    const textColor = complete || index < activeIndex
+      ? "green"
+      : index === activeIndex
+        ? "cyan"
+        : "gray";
+    lines.push(`${paint(connector, "gray", useColor)} ${marker} ${paint(step, textColor, useColor)}`);
+  });
+
+  if (complete && options.result) {
+    lines.push("");
+    lines.push(`${paint("完成：", "green", useColor)}${paint(options.result, "green", useColor)}`);
+  }
+
+  return lines;
+}
+
 export function spinnerFrame(index, options = {}) {
   const useColor = options.color ?? !process.env.NO_COLOR;
   const frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];

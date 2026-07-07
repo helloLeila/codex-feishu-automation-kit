@@ -8,8 +8,11 @@ const codes = {
   cyan: "\x1b[36m",
   yellow: "\x1b[33m",
   red: "\x1b[31m",
+  black: "\x1b[30m",
   gray: "\x1b[90m",
   magenta: "\x1b[35m",
+  bgCyan: "\x1b[46m",
+  bgGreen: "\x1b[42m",
 };
 
 function paint(text, colorName, enabled = !process.env.NO_COLOR) {
@@ -20,6 +23,11 @@ function paint(text, colorName, enabled = !process.env.NO_COLOR) {
 function emphasize(text, colorName, enabled = !process.env.NO_COLOR) {
   if (!enabled) return text;
   return `${codes.bold}${codes[colorName]}${text}${codes.reset}`;
+}
+
+function callout(text, backgroundName, enabled = !process.env.NO_COLOR) {
+  if (!enabled) return text;
+  return `${codes.bold}${codes.black}${codes[backgroundName]} ${text} ${codes.reset}`;
 }
 
 export function stripAnsi(text) {
@@ -109,15 +117,13 @@ export function renderBannerLines(options = {}) {
 
 export function completionLine(options = {}) {
   const useColor = options.color ?? !process.env.NO_COLOR;
-  const width = options.width ?? 30;
+  const width = options.width ?? 22;
   return [
     bold(paint("完成", "green", useColor), useColor),
     "  ",
     paint("█".repeat(width), "green", useColor),
     " ",
-    paint("100%", "yellow", useColor),
-    "  ",
-    paint("已完成", "green", useColor),
+    paint("100%", "green", useColor),
   ].join("");
 }
 
@@ -181,14 +187,14 @@ export function classicProgressLine(percent, options = {}) {
 }
 
 export function renderNeonProgressLine(percent, options = {}) {
-  const width = options.width ?? 56;
+  const width = options.width ?? 22;
   const label = options.label ?? "保存中";
   const useColor = options.color ?? !process.env.NO_COLOR;
   const safePercent = Math.max(0, Math.min(100, Number(percent) || 0));
   const filled = Math.floor((safePercent / 100) * width);
   const empty = width - filled;
   const isComplete = safePercent >= 100;
-  const labelGap = label === "完成" ? "    " : "  ";
+  const labelGap = "  ";
 
   if (isComplete) {
     return [
@@ -216,10 +222,10 @@ export function renderNeonProgressLine(percent, options = {}) {
 
 export function renderNeonCompletionLines(result, options = {}) {
   const useColor = options.color ?? !process.env.NO_COLOR;
-  const width = options.width ?? 56;
+  const width = options.width ?? 22;
   return [
     renderNeonProgressLine(100, { label: "完成", width, color: useColor }),
-    `        ${paint("✓", "green", useColor)} ${paint(result, "green", useColor)}`,
+    `      ${paint("✓", "green", useColor)} ${paint(result, "green", useColor)}`,
   ];
 }
 
@@ -235,20 +241,42 @@ export function renderStepTransitionLines(completedStep, nextStep, options = {})
   const useColor = options.color ?? !process.env.NO_COLOR;
   const lines = [
     "",
-    `${paint("✓", "green", useColor)} ${paint(`已完成：${completedStep}`, "green", useColor)}`,
+    `${paint("✓", "green", useColor)} ${paint(`${completedStep}已完成`, "green", useColor)}`,
   ];
 
   if (nextStep) {
     const prefix = Number.isInteger(options.nextStepNumber)
-      ? `下一步：${options.nextStepNumber} `
-      : "下一步：";
+      ? `${options.nextStepNumber} `
+      : "";
+    lines.push("");
+    lines.push(bold(paint("下一步", "cyan", useColor), useColor));
     lines.push(`  ${paint(`${prefix}${nextStep}`, "gray", useColor)}`);
   } else if (options.completeMessage) {
+    lines.push("");
     lines.push(`  ${paint(options.completeMessage, "gray", useColor)}`);
   }
 
   lines.push("");
   return lines;
+}
+
+export function renderGuideActionPrompt(stepNumber, stepTitle, options = {}) {
+  const useColor = options.color ?? !process.env.NO_COLOR;
+  const action = `${paint("[Enter]", "cyan", useColor)} ${paint("执行", "gray", useColor)}  ${paint(`${stepNumber} ${stepTitle}`, "cyan", useColor)}`;
+  return [
+    "",
+    action,
+    paint("› ", "cyan", useColor),
+  ].join("\n");
+}
+
+export function renderGuideCompletePrompt(options = {}) {
+  const useColor = options.color ?? !process.env.NO_COLOR;
+  return [
+    "",
+    `${paint("[Enter]", "cyan", useColor)} ${paint("退出", "gray", useColor)}  ${paint("[1-5]", "cyan", useColor)} ${paint("重跑步骤", "gray", useColor)}`,
+    paint("› ", "cyan", useColor),
+  ].join("\n");
 }
 
 export function renderActionPanelLines(title, items, options = {}) {
@@ -260,17 +288,87 @@ export function renderActionPanelLines(title, items, options = {}) {
   );
   const labelColumnWidth = labelWidth + 4;
   const lines = [
-    `${paint("▶", "cyan", useColor)} ${emphasize(title, "cyan", useColor)}`,
+    emphasize(title, "cyan", useColor),
     "",
   ];
 
   safeItems.forEach((item, index) => {
     const [label, value] = Array.isArray(item) ? item : [String(item), ""];
     const number = emphasize(`${index + 1}.`, "cyan", useColor);
-    const labelText = emphasize(padToCellWidth(label, labelColumnWidth), "cyan", useColor);
-    const valueText = emphasize(value, index >= safeItems.length - 2 ? "yellow" : "cyan", useColor);
+    const labelText = paint(padToCellWidth(label, labelColumnWidth), value ? "gray" : "cyan", useColor);
+    const valueTone = /名称|时间|运行/.test(label)
+      ? "yellow"
+      : /剪贴板/.test(label) && /已/.test(value)
+        ? "green"
+        : "cyan";
+    const valueText = value
+      ? emphasize(value, valueTone, useColor)
+      : "";
     lines.push(`  ${number} ${labelText}${valueText}`);
   });
+
+  return lines;
+}
+
+export function renderGuideDashboardLines(options = {}) {
+  const useColor = options.color ?? !process.env.NO_COLOR;
+  const steps = options.steps ?? [];
+  const shortLabels = options.shortLabels ?? steps;
+  const currentStep = Number.isInteger(options.currentStep) ? options.currentStep : null;
+  const completedSteps = options.completedSteps instanceof Set
+    ? options.completedSteps
+    : new Set(options.completedSteps ?? []);
+  const activeCount = currentStep === null ? steps.length : currentStep + 1;
+  const title = options.title ?? "技术活动助手";
+  const mode = options.mode ?? "配置引导";
+
+  const railItems = shortLabels.map((label, index) => {
+    if (completedSteps.has(index)) return `${paint("●", "green", useColor)} ${paint(label, "gray", useColor)}`;
+    if (index === currentStep) return `${emphasize("◉", "magenta", useColor)} ${emphasize(label, "magenta", useColor)}`;
+    return `${paint("○", "gray", useColor)} ${paint(label, "gray", useColor)}`;
+  });
+  const plainRailItems = shortLabels.map((label, index) => {
+    if (completedSteps.has(index)) return `● ${label}`;
+    if (index === currentStep) return `◉ ${label}`;
+    return `○ ${label}`;
+  });
+  const lines = [
+    `${emphasize(title, "cyan", useColor)} ${paint(`· ${mode}`, "gray", useColor)} ${emphasize(`${activeCount}/${steps.length}`, currentStep === null ? "green" : "magenta", useColor)}`,
+    "",
+    railItems.join("   "),
+  ];
+
+  if (currentStep !== null) {
+    const preceding = plainRailItems.slice(0, currentStep).join("   ");
+    const offset = terminalCellWidth(preceding) + (currentStep > 0 ? 4 : 1);
+    lines.push(`${" ".repeat(offset)}${paint("↑ 当前步骤", "magenta", useColor)}`);
+  } else {
+    lines.push(paint("全部步骤已完成", "green", useColor));
+  }
+
+  const currentTitle = currentStep === null ? "全部步骤已完成" : steps[currentStep];
+  lines.push(
+    "",
+    emphasize("当前任务", "cyan", useColor),
+    `  ${bold(currentTitle, useColor)}`,
+    "",
+    emphasize("已检测", "cyan", useColor),
+  );
+
+  steps.forEach((step, index) => {
+    if (completedSteps.has(index)) {
+      lines.push(`  ${paint("✓", "green", useColor)} ${step}`);
+    } else if (index === currentStep) {
+      lines.push(`  ${emphasize("◉", "magenta", useColor)} ${emphasize(step, "magenta", useColor)}`);
+    } else {
+      lines.push(`  ${paint("·", "gray", useColor)} ${paint(step, "gray", useColor)}`);
+    }
+  });
+
+  lines.push(
+    "",
+    `${paint("[Enter]", "cyan", useColor)} 执行当前步骤   ${paint("[1-5]", "cyan", useColor)} 跳转   ${paint("[d]", "cyan", useColor)} 详情   ${paint("[b]", "cyan", useColor)} 菜单   ${paint("[q]", "cyan", useColor)} 退出`,
+  );
 
   return lines;
 }
@@ -291,14 +389,14 @@ export function renderStepFlowLines(title, steps, options = {}) {
     const marker = complete || index < activeIndex
       ? paint("✓", "green", useColor)
       : index === activeIndex
-        ? paint(spinner, "cyan", useColor)
+        ? paint(spinner, "magenta", useColor)
         : paint("·", "gray", useColor);
-    const textColor = complete || index < activeIndex
-      ? "green"
-      : index === activeIndex
-        ? "cyan"
-        : "gray";
-    lines.push(`${paint(connector, "gray", useColor)} ${marker} ${paint(step, textColor, useColor)}`);
+    const stepText = index === activeIndex && !complete
+      ? emphasize(step, "magenta", useColor)
+      : complete || index < activeIndex
+        ? step
+        : paint(step, "gray", useColor);
+    lines.push(`${paint(connector, "gray", useColor)} ${marker} ${stepText}`);
   });
 
   if (complete && options.result) {
@@ -315,7 +413,7 @@ export function renderStepFlowLines(title, steps, options = {}) {
 export function spinnerFrame(index, options = {}) {
   const useColor = options.color ?? !process.env.NO_COLOR;
   const frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
-  return paint(frames[index % frames.length], "cyan", useColor);
+  return paint(frames[index % frames.length], "magenta", useColor);
 }
 
 export function statusLine(label, state, options = {}) {

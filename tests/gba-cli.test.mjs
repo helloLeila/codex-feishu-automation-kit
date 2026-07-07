@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 const rootDir = path.resolve(fileURLToPath(new URL("..", import.meta.url)));
 const localConfigPath = path.join(rootDir, "tech-events-assistant.local.json");
 const automationPromptPath = path.join(rootDir, "tech-events-assistant.automation.md");
-const neonBar = "█".repeat(56);
+const neonBar = "█".repeat(22);
 
 async function readOptionalFile(filePath) {
   try {
@@ -38,11 +38,11 @@ test("menu returns after an action so the next number is handled by the CLI", as
   child.stderr.setEncoding("utf8");
   child.stdout.on("data", (chunk) => {
     stdout += chunk;
-    if (!sentInstall && (stdout.match(/^1\. 安装 \/ 更新活动助手/gm) ?? []).length === 1) {
+    if (!sentInstall && stdout.includes("[Enter] 执行  1 安装 / 更新活动助手")) {
       sentInstall = true;
       child.stdin.write("1\n");
     }
-    if (!sentExit && (stdout.match(/^1\. 安装 \/ 更新活动助手/gm) ?? []).length === 2) {
+    if (!sentExit && stdout.includes("技术活动助手 · 配置引导 2/5")) {
       sentExit = true;
       child.stdin.write("0\n");
       child.stdin.end();
@@ -57,11 +57,13 @@ test("menu returns after an action so the next number is handled by the CLI", as
   });
 
   assert.equal(status, 0);
-  assert.equal((stdout.match(/^1\. 安装 \/ 更新活动助手/gm) ?? []).length, 2);
+  assert.equal((stdout.match(/技术活动助手 · 配置引导/g) ?? []).length, 2);
   assert.equal((stdout.match(/技术活动助手/g) ?? []).length, 2);
-  assert.equal(stdout.includes("直接回车执行高亮步骤"), true);
-  assert.equal(stdout.includes("引导配置 · 下一步 1/5"), true);
-  assert.equal(stdout.includes("下一步：1 安装 / 更新活动助手（回车执行）："), true);
+  assert.equal(stdout.includes("技术活动助手 · 配置引导 1/5"), true);
+  assert.equal(stdout.includes("[Enter] 执行当前步骤"), true);
+  assert.equal(stdout.includes("引导配置 · 下一步"), false);
+  assert.equal(stdout.includes("[Enter] 执行  1 安装 / 更新活动助手"), true);
+  assert.equal(stdout.includes("下一步：1 安装 / 更新活动助手（回车执行）："), false);
   assert.equal(stdout.includes("进度条演示"), false);
   assert.equal(stderr, "");
 });
@@ -80,11 +82,11 @@ test("guide advances to the next step and marks previous step complete", async (
   child.stderr.setEncoding("utf8");
   child.stdout.on("data", (chunk) => {
     stdout += chunk;
-    if (!sentInstall && stdout.includes("下一步：1 安装 / 更新活动助手（回车执行）：")) {
+    if (!sentInstall && stdout.includes("[Enter] 执行  1 安装 / 更新活动助手")) {
       sentInstall = true;
       child.stdin.write("\n");
     }
-    if (!sentExit && stdout.includes("1. 安装 / 更新活动助手  ✓ 已完成")) {
+    if (!sentExit && stdout.includes("技术活动助手 · 配置引导 2/5")) {
       sentExit = true;
       child.stdin.write("q\n");
       child.stdin.end();
@@ -99,14 +101,16 @@ test("guide advances to the next step and marks previous step complete", async (
   });
 
   assert.equal(status, 0);
-  assert.equal(stdout.includes("引导配置"), true);
-  assert.equal(stdout.includes("引导配置 · 下一步 2/5"), true);
-  assert.equal(stdout.includes("1. 安装 / 更新活动助手  ✓ 已完成"), true);
-  assert.equal(stdout.includes("2. 配置推送和偏好  ▶ 当前"), true);
+  assert.equal(stdout.includes("配置引导"), true);
+  assert.equal(stdout.includes("技术活动助手 · 配置引导 2/5"), true);
+  assert.equal(stdout.includes("● 安装   ◉ 配置"), true);
+  assert.equal(stdout.includes("  ✓ 安装 / 更新活动助手"), true);
+  assert.equal(stdout.includes("  ◉ 配置推送和偏好"), true);
   assert.equal(stdout.includes("━━ 1 安装 / 更新活动助手"), true);
-  assert.equal(stdout.includes("✓ 已完成：安装 / 更新活动助手"), true);
-  assert.equal(stdout.includes("下一步：2 配置推送和偏好"), true);
-  assert.equal(stdout.includes("下一步：2 配置推送和偏好（回车执行）："), true);
+  assert.equal(stdout.includes("✓ 安装 / 更新活动助手已完成"), true);
+  assert.equal(stdout.includes("下一步\n  2 配置推送和偏好"), true);
+  assert.equal(stdout.includes("[Enter] 执行  2 配置推送和偏好"), true);
+  assert.equal(stdout.includes("下一步：2 配置推送和偏好（回车执行）："), false);
   assert.equal(stderr, "");
 });
 
@@ -124,7 +128,7 @@ test("guide can return to the manual menu", async () => {
   child.stderr.setEncoding("utf8");
   child.stdout.on("data", (chunk) => {
     stdout += chunk;
-    if (!sentBack && stdout.includes("直接回车执行高亮步骤")) {
+    if (!sentBack && stdout.includes("[Enter] 执行当前步骤")) {
       sentBack = true;
       child.stdin.write("b\n");
     }
@@ -162,7 +166,7 @@ test("configuration can be skipped without breaking the menu loop", async () => 
   child.stderr.setEncoding("utf8");
   child.stdout.on("data", (chunk) => {
     stdout += chunk;
-    if (!sentConfig && (stdout.match(/^1\. 安装 \/ 更新活动助手/gm) ?? []).length === 1) {
+    if (!sentConfig && stdout.includes("[Enter] 执行  1 安装 / 更新活动助手")) {
       sentConfig = true;
       child.stdin.write("2\nn\n\n\n\nn\n");
     }
@@ -182,9 +186,9 @@ test("configuration can be skipped without breaking the menu loop", async () => 
 
   assert.equal(status, 0);
   assert.equal(stdout.includes("未保存，原配置保持不变"), true);
-  assert.equal((stdout.match(/^1\. 安装 \/ 更新活动助手/gm) ?? []).length, 2);
+  assert.equal((stdout.match(/技术活动助手 · 配置引导/g) ?? []).length, 2);
   assert.equal((stdout.match(/技术活动助手/g) ?? []).length, 2);
-  assert.equal(stdout.includes("直接回车执行高亮步骤"), true);
+  assert.equal(stdout.includes("[Enter] 执行当前步骤"), true);
   assert.equal(stdout.includes("输入留空 = 保留原值"), false);
   assert.equal(stdout.includes("飞书 webhook URL（飞书群设置 → 机器人 → 自定义机器人）："), true);
   assert.equal(stdout.includes("Server 酱 SendKey（sct.ftqq.com/login → 登录后查看 SendKey）："), true);
@@ -206,7 +210,7 @@ test("configuration helper can open credential pages or show setup links", async
   child.stderr.setEncoding("utf8");
   child.stdout.on("data", (chunk) => {
     stdout += chunk;
-    if (!sentConfig && (stdout.match(/^1\. 安装 \/ 更新活动助手/gm) ?? []).length === 1) {
+    if (!sentConfig && stdout.includes("[Enter] 执行  1 安装 / 更新活动助手")) {
       sentConfig = true;
       child.stdin.write("2\n\n\n\n\nn\n");
     }
@@ -250,7 +254,7 @@ test("configuration save prints a completed step flow in piped output", async ()
     child.stderr.setEncoding("utf8");
     child.stdout.on("data", (chunk) => {
       stdout += chunk;
-      if (!sentConfig && (stdout.match(/^1\. 安装 \/ 更新活动助手/gm) ?? []).length === 1) {
+      if (!sentConfig && stdout.includes("[Enter] 执行  1 安装 / 更新活动助手")) {
         sentConfig = true;
         child.stdin.write("2\nn\nhttps://example.test/hook\n\nclear\ny\n");
       }
@@ -276,9 +280,9 @@ test("configuration save prints a completed step flow in piped output", async ()
     assert.equal(stdout.includes("├─ ✓ 合并本次输入"), true);
     assert.equal(stdout.includes("├─ ✓ 写入本地配置"), true);
     assert.equal(stdout.includes("└─ ✓ 准备推送脚本"), true);
-    assert.equal(stdout.includes(`完成    ${neonBar} 100%`), true);
-    assert.equal(stdout.includes("        ✓ tech-events-assistant.local.json 已保存"), true);
-    assert.equal(stdout.indexOf("配置推送") < stdout.indexOf(`完成    ${neonBar} 100%`), true);
+    assert.equal(stdout.includes(`完成  ${neonBar} 100%`), true);
+    assert.equal(stdout.includes("      ✓ tech-events-assistant.local.json 已保存"), true);
+    assert.equal(stdout.indexOf("配置推送") < stdout.indexOf(`完成  ${neonBar} 100%`), true);
     assert.equal(stderr, "");
   } finally {
     const currentBackups = await listLocalConfigBackups();
@@ -331,19 +335,25 @@ test("automation wizard writes a prompt file and gives one paste step", async ()
     const promptText = await readFile(automationPromptPath, "utf8");
 
     assert.equal(status, 0);
-    assert.equal(stdout.includes("5. 导入 Codex 自动化配置"), true);
+    assert.equal(stdout.includes("导入 Codex 自动化配置"), true);
     assert.equal(stdout.includes("━━ 5 导入 Codex 自动化配置"), true);
     assert.equal(stdout.includes("├─ ✓ 生成自动化配置 Prompt"), true);
     assert.equal(stdout.includes("├─ ✓ 写入 tech-events-assistant.automation.md"), true);
     assert.equal(stdout.includes("└─ ✓ 准备手动复制文件"), true);
-    assert.equal(stdout.includes(`完成    ${neonBar} 100%`), true);
-    assert.equal(stdout.includes("        ✓ 已生成 tech-events-assistant.automation.md"), true);
-    assert.equal(stdout.includes("▶ 你需要做的事情"), true);
-    assert.equal(stdout.includes("1. 打开位置      Codex 左侧的「自动化（已安排）」"), true);
-    assert.equal(stdout.includes("2. 点击按钮      通过聊天添加"), true);
-    assert.equal(stdout.includes("3. 粘贴内容      刚才复制的 Prompt"), true);
-    assert.equal(stdout.includes("4. 自动化名称    线下技术活动情报晨报"), true);
-    assert.equal(stdout.includes("5. 运行时间      每天 07:00（Asia/Shanghai）"), true);
+    assert.equal(stdout.includes(`完成  ${neonBar} 100%`), true);
+    assert.equal(stdout.includes("      ✓ 已生成 tech-events-assistant.automation.md"), true);
+    assert.equal(stdout.includes("✓ Codex 自动化配置已生成"), true);
+    assert.equal(stdout.includes("输出"), true);
+    assert.equal(stdout.includes("文件      tech-events-assistant.automation.md"), true);
+    assert.equal(stdout.includes("剪贴板    需手动复制"), true);
+    assert.equal(stdout.includes("名称      线下技术活动情报晨报"), true);
+    assert.equal(stdout.includes("时间      每天 07:00 · Asia/Shanghai"), true);
+    assert.equal(stdout.includes("接下来在 Codex 中完成"), true);
+    assert.equal(stdout.includes("1. 打开左侧「自动化（已安排）」"), true);
+    assert.equal(stdout.includes("2. 点击「通过聊天添加」"), true);
+    assert.equal(stdout.includes("3. 粘贴刚才复制的 Prompt"), true);
+    assert.equal(stdout.includes("4. 确认名称和运行时间"), true);
+    assert.equal(stdout.includes("5. 保存并运行"), true);
     assert.equal(stdout.includes("不会自动添加或触发 Codex 自动化"), false);
     assert.equal(promptText.includes("检索未来两周"), true);
     assert.equal(promptText.includes("每天 07:00"), true);
@@ -376,7 +386,7 @@ test("guide moves away from the final step instead of repeating it on enter", as
     child.stderr.setEncoding("utf8");
     child.stdout.on("data", (chunk) => {
       stdout += chunk;
-      if (!sentInput && stdout.includes("下一步：1 安装 / 更新活动助手（回车执行）：")) {
+      if (!sentInput && stdout.includes("[Enter] 执行  1 安装 / 更新活动助手")) {
         sentInput = true;
         child.stdin.write("5\n\nq\n");
         child.stdin.end();
@@ -396,7 +406,7 @@ test("guide moves away from the final step instead of repeating it on enter", as
       1,
     );
     assert.equal(
-      stdout.includes("✓ 已完成：导入 Codex 自动化配置\n  下一步：1 安装 / 更新活动助手"),
+      stdout.includes("✓ 导入 Codex 自动化配置已完成\n\n下一步\n  1 安装 / 更新活动助手"),
       true,
     );
     assert.equal(stdout.includes("━━ 1 安装 / 更新活动助手"), true);
@@ -408,6 +418,49 @@ test("guide moves away from the final step instead of repeating it on enter", as
       await writeFile(automationPromptPath, originalAutomationPrompt);
     }
   }
+});
+
+test("status step renders staged success before status details", async () => {
+  const child = spawn(process.execPath, ["scripts/gba.mjs"], {
+    cwd: rootDir,
+    env: { ...process.env, NO_COLOR: "1" },
+  });
+  let stdout = "";
+  let stderr = "";
+  let sentStatus = false;
+  let sentExit = false;
+
+  child.stdout.setEncoding("utf8");
+  child.stderr.setEncoding("utf8");
+  child.stdout.on("data", (chunk) => {
+    stdout += chunk;
+    if (!sentStatus && stdout.includes("[Enter] 执行  1 安装 / 更新活动助手")) {
+      sentStatus = true;
+      child.stdin.write("4\n");
+    }
+    if (!sentExit && stdout.includes("✓ 状态检查完成")) {
+      sentExit = true;
+      child.stdin.write("q\n");
+      child.stdin.end();
+    }
+  });
+  child.stderr.on("data", (chunk) => {
+    stderr += chunk;
+  });
+
+  const status = await new Promise((resolve) => {
+    child.on("exit", (code) => resolve(code));
+  });
+
+  assert.equal(status, 0);
+  assert.equal(stdout.includes("━━ 4 状态检查"), true);
+  assert.equal(stdout.includes("├─ ✓ 读取配置文件"), true);
+  assert.equal(stdout.includes("├─ ✓ 检查推送通道"), true);
+  assert.equal(stdout.includes("├─ ✓ 检查自动化 Prompt"), true);
+  assert.equal(stdout.includes("└─ ✓ 生成状态摘要"), true);
+  assert.equal(stdout.includes("✓ 状态检查完成"), true);
+  assert.equal(stdout.indexOf("✓ 状态检查完成") < stdout.indexOf("普通配置（可提交，控制助手偏好）"), true);
+  assert.equal(stderr, "");
 });
 
 test("dry-run prints a completed step flow instead of a digital progress bar", () => {
@@ -423,8 +476,8 @@ test("dry-run prints a completed step flow instead of a digital progress bar", (
   assert.equal(result.stdout.includes("推送格式检查（不发送）"), true);
   assert.equal(result.stdout.includes("├─ ✓ 生成飞书卡片预览"), true);
   assert.equal(result.stdout.includes("└─ ✓ 生成 Server 酱消息预览"), true);
-  assert.equal(result.stdout.includes(`完成    ${neonBar} 100%`), true);
-  assert.equal(result.stdout.includes("        ✓ 推送格式检查通过，未真实发送"), true);
+  assert.equal(result.stdout.includes(`完成  ${neonBar} 100%`), true);
+  assert.equal(result.stdout.includes("      ✓ 推送格式检查通过，未真实发送"), true);
 });
 
 test("interactive connection check tests real targets without showing local preflight", async () => {
@@ -448,7 +501,7 @@ test("interactive connection check tests real targets without showing local pref
   child.stderr.setEncoding("utf8");
   child.stdout.on("data", (chunk) => {
     stdout += chunk;
-    if (!sentCheck && stdout.includes("直接回车执行高亮步骤")) {
+    if (!sentCheck && stdout.includes("[Enter] 执行当前步骤")) {
       sentCheck = true;
       child.stdin.write("3\n");
     }

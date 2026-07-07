@@ -11,6 +11,9 @@ import {
   cartoonProgressLine,
   color,
   renderActionPanelLines,
+  renderGuideActionPrompt,
+  renderGuideCompletePrompt,
+  renderGuideDashboardLines,
   renderNeonProgressLine,
   renderBannerLines,
   renderSectionTitle,
@@ -43,6 +46,7 @@ const GUIDE_STEPS = [
   "状态检查",
   "导入 Codex 自动化配置",
 ];
+const GUIDE_STEP_SHORT_LABELS = ["安装", "配置", "测试", "状态", "自动化"];
 
 function guideStepTitle(index) {
   return `${index + 1} ${GUIDE_STEPS[index]}`;
@@ -105,32 +109,60 @@ function printCompletedSteps(title, steps, result) {
   }).join("\n"));
 }
 
-function printGuide(completedSteps, currentStep) {
-  printBanner();
-  console.log("");
-  const guideTitle = currentStep === null
-    ? `引导配置 · 已完成 ${GUIDE_STEPS.length}/${GUIDE_STEPS.length}`
-    : `引导配置 · 下一步 ${currentStep + 1}/${GUIDE_STEPS.length}`;
-  console.log(renderSectionTitle(guideTitle).join("\n"));
-  console.log(color("直接回车执行高亮步骤；输入 1-5 可跳到某步；b 返回上一层；q 退出引导。", "gray"));
-  console.log("");
-  GUIDE_STEPS.forEach((step, index) => {
-    const number = index + 1;
-    if (completedSteps.has(index)) {
-      console.log(color(`${number}. ${step}  ✓ 已完成`, "green"));
-    } else if (index === currentStep) {
-      console.log(color(`${number}. ${step}  ▶ 当前`, "cyan"));
-    } else {
-      console.log(color(`${number}. ${step}  · 待执行`, "gray"));
-    }
+async function runAnimatedStepFlow(title, steps, result, options = {}) {
+  const frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧"];
+  const finalLines = renderStepFlowLines(title, steps, {
+    complete: true,
+    result,
   });
+
+  if (!output.isTTY) {
+    console.log(finalLines.join("\n"));
+    return;
+  }
+
+  let previousLineCount = 0;
+  for (let index = 0; index < steps.length; index += 1) {
+    const lines = renderStepFlowLines(title, steps, {
+      activeIndex: index,
+      spinner: frames[index % frames.length],
+    });
+    if (options.progress) {
+      const percent = Math.round(((index + 1) / (steps.length + 1)) * 100);
+      lines.push("", renderNeonProgressLine(percent));
+    }
+    if (previousLineCount > 0) output.moveCursor(0, -previousLineCount);
+    for (const line of lines) {
+      output.cursorTo(0);
+      output.clearLine(0);
+      output.write(`${line}\n`);
+    }
+    previousLineCount = lines.length;
+    await new Promise((resolve) => setTimeout(resolve, options.delayMs ?? 120));
+  }
+
+  output.moveCursor(0, -previousLineCount);
+  for (const line of finalLines) {
+    output.cursorTo(0);
+    output.clearLine(0);
+    output.write(`${line}\n`);
+  }
+}
+
+function printGuide(completedSteps, currentStep) {
+  console.log(renderGuideDashboardLines({
+    steps: GUIDE_STEPS,
+    shortLabels: GUIDE_STEP_SHORT_LABELS,
+    completedSteps,
+    currentStep,
+  }).join("\n"));
 }
 
 function guidePrompt(currentStep) {
   if (currentStep === null) {
-    return color("\n全部步骤已完成（回车退出；输入 1-5 可重新执行）：", "cyan");
+    return renderGuideCompletePrompt();
   }
-  return color(`\n下一步：${currentStep + 1} ${GUIDE_STEPS[currentStep]}（回车执行）：`, "cyan");
+  return renderGuideActionPrompt(currentStep + 1, GUIDE_STEPS[currentStep]);
 }
 
 function printStepTransition(completedStep, nextStep, nextStepNumber) {
@@ -359,47 +391,16 @@ async function installOrUpdate() {
 
 async function runSaveSteps(resultLabel) {
   const steps = ["读取现有配置", "合并本次输入", "写入本地配置", "准备推送脚本"];
-  const frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧"];
-  const finalLines = renderStepFlowLines(guideStepTitle(1), steps, {
-    complete: true,
-    result: resultLabel,
+  await runAnimatedStepFlow(guideStepTitle(1), steps, resultLabel, {
+    progress: true,
+    delayMs: 90,
   });
-
-  if (!output.isTTY) {
-    console.log(finalLines.join("\n"));
-    return;
-  }
-
-  let previousLineCount = 0;
-  for (let index = 0; index < steps.length; index += 1) {
-    const percent = Math.round(((index + 1) / (steps.length + 1)) * 100);
-    const lines = [
-      ...renderStepFlowLines(guideStepTitle(1), steps, {
-        activeIndex: index,
-        spinner: frames[index % frames.length],
-      }),
-      "",
-      renderNeonProgressLine(percent),
-    ];
-    if (previousLineCount > 0) output.moveCursor(0, -previousLineCount);
-    for (const line of lines) {
-      output.cursorTo(0);
-      output.clearLine(0);
-      output.write(`${line}\n`);
-    }
-    previousLineCount = lines.length;
-    await new Promise((resolve) => setTimeout(resolve, 90));
-  }
-
-  output.moveCursor(0, -previousLineCount);
-  for (const line of finalLines) {
-    output.cursorTo(0);
-    output.clearLine(0);
-    output.write(`${line}\n`);
-  }
 }
 
 async function printStatus(options = {}) {
+  const title = Number.isInteger(options.stepIndex)
+    ? guideStepTitle(options.stepIndex)
+    : "状态检查";
   const config = await loadAssistantConfig(rootDir);
   const localEnv = await loadLocalEnv(rootDir);
   const publicConfigPath = path.join(rootDir, CONFIG_FILE);
@@ -411,10 +412,17 @@ async function printStatus(options = {}) {
   const hasFeishu = Boolean(config?.push?.feishuWebhookUrl || localEnv.FEISHU_WEBHOOK_URL);
   const hasServerChan = Boolean(config?.push?.serverChanSendKey || localEnv.SERVERCHAN_SENDKEY);
 
-  const title = Number.isInteger(options.stepIndex)
-    ? guideStepTitle(options.stepIndex)
-    : "状态检查";
-  console.log(renderSectionTitle(title).join("\n"));
+  if (Number.isInteger(options.stepIndex)) {
+    await runAnimatedStepFlow(title, [
+      "读取配置文件",
+      "检查推送通道",
+      "检查自动化 Prompt",
+      "生成状态摘要",
+    ], "状态检查完成");
+    console.log("");
+  } else {
+    console.log(renderSectionTitle(title).join("\n"));
+  }
   console.log(statusLine(`普通配置（可提交，控制助手偏好）：${hasPublicConfig ? `${CONFIG_FILE} 已存在` : "缺失，建议先执行第 1 步"}`, hasPublicConfig ? "ok" : "warn"));
   console.log(statusLine(`本机私密配置（.gitignore，不提交，保存 webhook/SendKey）：${hasLocalConfig ? `${LOCAL_CONFIG_FILE} 已存在` : "未配置，可执行第 2 步"}`, hasLocalConfig ? "ok" : "warn"));
   console.log(statusLine(`飞书推送：${hasFeishu ? "已配置 webhook" : "未配置 webhook"}`, hasFeishu ? "ok" : "warn"));
@@ -643,21 +651,27 @@ async function createAutomationWizard() {
     ? `已生成 ${AUTOMATION_PROMPT_FILE}，并复制到剪贴板`
     : `已生成 ${AUTOMATION_PROMPT_FILE}`;
 
-  printCompletedSteps(guideStepTitle(4), steps, result);
+  await runAnimatedStepFlow(guideStepTitle(4), steps, result, {
+    progress: true,
+  });
   console.log("");
-  console.log(renderActionPanelLines("你需要做的事情", [
-    ["打开位置", "Codex 左侧的「自动化（已安排）」"],
-    ["点击按钮", "通过聊天添加"],
-    ["粘贴内容", "刚才复制的 Prompt"],
-    ["自动化名称", AUTOMATION_DISPLAY_NAME],
-    ["运行时间", "每天 07:00（Asia/Shanghai）"],
+  console.log(statusLine("Codex 自动化配置已生成", "ok"));
+  console.log("");
+  console.log(renderActionPanelLines("输出", [
+    ["文件", AUTOMATION_PROMPT_FILE],
+    ["剪贴板", clipboard.copied ? "已复制" : "需手动复制"],
+    ["名称", AUTOMATION_DISPLAY_NAME],
+    ["时间", "每天 07:00 · Asia/Shanghai"],
   ]).join("\n"));
-  console.log(statusLine(`Prompt 文件：${AUTOMATION_PROMPT_FILE}`, "info"));
-  if (clipboard.copied) {
-    console.log(statusLine("已复制到剪贴板，直接粘贴即可", "ok"));
-  } else {
-    console.log(statusLine(`未复制剪贴板：${clipboard.reason}。请打开 Prompt 文件手动复制`, "warn"));
-  }
+  console.log("");
+  console.log(renderActionPanelLines("接下来在 Codex 中完成", [
+    "打开左侧「自动化（已安排）」",
+    "点击「通过聊天添加」",
+    "粘贴刚才复制的 Prompt",
+    "确认名称和运行时间",
+    "保存并运行",
+  ]).join("\n"));
+  if (!clipboard.copied) console.log(statusLine(`未复制剪贴板：${clipboard.reason}`, "warn"));
   if (!pushConfigured) {
     console.log(statusLine("当前未检测到推送密钥；可先创建自动化，之后用菜单 2 配置推送", "warn"));
   }
@@ -725,6 +739,12 @@ async function guideMenu() {
       const answer = (await rl.question(guidePrompt(currentStep))).trim().toLowerCase();
       if (currentStep === null && answer === "") break;
       if (answer === "q" || answer === "0") break;
+      if (answer === "d") {
+        console.log("");
+        await printStatus();
+        console.log("");
+        continue;
+      }
       if (answer === "b") {
         const returnToGuide = await manualMenu(rl);
         if (!returnToGuide) break;

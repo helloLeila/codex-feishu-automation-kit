@@ -6,6 +6,9 @@ import {
   completionLine,
   renderActionPanelLines,
   renderBannerLines,
+  renderGuideActionPrompt,
+  renderGuideCompletePrompt,
+  renderGuideDashboardLines,
   renderNeonCompletionLines,
   renderNeonProgressLine,
   renderSectionTitle,
@@ -15,9 +18,9 @@ import {
   terminalCellWidth,
 } from "../scripts/lib/terminal-ui.mjs";
 
-const DIGITAL_COMPLETION = "完成  ██████████████████████████████ 100%  已完成";
-const NEON_BAR = "█".repeat(56);
-const NEON_64 = `${"█".repeat(35)}${"░".repeat(21)}`;
+const DIGITAL_COMPLETION = "完成  ██████████████████████ 100%";
+const NEON_BAR = "█".repeat(22);
+const NEON_64 = `${"█".repeat(14)}${"░".repeat(8)}`;
 
 test("neon progress uses a long bar and neon colors", () => {
   const activeLine = stripAnsi(renderNeonProgressLine(64, { color: false }));
@@ -31,8 +34,8 @@ test("neon progress uses a long bar and neon colors", () => {
 
   assert.equal(activeLine, `保存中  ${NEON_64} 64%`);
   assert.deepEqual(doneLines, [
-    `完成    ${NEON_BAR} 100%`,
-    "        ✓ tech-events-assistant.local.json 已保存",
+    `完成  ${NEON_BAR} 100%`,
+    "      ✓ tech-events-assistant.local.json 已保存",
   ]);
   assert.equal(coloredActiveLine.includes("\x1b[36m"), true);
   assert.equal(coloredActiveLine.includes("\x1b[35m"), true);
@@ -53,9 +56,8 @@ test("completion state is a colored digital progress bar", () => {
   assert.equal(line.includes("100%"), true);
   assert.equal(line.includes("🎉"), false);
   assert.equal(coloredLine.includes("\x1b[32m完成"), true);
-  assert.equal(coloredLine.includes("\x1b[32m██████████████████████████████"), true);
-  assert.equal(coloredLine.includes("\x1b[33m100%"), true);
-  assert.equal(coloredLine.includes("\x1b[32m已完成"), true);
+  assert.equal(coloredLine.includes("\x1b[32m██████████████████████"), true);
+  assert.equal(coloredLine.includes("\x1b[32m100%"), true);
 });
 
 test("completionLine mirrors final progress state", () => {
@@ -88,9 +90,16 @@ test("step flow renders an active step and final completed state", () => {
     "├─ ✓ 读取现有配置",
     "└─ ✓ 写入本地配置",
     "",
-    `完成    ${NEON_BAR} 100%`,
-    "        ✓ tech-events-assistant.local.json 已保存",
+    `完成  ${NEON_BAR} 100%`,
+    "      ✓ tech-events-assistant.local.json 已保存",
   ]);
+
+  const coloredActive = renderStepFlowLines("配置推送", ["读取现有配置", "写入本地配置"], {
+    activeIndex: 1,
+    color: true,
+  }).join("\n");
+  assert.equal(coloredActive.includes("\x1b[35m⠙"), true);
+  assert.equal(coloredActive.includes("\x1b[1m\x1b[35m写入本地配置"), true);
 });
 
 test("section title is visually heavier than plain text", () => {
@@ -109,8 +118,10 @@ test("step transition separates completed output from the next guide", () => {
 
   assert.deepEqual(lines, [
     "",
-    "✓ 已完成：状态检查",
-    "  下一步：5 导入 Codex 自动化配置",
+    "✓ 状态检查已完成",
+    "",
+    "下一步",
+    "  5 导入 Codex 自动化配置",
     "",
   ]);
 
@@ -118,7 +129,26 @@ test("step transition separates completed output from the next guide", () => {
     nextStepNumber: 5,
     color: true,
   }).join("\n");
-  assert.equal(colored.includes("\x1b[90m下一步：5 导入 Codex 自动化配置"), true);
+  assert.equal(colored.includes("\x1b[36m下一步"), true);
+});
+
+test("guide action prompt uses keyboard-first CTA without a trailing colon", () => {
+  const plain = stripAnsi(renderGuideActionPrompt(4, "状态检查", { color: false }));
+  const colored = renderGuideActionPrompt(4, "状态检查", { color: true });
+
+  assert.equal(plain, "\n[Enter] 执行  4 状态检查\n› ");
+  assert.equal(plain.includes("："), false);
+  assert.equal(colored.includes("\x1b[36m[Enter]"), true);
+  assert.equal(stripAnsi(colored).includes("[Enter] 执行  4 状态检查"), true);
+});
+
+test("guide complete prompt uses a completion CTA", () => {
+  const plain = stripAnsi(renderGuideCompletePrompt({ color: false }));
+  const colored = renderGuideCompletePrompt({ color: true });
+
+  assert.equal(plain, "\n[Enter] 退出  [1-5] 重跑步骤\n› ");
+  assert.equal(colored.includes("\x1b[36m[Enter]"), true);
+  assert.equal(stripAnsi(colored).includes("[Enter] 退出"), true);
 });
 
 test("action panel emphasizes title and key values", () => {
@@ -129,7 +159,7 @@ test("action panel emphasizes title and key values", () => {
   ], { color: false }).map(stripAnsi);
 
   assert.deepEqual(lines, [
-    "▶ 你需要做的事情",
+    "你需要做的事情",
     "",
     "  1. 打开位置      Codex 左侧的「自动化（已安排）」",
     "  2. 点击按钮      通过聊天添加",
@@ -142,7 +172,42 @@ test("action panel emphasizes title and key values", () => {
   assert.equal(colored.includes("\x1b[1m"), true);
   assert.equal(colored.includes("\x1b[36m"), true);
   assert.equal(colored.includes("\x1b[33m"), true);
-  assert.equal(stripAnsi(colored).includes("▶ 你需要做的事情"), true);
+  assert.equal(stripAnsi(colored).includes("你需要做的事情"), true);
+});
+
+test("guide dashboard renders a compact execution console overview", () => {
+  const lines = renderGuideDashboardLines({
+    completedSteps: new Set([0]),
+    currentStep: 1,
+    steps: [
+      "安装 / 更新活动助手",
+      "配置推送和偏好",
+      "测试真实连接",
+      "状态检查",
+      "导入 Codex 自动化配置",
+    ],
+    shortLabels: ["安装", "配置", "测试", "状态", "自动化"],
+    color: false,
+  }).map(stripAnsi);
+
+  assert.deepEqual(lines, [
+    "技术活动助手 · 配置引导 2/5",
+    "",
+    "● 安装   ◉ 配置   ○ 测试   ○ 状态   ○ 自动化",
+    "          ↑ 当前步骤",
+    "",
+    "当前任务",
+    "  配置推送和偏好",
+    "",
+    "已检测",
+    "  ✓ 安装 / 更新活动助手",
+    "  ◉ 配置推送和偏好",
+    "  · 测试真实连接",
+    "  · 状态检查",
+    "  · 导入 Codex 自动化配置",
+    "",
+    "[Enter] 执行当前步骤   [1-5] 跳转   [d] 详情   [b] 菜单   [q] 退出",
+  ]);
 });
 
 test("banner uses a generic assistant name and wraps every line", () => {

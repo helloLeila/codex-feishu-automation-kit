@@ -39,7 +39,9 @@ test("neon progress uses a long bar and neon colors", () => {
     "      ✓ tech-events-assistant.local.json 已保存",
   ]);
   assert.equal(coloredActiveLine.includes("\x1b[36m"), true);
-  assert.equal(coloredActiveLine.includes("\x1b[35m"), true);
+  assert.equal(coloredActiveLine.includes("\x1b[38;2;255;182;218m"), true);
+  assert.equal(coloredActiveLine.includes("\x1b[35m"), false);
+  assert.equal(coloredActiveLine.includes("\x1b[95m"), false);
   assert.equal(coloredDoneLines.join("\n").includes("\x1b[32m"), true);
 });
 
@@ -99,8 +101,9 @@ test("step flow renders an active step and final completed state", () => {
     activeIndex: 1,
     color: true,
   }).join("\n");
-  assert.equal(coloredActive.includes("\x1b[95m⠙"), true);
-  assert.equal(coloredActive.includes("\x1b[1m\x1b[95m写入本地配置"), true);
+  assert.equal(coloredActive.includes("\x1b[38;2;255;182;218m⠙"), true);
+  assert.equal(coloredActive.includes("\x1b[1m\x1b[38;2;255;182;218m写入本地配置"), true);
+  assert.equal(coloredActive.includes("\x1b[95m"), false);
 });
 
 test("section title is visually heavier than plain text", () => {
@@ -113,29 +116,29 @@ test("section title is visually heavier than plain text", () => {
 
 test("step transition separates completed output from the next guide", () => {
   const lines = renderStepTransitionLines("状态检查", "导入 Codex 自动化配置", {
-    nextStepNumber: 5,
+    nextStepNumber: 4,
     color: false,
   }).map(stripAnsi);
 
   assert.deepEqual(lines, [
     "",
     "下一步",
-    "  5 导入 Codex 自动化配置",
+    "  4 导入 Codex 自动化配置",
     "",
   ]);
 
   const colored = renderStepTransitionLines("状态检查", "导入 Codex 自动化配置", {
-    nextStepNumber: 5,
+    nextStepNumber: 4,
     color: true,
   }).join("\n");
   assert.equal(colored.includes("\x1b[36m下一步"), true);
 });
 
 test("guide action prompt renders a single gray command row", () => {
-  const plain = stripAnsi(renderGuideActionPrompt(4, "状态检查", { color: false }));
-  const colored = renderGuideActionPrompt(4, "状态检查", { color: true });
+  const plain = stripAnsi(renderGuideActionPrompt(3, "状态检查", { color: false }));
+  const colored = renderGuideActionPrompt(3, "状态检查", { color: true });
 
-  assert.equal(plain, "\n> [Enter] 执行  4 状态检查 ");
+  assert.equal(plain, "\n\n> [Enter] 执行  3 状态检查 ");
   assert.equal(plain.includes("："), false);
   assert.equal(plain.includes("›"), false);
   assert.equal(plain.includes("当前操作"), false);
@@ -143,21 +146,23 @@ test("guide action prompt renders a single gray command row", () => {
   assert.equal(plain.includes("│"), false);
   assert.equal(plain.includes("╰"), false);
   assert.equal(colored.includes("\x1b[100m"), true);
-  assert.equal(colored.includes("\x1b[36m\x1b[100m[Enter]"), true);
+  assert.equal(colored.includes("\x1b[97m\x1b[100m[Enter]"), true);
+  assert.equal(colored.includes("\x1b[36m\x1b[100m"), false);
   assert.equal(stripAnsi(colored), plain);
 });
 
 test("guide complete prompt renders a single gray command row", () => {
-  const plain = stripAnsi(renderGuideCompletePrompt({ color: false }));
-  const colored = renderGuideCompletePrompt({ color: true });
+  const plain = stripAnsi(renderGuideCompletePrompt({ color: false, stepCount: 4 }));
+  const colored = renderGuideCompletePrompt({ color: true, stepCount: 4 });
 
-  assert.equal(plain, "\n> [Enter] 退出  [1-5] 重跑步骤 ");
+  assert.equal(plain, "\n\n> [Enter] 退出  [1-4] 重跑步骤 ");
   assert.equal(plain.includes("当前操作"), false);
   assert.equal(plain.includes("╭"), false);
   assert.equal(plain.includes("│"), false);
   assert.equal(plain.includes("╰"), false);
   assert.equal(colored.includes("\x1b[100m"), true);
-  assert.equal(colored.includes("\x1b[36m\x1b[100m[Enter]"), true);
+  assert.equal(colored.includes("\x1b[97m\x1b[100m[Enter]"), true);
+  assert.equal(colored.includes("\x1b[36m\x1b[100m"), false);
   assert.equal(stripAnsi(colored), plain);
 });
 
@@ -170,7 +175,6 @@ test("action panel emphasizes title and key values", () => {
 
   assert.deepEqual(lines, [
     "你需要做的事情",
-    "",
     "  1. 打开位置      Codex 左侧的「自动化（已安排）」",
     "  2. 点击按钮      通过聊天添加",
     "  3. 自动化名称    线下技术活动情报晨报",
@@ -190,13 +194,12 @@ test("guide dashboard renders a compact execution console overview", () => {
     completedSteps: new Set([0]),
     currentStep: 1,
     steps: [
-      "安装 / 更新活动助手",
       "配置推送和偏好",
       "测试真实连接",
       "状态检查",
       "导入 Codex 自动化配置",
     ],
-    shortLabels: ["安装", "配置", "测试", "状态", "自动化"],
+    shortLabels: ["配置", "测试", "状态", "自动化"],
     statusItems: [
       { state: "ok", label: "普通配置已存在" },
       { state: "warn", label: "飞书 webhook 未配置" },
@@ -206,58 +209,87 @@ test("guide dashboard renders a compact execution console overview", () => {
   }).map(stripAnsi);
 
   assert.deepEqual(lines, [
-    "╭─🤖──╮  技术活动助手 · 配置引导 2/5",
-    "│ •ᴗ• │  ● 安装   ◉ 配置   ○ 测试   ○ 状态   ○ 自动化",
+    "╭─🤖──╮  技术活动助手 · 配置引导 2/4",
+    "│ •ᴗ• │  ● 配置   ◉ 测试   ○ 状态   ○ 自动化",
     "╰─────╯",
     "",
-    "当前任务  配置推送和偏好",
+    "  当前任务  测试真实连接",
+    "  已检测",
+    "    ✓ 普通配置已存在",
+    "    ! 飞书 webhook 未配置",
+    "    ✓ Server 酱 SendKey 已配置",
     "",
-    "已检测",
-    "  ✓ 普通配置已存在",
-    "  ! 飞书 webhook 未配置",
-    "  ✓ Server 酱 SendKey 已配置",
-    "",
-    "[Enter] 执行当前步骤   [1-5] 跳转   [b] 菜单   [q] 退出",
+    "[Enter] 执行当前步骤   [1-4] 跳转   [b] 菜单   [q] 退出",
   ]);
 
   const colored = renderGuideDashboardLines({
     completedSteps: new Set([0]),
     currentStep: 1,
     steps: [
-      "安装 / 更新活动助手",
       "配置推送和偏好",
       "测试真实连接",
       "状态检查",
       "导入 Codex 自动化配置",
     ],
-    shortLabels: ["安装", "配置", "测试", "状态", "自动化"],
+    shortLabels: ["配置", "测试", "状态", "自动化"],
     color: true,
   }).join("\n");
-  assert.equal(colored.includes("\x1b[95m"), true);
+  assert.equal(colored.includes("\x1b[38;2;255;182;218m"), true);
+  assert.equal(colored.includes("\x1b[95m"), false);
   assert.equal(colored.includes("↑ 当前步骤"), false);
 });
 
 test("last run renders full execution details by default", () => {
   const run = {
-    title: "1 安装 / 更新活动助手",
-    steps: ["检查配置文件", "准备本地入口"],
-    result: "活动助手已就绪",
+    title: "1 配置推送和偏好",
+    steps: ["读取现有配置", "等待用户输入", "保持原配置"],
+    result: "未保存，原配置保持不变",
   };
   const lines = renderLastRunLines(run, { color: false }).map(stripAnsi);
 
   assert.deepEqual(lines, [
     "",
     "最近执行",
-    `${"━".repeat(11)} 🤖 1 安装 / 更新活动助手 ${"━".repeat(11)}`,
+    `${"━".repeat(13)} 🤖 1 配置推送和偏好 ${"━".repeat(14)}`,
     "│",
-    "├─ ✓ 检查配置文件",
-    "└─ ✓ 准备本地入口",
+    "├─ ✓ 读取现有配置",
+    "├─ ✓ 等待用户输入",
+    "└─ ✓ 保持原配置",
     "",
-    "结果  活动助手已就绪",
+    "结果  未保存，原配置保持不变",
   ]);
   assert.equal(lines.includes("执行详情"), false);
   assert.equal(lines.some((line) => line.includes("按 d")), false);
   assert.equal(lines.some((line) => line.startsWith("完成  ")), false);
+});
+
+test("last run can render user-facing summary steps", () => {
+  const run = {
+    title: "4 导入 Codex 自动化配置",
+    steps: [
+      "生成自动化配置 Prompt",
+      "写入 tech-events-assistant.automation.md",
+      "检查推送配置",
+      "复制 Prompt 到剪贴板",
+    ],
+    displaySteps: ["已准备好 Codex 自动化配置"],
+    result: "已生成 tech-events-assistant.automation.md，并复制到剪贴板",
+  };
+  const lines = renderLastRunLines(run, { color: false }).map(stripAnsi);
+
+  assert.deepEqual(lines, [
+    "",
+    "最近执行",
+    `${"━".repeat(10)} 🤖 4 导入 Codex 自动化配置 ${"━".repeat(10)}`,
+    "│",
+    "└─ ✓ 已准备好 Codex 自动化配置",
+    "",
+    "结果  已生成 tech-events-assistant.automation.md，并复制到剪贴板",
+  ]);
+  assert.equal(lines.some((line) => line.includes("生成自动化配置 Prompt")), false);
+  assert.equal(lines.some((line) => line.includes("写入 tech-events-assistant.automation.md")), false);
+  assert.equal(lines.some((line) => line.includes("检查推送配置")), false);
+  assert.equal(lines.some((line) => line.includes("复制 Prompt 到剪贴板")), false);
 });
 
 test("banner uses a generic assistant name and wraps every line", () => {

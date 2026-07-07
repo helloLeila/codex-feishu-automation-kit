@@ -250,24 +250,6 @@ export function renderSectionTitle(title, options = {}) {
   return [bold(paint(line, "cyan", useColor), useColor)];
 }
 
-export function renderStepTransitionLines(_completedStep, nextStep, options = {}) {
-  const useColor = options.color ?? !process.env.NO_COLOR;
-  const lines = [""];
-
-  if (nextStep) {
-    const prefix = Number.isInteger(options.nextStepNumber)
-      ? `${options.nextStepNumber} `
-      : "";
-    lines.push(bold(paint("下一步", "cyan", useColor), useColor));
-    lines.push(`  ${paint(`${prefix}${nextStep}`, "gray", useColor)}`);
-  } else if (options.completeMessage) {
-    lines.push(paint(options.completeMessage, "gray", useColor));
-  }
-
-  lines.push("");
-  return lines;
-}
-
 function renderCommandPrompt(commandParts, options = {}) {
   const useColor = options.color ?? !process.env.NO_COLOR;
   const plainCommand = commandParts.map((part) => part.text).join("");
@@ -344,6 +326,9 @@ export function renderGuideDashboardLines(options = {}) {
   const title = options.title ?? "技术活动助手";
   const mode = options.mode ?? "配置引导";
   const statusItems = Array.isArray(options.statusItems) ? options.statusItems : null;
+  const revealedStatusCount = Number.isInteger(options.revealedStatusCount)
+    ? Math.max(0, options.revealedStatusCount)
+    : null;
   const avatarRows = options.avatarRows ?? ["╭─🤖──╮", "│ •ᴗ• │", "╰─────╯"];
   const avatarWidth = Math.max(...avatarRows.map((row) => terminalCellWidth(row)));
   const avatarGap = "  ";
@@ -365,14 +350,12 @@ export function renderGuideDashboardLines(options = {}) {
     lines.push(`${avatarCell(2)}${avatarGap}${paint("全部步骤已完成", "green", useColor)}`);
   }
 
-  const currentTitle = currentStep === null ? "全部步骤已完成" : steps[currentStep];
-  lines.push(
-    "",
-    `  ${emphasize("当前任务", "cyan", useColor)}  ${bold(currentTitle, useColor)}`,
-    `  ${emphasize("已检测", "cyan", useColor)}`,
-  );
+  lines.push(`  ${emphasize("已检测", "cyan", useColor)}`);
 
   if (statusItems) {
+    const visibleStatusItems = revealedStatusCount === null
+      ? statusItems
+      : statusItems.slice(0, revealedStatusCount);
     const statusSymbols = {
       ok: ["✓", "green"],
       warn: ["!", "yellow"],
@@ -380,7 +363,7 @@ export function renderGuideDashboardLines(options = {}) {
       active: ["◉", "magenta"],
       info: ["·", "cyan"],
     };
-    statusItems.forEach((item) => {
+    visibleStatusItems.forEach((item) => {
       const [symbol, tone] = statusSymbols[item.state] ?? statusSymbols.info;
       lines.push(`    ${paint(symbol, tone, useColor)} ${item.label}`);
     });
@@ -396,10 +379,7 @@ export function renderGuideDashboardLines(options = {}) {
     });
   }
 
-  lines.push(
-    "",
-    `${paint("[Enter]", "cyan", useColor)} 执行当前步骤   ${paint(`[1-${steps.length}]`, "cyan", useColor)} 跳转   ${paint("[b]", "cyan", useColor)} 菜单   ${paint("[q]", "cyan", useColor)} 退出`,
-  );
+  lines.push(`${paint("[Enter]", "cyan", useColor)} 执行当前步骤   ${paint(`[1-${steps.length}]`, "cyan", useColor)} 跳转   ${paint("[b]", "cyan", useColor)} 菜单   ${paint("[q]", "cyan", useColor)} 退出`);
 
   return lines;
 }
@@ -408,17 +388,20 @@ export function renderLastRunLines(run, options = {}) {
   if (!run) return [];
   const useColor = options.color ?? !process.env.NO_COLOR;
   const displaySteps = Array.isArray(run.displaySteps) ? run.displaySteps : run.steps;
-
-  return [
+  const lines = [
     "",
     emphasize("最近执行", "cyan", useColor),
     ...renderStepFlowLines(run.title, displaySteps, {
       complete: true,
       color: useColor,
     }),
-    "",
-    `${emphasize("结果", "green", useColor)}  ${paint(run.result, "green", useColor)}`,
   ];
+
+  if (run.result && run.showResult !== false) {
+    lines.push(`${emphasize("结果", "green", useColor)}  ${paint(run.result, "green", useColor)}`);
+  }
+
+  return lines;
 }
 
 export function renderStepFlowLines(title, steps, options = {}) {
@@ -448,7 +431,6 @@ export function renderStepFlowLines(title, steps, options = {}) {
   });
 
   if (complete && options.result) {
-    lines.push("");
     lines.push(...renderNeonCompletionLines(options.result, {
       color: useColor,
       width: options.completionWidth,

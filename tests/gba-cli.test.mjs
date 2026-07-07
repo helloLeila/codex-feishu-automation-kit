@@ -55,10 +55,13 @@ test("guide starts on configuration after automatic setup", async () => {
   assert.equal((stdout.match(/技术活动助手 · 配置引导/g) ?? []).length, 1);
   assert.equal(stdout.includes("✓ 配置文件已就绪"), true);
   assert.equal(stdout.includes("技术活动助手 · 配置引导 1/4"), true);
-  assert.equal(stdout.includes("│ •ᴗ• │  ◉ 配置   ○ 测试   ○ 状态   ○ 自动化"), true);
+  assert.equal(stdout.includes("│ •ᴗ• │  ◉ 配置推送偏好   ○ 测试真实连接   ○ 查看配置状态   ○ 导入自动化"), true);
   assert.equal(stdout.includes("普通配置"), true);
   assert.equal(stdout.includes("飞书 webhook"), true);
   assert.equal(stdout.includes("Server 酱 SendKey"), true);
+  assert.equal(stdout.includes("╰─────╯\n  已检测"), true);
+  assert.equal(stdout.includes("╰─────╯\n\n  已检测"), false);
+  assert.match(stdout, /Server 酱 SendKey (已配置|未配置)\n\[Enter\] 执行当前步骤/);
   assert.equal(stdout.includes("[Enter] 执行当前步骤"), true);
   assert.equal(stdout.includes("[1-4] 跳转"), true);
   assert.equal(stdout.includes("[1-5] 跳转"), false);
@@ -106,16 +109,19 @@ test("guide advances to the next step and marks previous step complete", async (
   assert.equal(status, 0);
   assert.equal(stdout.includes("配置引导"), true);
   assert.equal(stdout.includes("╭─🤖──╮  技术活动助手 · 配置引导 2/4"), true);
-  assert.equal(stdout.includes("│ •ᴗ• │  ● 配置   ◉ 测试"), true);
+  assert.equal(stdout.includes("│ •ᴗ• │  ● 配置推送偏好   ◉ 测试真实连接"), true);
   assert.equal(stdout.includes("↑ 当前步骤"), false);
   assert.equal(stdout.includes("当前任务\n  测试真实连接"), false);
-  assert.equal(stdout.includes("  当前任务  测试真实连接\n  已检测"), true);
+  assert.equal(stdout.includes("当前任务"), false);
+  assert.equal(stdout.includes("  已检测"), true);
+  assert.equal(stdout.includes("╰─────╯\n  已检测"), true);
+  assert.equal(stdout.includes("╰─────╯\n\n  已检测"), false);
   assert.equal(stdout.includes("普通配置"), true);
   assert.equal(stdout.includes("飞书 webhook"), true);
   assert.equal(stdout.includes("Server 酱 SendKey"), true);
   assert.equal(stdout.includes("🤖 1 配置推送和偏好"), true);
   assert.equal(stdout.includes("✓ 配置推送和偏好已完成"), false);
-  assert.equal(stdout.includes("下一步\n  2 测试真实连接"), true);
+  assert.equal(stdout.includes("下一步"), false);
   assert.equal(stdout.includes("最近执行"), true);
   assert.equal(stdout.includes("├─ ✓ 读取现有配置"), true);
   assert.equal(stdout.includes("├─ ✓ 等待用户输入"), true);
@@ -380,7 +386,7 @@ test("automation wizard writes a prompt file and gives one paste step", async ()
         sentGuide = true;
         child.stdin.write("4\n");
       }
-      if (!sentExit && stdout.includes("✓ 已生成 tech-events-assistant.automation.md")) {
+      if (!sentExit && stdout.includes("在 Codex 中添加自动化")) {
         sentExit = true;
         child.stdin.write("0\n");
         child.stdin.end();
@@ -398,29 +404,29 @@ test("automation wizard writes a prompt file and gives one paste step", async ()
     assert.equal(status, 0);
     assert.equal(stdout.includes("导入 Codex 自动化配置"), true);
     assert.equal(stdout.includes("🤖 4 导入 Codex 自动化配置"), true);
-    assert.equal(stdout.includes("├─ ✓ 生成自动化配置 Prompt"), true);
-    assert.equal(stdout.includes("├─ ✓ 写入 tech-events-assistant.automation.md"), true);
+    assert.equal(stdout.includes("├─ ✓ 准备自动化 Prompt"), true);
+    assert.equal(stdout.includes("├─ ✓ 保存 tech-events-assistant.automation.md"), true);
     assert.equal(stdout.includes("└─ ✓ 准备手动复制文件"), true);
     assert.equal(stdout.includes(`完成  ${neonBar} 100%`), true);
-    assert.equal(stdout.includes("      ✓ 已生成 tech-events-assistant.automation.md"), true);
-    assert.equal(stdout.includes("✓ Codex 自动化配置已生成"), true);
-    assert.equal(stdout.includes("输出"), true);
-    assert.equal(stdout.includes("文件      tech-events-assistant.automation.md"), true);
-    assert.equal(stdout.includes("剪贴板    需手动复制"), true);
-    assert.equal(stdout.includes("名称      线下技术活动情报晨报"), true);
-    assert.equal(stdout.includes("时间      每天 07:00 · Asia/Shanghai"), true);
-    assert.equal(stdout.includes("接下来在 Codex 中完成"), true);
-    assert.equal(stdout.includes("接下来在 Codex 中完成\n  1. 打开左侧「自动化（已安排）」"), true);
-    assert.equal(stdout.includes("接下来在 Codex 中完成\n\n"), false);
+    assert.equal(stdout.includes("      ✓ Prompt 已保存到 tech-events-assistant.automation.md"), true);
+    assert.equal(stdout.includes("✓ Codex 自动化配置已生成"), false);
+    assert.equal(stdout.includes("已生成 tech-events-assistant.automation.md"), false);
+    assert.equal(stdout.includes("输出"), false);
+    assert.equal(stdout.includes("在 Codex 中添加自动化"), true);
+    assert.equal(stdout.includes("在 Codex 中添加自动化\n  1. 打开左侧「自动化（已安排）」"), true);
+    assert.equal(stdout.includes("在 Codex 中添加自动化\n\n"), false);
     assert.equal(stdout.includes("1. 打开左侧「自动化（已安排）」"), true);
     assert.equal(stdout.includes("2. 点击「通过聊天添加」"), true);
-    assert.equal(stdout.includes("3. 粘贴刚才复制的 Prompt"), true);
-    assert.equal(stdout.includes("4. 确认名称和运行时间"), true);
-    assert.equal(stdout.includes("5. 保存并运行"), true);
+    assert.equal(stdout.includes("3. 打开 tech-events-assistant.automation.md，复制并粘贴 Prompt"), true);
+    assert.equal(stdout.includes("4. 名称填「线下技术活动情报晨报」"), true);
+    assert.equal(stdout.includes("5. 运行时间设为每天 07:00 · Asia/Shanghai"), true);
+    assert.equal(stdout.includes("6. 保存并运行"), true);
+    assert.equal(stdout.includes("7. Prompt 文件"), false);
+    assert.equal(stdout.includes("8. 剪贴板"), false);
     const recentRun = stdout.slice(stdout.lastIndexOf("最近执行"));
-    assert.equal(recentRun.includes("已准备好 Codex 自动化配置，需手动复制"), true);
-    assert.equal(recentRun.includes("生成自动化配置 Prompt"), false);
-    assert.equal(recentRun.includes("写入 tech-events-assistant.automation.md"), false);
+    assert.equal(recentRun.includes("按下面步骤在 Codex 添加自动化，需手动复制"), true);
+    assert.equal(recentRun.includes("准备自动化 Prompt"), false);
+    assert.equal(recentRun.includes("保存 tech-events-assistant.automation.md"), false);
     assert.equal(recentRun.includes("检查推送配置"), false);
     assert.equal(recentRun.includes("准备手动复制文件"), false);
     assert.equal(stdout.includes("不会自动添加或触发 Codex 自动化"), false);
@@ -470,12 +476,10 @@ test("guide moves away from the final step instead of repeating it on enter", as
     });
 
     assert.equal(status, 0);
-    assert.equal((stdout.match(/生成自动化配置 Prompt/g) ?? []).length <= 2, true);
-    assert.equal((stdout.match(/写入 tech-events-assistant\.automation\.md/g) ?? []).length <= 2, true);
-    assert.equal(
-      stdout.includes("下一步\n  1 配置推送和偏好"),
-      true,
-    );
+    assert.equal((stdout.match(/准备自动化 Prompt/g) ?? []).length <= 2, true);
+    assert.equal((stdout.match(/保存 tech-events-assistant\.automation\.md/g) ?? []).length <= 2, true);
+    assert.equal(stdout.includes("下一步"), false);
+    assert.equal(stdout.includes("[Enter] 执行  1 配置推送和偏好"), true);
     assert.equal(stdout.includes("✓ 导入 Codex 自动化配置已完成"), false);
     assert.equal(stdout.includes("🤖 1 配置推送和偏好"), false);
     assert.equal(stderr, "");
@@ -521,15 +525,17 @@ test("status step renders staged success before status details", async () => {
   });
 
   assert.equal(status, 0);
-  assert.equal(stdout.includes("🤖 3 状态检查"), true);
+  assert.equal(stdout.includes("🤖 3 查看配置状态"), true);
   assert.equal(stdout.includes("├─ ✓ 读取配置文件"), true);
   assert.equal(stdout.includes("├─ ✓ 检查推送通道"), true);
   assert.equal(stdout.includes("├─ ✓ 检查自动化 Prompt"), true);
-  assert.equal(stdout.includes("└─ ✓ 生成状态摘要"), true);
-  assert.equal(stdout.includes("✓ 配置状态已生成"), true);
+  assert.equal(stdout.includes("└─ ✓ 展示当前状态"), true);
+  assert.equal(stdout.includes("配置状态已生成"), false);
+  assert.equal(stdout.includes("生成状态摘要"), false);
+  assert.equal(stdout.includes("结果  配置状态已生成"), false);
   assert.equal(stdout.includes("✓ 状态检查完成"), false);
   assert.equal(stdout.includes("✓ 状态检查已完成"), false);
-  assert.equal(stdout.indexOf("✓ 配置状态已生成") < stdout.indexOf("普通配置（可提交，控制助手偏好）"), true);
+  assert.equal(stdout.indexOf("└─ ✓ 展示当前状态") < stdout.indexOf("普通配置（可提交，控制助手偏好）"), true);
   assert.equal(stderr, "");
 });
 
@@ -640,7 +646,7 @@ test("status prints a readable panel instead of raw JSON", () => {
 
   assert.equal(result.status, 0);
   assert.equal(result.stderr, "");
-  assert.equal(result.stdout.includes("状态检查"), true);
+  assert.equal(result.stdout.includes("查看配置状态"), true);
   assert.equal(result.stdout.includes("普通配置（可提交，控制助手偏好）"), true);
   assert.equal(result.stdout.includes("本机私密配置（.gitignore，不提交，保存 webhook/SendKey）"), true);
   assert.equal(result.stdout.includes("飞书推送"), true);

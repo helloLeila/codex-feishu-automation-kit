@@ -38,7 +38,7 @@ npm run gba -- --dry-run
 预期：
 
 - 四条 `node --check` 命令退出码为 0。
-- `npm run gba -- --dry-run` 显示“本地预检（不发送）”。
+- `npm run gba -- --dry-run` 显示“推送格式检查（不发送）”。
 - 飞书卡片和 Server 酱消息预览均生成成功，且不会真实发送。
 
 ## GitHub 发布

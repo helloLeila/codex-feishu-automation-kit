@@ -30,9 +30,9 @@ npm run check
 echo "==> 运行测试"
 npm test
 
-echo "==> 运行推送本地预检"
+echo "==> 运行推送格式检查"
 npm run gba -- --dry-run >/tmp/codex-gba-dry-run.txt
 
-echo "已生成本地预检输出：/tmp/codex-gba-dry-run.txt"
+echo "已生成推送格式检查输出：/tmp/codex-gba-dry-run.txt"
 echo
 echo "配置完成。下一步：运行 npm run gba，在菜单里配置飞书 webhook 或 Server 酱 SendKey。"

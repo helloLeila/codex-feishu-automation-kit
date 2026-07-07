@@ -139,7 +139,7 @@ node scripts/push-ai-daily-to-serverchan.mjs <生成的Markdown文件路径>
 
 ## 推荐自动化 prompt：大湾区活动
 
-更省事的方式：运行 `npm run gba`，按默认 5 步引导走到 `创建 / 更新技术活动晨报自动化`。工具会生成 `tech-events-assistant.automation.md` 并尽量复制到剪贴板。打开 Codex → 自动化（已安排）→ 通过聊天添加，粘贴后建议保存为“线下技术活动情报晨报”，时间设置为每天 07:00（Asia/Shanghai，早上 7 点）。下面的 prompt 仍保留给需要手动复制或二次修改的人。
+更省事的方式：运行 `npm run gba`，按默认 5 步引导走到 `导入 Codex 自动化配置`。工具会生成 `tech-events-assistant.automation.md` 并尽量复制到剪贴板，然后列出要做的事情：打开 Codex 的「自动化（已安排）」、选择「通过聊天添加」、粘贴 Prompt，名称建议填“线下技术活动情报晨报”，时间设置为每天 07:00（Asia/Shanghai，早上 7 点）。下面的 prompt 仍保留给需要手动复制或二次修改的人。
 
 ```text
 建议自动化时间：每天 07:00（Asia/Shanghai，早上 7 点）。
@@ -182,13 +182,13 @@ node --check scripts/push-ai-daily-to-serverchan.mjs
 node --check scripts/push-gba-events-to-serverchan.mjs
 ```
 
-飞书本地预检（不发送）：
+飞书推送格式检查（不发送）：
 
 ```bash
 FEISHU_DRY_RUN=1 FEISHU_WEBHOOK_URL=<FEISHU_WEBHOOK_URL> node scripts/push-ai-daily-to-feishu.mjs ai-daily/YYYY-MM-DD-ai-daily.md
 ```
 
-Server 酱本地预检（不发送）：
+Server 酱推送格式检查（不发送）：
 
 ```bash
 SERVERCHAN_DRY_RUN=1 SERVERCHAN_SENDKEY=<SERVERCHAN_SENDKEY> node scripts/push-ai-daily-to-serverchan.mjs ai-daily/YYYY-MM-DD-ai-daily.md

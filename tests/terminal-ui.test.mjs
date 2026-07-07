@@ -101,14 +101,14 @@ test("section title is visually heavier than plain text", () => {
 });
 
 test("step transition separates completed output from the next guide", () => {
-  const lines = renderStepTransitionLines("检查状态", "创建 / 更新技术活动晨报自动化", {
+  const lines = renderStepTransitionLines("检查状态", "导入 Codex 自动化配置", {
     color: false,
   }).map(stripAnsi);
 
   assert.deepEqual(lines, [
     "",
     "✓ 已完成：检查状态",
-    "  ↳ 下一步：创建 / 更新技术活动晨报自动化",
+    "  ↳ 下一步：导入 Codex 自动化配置",
     "",
   ]);
 });

@@ -34,10 +34,10 @@ npm run gba
 2. 配置推送和偏好  · 待执行
 3. 测试真实连接  · 待执行
 4. 检查状态  · 待执行
-5. 创建 / 更新技术活动晨报自动化  · 待执行
+5. 导入 Codex 自动化配置  · 待执行
 ```
 
-第 5 步会生成 `tech-events-assistant.automation.md`，并尽量把完整 Prompt 复制到剪贴板。你只需要打开 Codex → 自动化（已安排）→ 通过聊天添加，粘贴后保存为“线下技术活动情报晨报”，时间设为每天 07:00（Asia/Shanghai，早上 7 点）。如果剪贴板不可用，直接打开生成的 Markdown 文件复制即可。
+第 5 步会生成 `tech-events-assistant.automation.md`，并尽量把完整 Prompt 复制到剪贴板。工具会明确列出你要做的事情：打开 Codex 的「自动化（已安排）」、选择「通过聊天添加」、粘贴 Prompt，名称填“线下技术活动情报晨报”，时间设为每天 07:00（Asia/Shanghai，早上 7 点）。如果剪贴板不可用，直接打开生成的 Markdown 文件复制即可。
 
 第 2 步会先问是否帮你打开取值页面。回车会同时打开飞书自定义机器人文档和 Server 酱 SendKey 页面；Server 酱页面链接也会复制到剪贴板作为兜底。拿到 webhook / SendKey 后回到终端粘贴即可。
 
@@ -71,7 +71,7 @@ bash scripts/setup.sh
 2. 检查是否已有 `tech-events-assistant.local.json`，不会自动写入占位密钥。
 3. 运行 `npm run check` 做语法检查。
 4. 运行 `npm test`。
-5. 使用示例 Markdown 做本地预检，不会真实发送消息。
+5. 使用示例 Markdown 做推送格式检查，不会真实发送消息。
 
 ## 配置文件
 
@@ -194,7 +194,7 @@ node scripts/push-gba-events-to-serverchan.mjs <生成的Markdown文件路径>
 
 ## 测试连接
 
-`npm run gba` 的第 3 步会直接发送一条测试消息来验证 webhook / SendKey，并显示 `HTTP/code/msg` 摘要。命令里的 `DRY_RUN=1` 是脚本参数名，含义是“不发送，只预检”，主要用于脚本调试和发布前检查，不会作为正常引导步骤展示。
+`npm run gba` 的第 3 步会直接发送一条测试消息来验证 webhook / SendKey，并显示 `HTTP/code/msg` 摘要。命令里的 `DRY_RUN=1` 是脚本参数名，含义是“不发送，只检查推送格式”，主要用于脚本调试和发布前检查，不会作为正常引导步骤展示。
 
 ```bash
 FEISHU_DRY_RUN=1 FEISHU_WEBHOOK_URL=<FEISHU_WEBHOOK_URL> node skills/feishu-automation-reporter/scripts/push-ai-daily-to-feishu.mjs examples/ai-daily-example.md

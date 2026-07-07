@@ -40,7 +40,7 @@ const GUIDE_STEPS = [
   "配置推送和偏好",
   "测试真实连接",
   "检查状态",
-  "创建 / 更新技术活动晨报自动化",
+  "导入 Codex 自动化配置",
 ];
 
 function createPromptSession() {
@@ -464,7 +464,7 @@ function runLocalPreflight() {
     }
   }
 
-  printCompletedSteps("本地预检（不发送）", ["生成飞书卡片预览", "生成 Server 酱消息预览"], "本地预检通过，未真实发送");
+  printCompletedSteps("推送格式检查（不发送）", ["生成飞书卡片预览", "生成 Server 酱消息预览"], "推送格式检查通过，未真实发送");
   return true;
 }
 
@@ -612,15 +612,20 @@ async function createAutomationWizard() {
   await writeFile(promptPath, promptText);
   const clipboard = copyTextToClipboard(promptText);
   const steps = clipboard.copied
-    ? ["生成技术活动晨报 Prompt", `写入 ${AUTOMATION_PROMPT_FILE}`, "检查推送配置", "复制 Prompt 到剪贴板"]
-    : ["生成技术活动晨报 Prompt", `写入 ${AUTOMATION_PROMPT_FILE}`, "检查推送配置", "准备手动复制文件"];
+    ? ["生成自动化配置 Prompt", `写入 ${AUTOMATION_PROMPT_FILE}`, "检查推送配置", "复制 Prompt 到剪贴板"]
+    : ["生成自动化配置 Prompt", `写入 ${AUTOMATION_PROMPT_FILE}`, "检查推送配置", "准备手动复制文件"];
   const result = clipboard.copied
     ? `已生成 ${AUTOMATION_PROMPT_FILE}，并复制到剪贴板`
     : `已生成 ${AUTOMATION_PROMPT_FILE}`;
 
-  printCompletedSteps("创建技术活动晨报自动化", steps, result);
+  printCompletedSteps("导入 Codex 自动化配置", steps, result);
   console.log("");
-  console.log(statusLine(`下一步：打开 Codex → 自动化（已安排）→ 通过聊天添加 → 粘贴 Prompt → 保存为：${AUTOMATION_DISPLAY_NAME}`, "info"));
+  console.log(renderSectionTitle("你需要做的事情").join("\n"));
+  console.log(statusLine("打开 Codex 左侧的「自动化（已安排）」", "info"));
+  console.log(statusLine("点击「通过聊天添加」", "info"));
+  console.log(statusLine("粘贴刚才复制的 Prompt", "info"));
+  console.log(statusLine(`自动化名称填写：${AUTOMATION_DISPLAY_NAME}`, "info"));
+  console.log(statusLine("运行时间设置：每天 07:00（Asia/Shanghai）", "info"));
   console.log(statusLine(`Prompt 文件：${AUTOMATION_PROMPT_FILE}`, "info"));
   if (clipboard.copied) {
     console.log(statusLine("已复制到剪贴板，直接粘贴即可", "ok"));
@@ -644,7 +649,7 @@ function printMenu(options = {}) {
   console.log("2. 配置推送和偏好");
   console.log("3. 测试真实连接");
   console.log("4. 检查状态");
-  console.log("5. 创建 / 更新技术活动晨报自动化");
+  console.log("5. 导入 Codex 自动化配置");
   console.log("0. 退出");
 }
 

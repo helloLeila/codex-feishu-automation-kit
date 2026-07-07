@@ -370,15 +370,21 @@ test("dry-run prints a completed step flow instead of a digital progress bar", (
   assert.equal(result.stdout.includes("        ✓ 本地预检通过，未真实发送"), true);
 });
 
-test("interactive connection check asks before sending a real test message", async () => {
+test("interactive connection check tests real targets without showing local preflight", async () => {
+  const originalLocalConfig = await readOptionalFile(localConfigPath);
+  await writeFile(localConfigPath, JSON.stringify({
+    push: {
+      feishuWebhookUrl: "https://example.test/hook",
+    },
+  }));
+
   const child = spawn(process.execPath, ["scripts/gba.mjs"], {
     cwd: rootDir,
-    env: { ...process.env, NO_COLOR: "1" },
+    env: { ...process.env, NO_COLOR: "1", TECH_EVENTS_ASSISTANT_SKIP_REAL_SEND: "1" },
   });
   let stdout = "";
   let stderr = "";
   let sentCheck = false;
-  let sentSkip = false;
   let sentExit = false;
 
   child.stdout.setEncoding("utf8");
@@ -389,11 +395,7 @@ test("interactive connection check asks before sending a real test message", asy
       sentCheck = true;
       child.stdin.write("3\n");
     }
-    if (!sentSkip && stdout.includes("是否发送一条测试消息到已配置通道")) {
-      sentSkip = true;
-      child.stdin.write("\n");
-    }
-    if (!sentExit && stdout.includes("已跳过真实发送测试")) {
+    if (!sentExit && stdout.includes("已检测到真实配置，未发送测试消息")) {
       sentExit = true;
       child.stdin.write("q\n");
       child.stdin.end();
@@ -407,11 +409,21 @@ test("interactive connection check asks before sending a real test message", asy
     child.on("exit", (code) => resolve(code));
   });
 
-  assert.equal(status, 0);
-  assert.equal(stdout.includes("本地预检（不发送）"), true);
-  assert.equal(stdout.includes("是否发送一条测试消息到已配置通道"), true);
-  assert.equal(stdout.includes("已跳过真实发送测试；本地预检已通过"), true);
-  assert.equal(stderr, "");
+  try {
+    assert.equal(status, 0);
+    assert.equal(stdout.includes("测试真实连接"), true);
+    assert.equal(stdout.includes("本地预检（不发送）"), false);
+    assert.equal(stdout.includes("是否发送一条测试消息到已配置通道"), false);
+    assert.equal(stdout.includes("已检测到真实配置，未发送测试消息"), true);
+    assert.equal(stdout.includes("飞书：已检测到配置，按环境变量跳过真实发送"), true);
+    assert.equal(stderr, "");
+  } finally {
+    if (originalLocalConfig === null) {
+      await rm(localConfigPath, { force: true });
+    } else {
+      await writeFile(localConfigPath, originalLocalConfig);
+    }
+  }
 });
 
 test("feishu connection test returns a readable server response summary", async (t) => {

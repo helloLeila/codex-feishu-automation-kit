@@ -38,7 +38,7 @@ const SERVERCHAN_SENDKEY_URL = "https://sct.ftqq.com/sendkey";
 const GUIDE_STEPS = [
   "安装 / 更新活动助手",
   "配置推送和偏好",
-  "本地预检 / 测试真实推送",
+  "测试真实连接",
   "检查状态",
   "创建 / 更新技术活动晨报自动化",
 ];
@@ -397,7 +397,7 @@ async function printStatus() {
   console.log(statusLine(`自动化 Prompt：${hasAutomationPrompt ? `${AUTOMATION_PROMPT_FILE} 已生成` : "未生成，可执行第 5 步"}`, hasAutomationPrompt ? "ok" : "warn"));
   console.log("");
   if (hasFeishu || hasServerChan) {
-    console.log(statusLine("建议操作：执行第 3 步本地预检，可选择发送一条真实测试消息", "info"));
+    console.log(statusLine("建议操作：执行第 3 步测试真实连接", "info"));
   } else {
     console.log(statusLine("建议操作：执行第 2 步配置飞书 webhook 或 Server 酱 SendKey", "info"));
   }
@@ -566,8 +566,6 @@ async function sendServerChanConnectionTest(sendKey) {
 }
 
 async function runConnectionCheck(rl) {
-  if (!runLocalPreflight()) return;
-
   const config = await loadAssistantConfig(rootDir);
   const localEnv = await loadLocalEnv(rootDir);
   const targets = getConfiguredPushTargets(config, localEnv);
@@ -577,22 +575,23 @@ async function runConnectionCheck(rl) {
   ].filter(Boolean);
 
   if (enabledTargets.length === 0) {
-    console.log(statusLine("未检测到真实 webhook / SendKey；本次只完成本地预检", "warn"));
-    return;
-  }
-
-  const answer = await rl.question("是否发送一条测试消息到已配置通道？输入 y 发送，直接回车跳过：");
-  if (answer.trim().toLowerCase() !== "y") {
-    console.log(statusLine("已跳过真实发送测试；本地预检已通过", "info"));
+    console.log(statusLine("未检测到真实 webhook / SendKey；请先执行第 2 步配置推送", "warn"));
     return;
   }
 
   const steps = enabledTargets.map((target) => `发送 ${target} 测试消息`);
   try {
     const responseSummaries = [];
-    if (targets.feishuWebhook) responseSummaries.push(await sendFeishuConnectionTest(targets.feishuWebhook, targets.feishuSecret));
-    if (targets.serverChanSendKey) responseSummaries.push(await sendServerChanConnectionTest(targets.serverChanSendKey));
-    printCompletedSteps("真实连接测试", steps, "真实连接测试通过，已发送测试消息");
+    if (process.env.TECH_EVENTS_ASSISTANT_SKIP_REAL_SEND === "1") {
+      responseSummaries.push(...enabledTargets.map((target) => `${target}：已检测到配置，按环境变量跳过真实发送`));
+    } else {
+      if (targets.feishuWebhook) responseSummaries.push(await sendFeishuConnectionTest(targets.feishuWebhook, targets.feishuSecret));
+      if (targets.serverChanSendKey) responseSummaries.push(await sendServerChanConnectionTest(targets.serverChanSendKey));
+    }
+    const result = process.env.TECH_EVENTS_ASSISTANT_SKIP_REAL_SEND === "1"
+      ? "已检测到真实配置，未发送测试消息"
+      : "真实连接测试通过，已发送测试消息";
+    printCompletedSteps("测试真实连接", steps, result);
     for (const summary of responseSummaries) {
       console.log(statusLine(summary, "ok"));
     }
@@ -643,7 +642,7 @@ function printMenu(options = {}) {
   }
   console.log("1. 安装 / 更新活动助手");
   console.log("2. 配置推送和偏好");
-  console.log("3. 本地预检 / 测试真实推送");
+  console.log("3. 测试真实连接");
   console.log("4. 检查状态");
   console.log("5. 创建 / 更新技术活动晨报自动化");
   console.log("0. 退出");

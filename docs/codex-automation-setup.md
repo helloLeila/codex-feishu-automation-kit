@@ -181,13 +181,13 @@ node --check scripts/push-ai-daily-to-serverchan.mjs
 node --check scripts/push-gba-events-to-serverchan.mjs
 ```
 
-飞书连接测试（不发送）：
+飞书本地预检（不发送）：
 
 ```bash
 FEISHU_DRY_RUN=1 FEISHU_WEBHOOK_URL=<FEISHU_WEBHOOK_URL> node scripts/push-ai-daily-to-feishu.mjs ai-daily/YYYY-MM-DD-ai-daily.md
 ```
 
-Server 酱连接测试（不发送）：
+Server 酱本地预检（不发送）：
 
 ```bash
 SERVERCHAN_DRY_RUN=1 SERVERCHAN_SENDKEY=<SERVERCHAN_SENDKEY> node scripts/push-ai-daily-to-serverchan.mjs ai-daily/YYYY-MM-DD-ai-daily.md

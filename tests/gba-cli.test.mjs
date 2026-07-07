@@ -317,11 +317,80 @@ test("dry-run prints a completed step flow instead of a digital progress bar", (
   assert.equal(result.status, 0);
   assert.equal(result.stderr, "");
   assert.equal(result.stdout.includes("完成  ██████████████████████████████ 100%  已完成"), false);
-  assert.equal(result.stdout.includes("测试连接 / 推送可用性"), true);
-  assert.equal(result.stdout.includes("├─ ✓ 测试飞书连接（不发送）"), true);
-  assert.equal(result.stdout.includes("└─ ✓ 测试 Server 酱连接（不发送）"), true);
+  assert.equal(result.stdout.includes("本地预检（不发送）"), true);
+  assert.equal(result.stdout.includes("├─ ✓ 生成飞书卡片预览"), true);
+  assert.equal(result.stdout.includes("└─ ✓ 生成 Server 酱消息预览"), true);
   assert.equal(result.stdout.includes(`完成    ${neonBar} 100%`), true);
-  assert.equal(result.stdout.includes("        ✓ 连接测试通过，未真实发送"), true);
+  assert.equal(result.stdout.includes("        ✓ 本地预检通过，未真实发送"), true);
+});
+
+test("interactive connection check asks before sending a real test message", async () => {
+  const child = spawn(process.execPath, ["scripts/gba.mjs"], {
+    cwd: rootDir,
+    env: { ...process.env, NO_COLOR: "1" },
+  });
+  let stdout = "";
+  let stderr = "";
+  let sentCheck = false;
+  let sentSkip = false;
+  let sentExit = false;
+
+  child.stdout.setEncoding("utf8");
+  child.stderr.setEncoding("utf8");
+  child.stdout.on("data", (chunk) => {
+    stdout += chunk;
+    if (!sentCheck && stdout.includes("回车执行当前步骤")) {
+      sentCheck = true;
+      child.stdin.write("3\n");
+    }
+    if (!sentSkip && stdout.includes("是否发送一条测试消息到已配置通道")) {
+      sentSkip = true;
+      child.stdin.write("\n");
+    }
+    if (!sentExit && stdout.includes("已跳过真实发送测试")) {
+      sentExit = true;
+      child.stdin.write("q\n");
+      child.stdin.end();
+    }
+  });
+  child.stderr.on("data", (chunk) => {
+    stderr += chunk;
+  });
+
+  const status = await new Promise((resolve) => {
+    child.on("exit", (code) => resolve(code));
+  });
+
+  assert.equal(status, 0);
+  assert.equal(stdout.includes("本地预检（不发送）"), true);
+  assert.equal(stdout.includes("是否发送一条测试消息到已配置通道"), true);
+  assert.equal(stdout.includes("已跳过真实发送测试；本地预检已通过"), true);
+  assert.equal(stderr, "");
+});
+
+test("feishu connection test returns a readable server response summary", async (t) => {
+  const originalFetch = globalThis.fetch;
+  let requestUrl = "";
+  let requestOptions = {};
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+  globalThis.fetch = async (url, options) => {
+    requestUrl = url;
+    requestOptions = options;
+    return new Response(JSON.stringify({ code: 0, msg: "ok" }), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
+  };
+
+  const { sendFeishuConnectionTest } = await import("../scripts/gba.mjs");
+  const summary = await sendFeishuConnectionTest("https://example.test/bot", "");
+
+  assert.equal(summary, "飞书返回：HTTP 200，code 0，msg ok");
+  assert.equal(requestUrl, "https://example.test/bot");
+  assert.equal(requestOptions.method, "POST");
+  assert.equal(JSON.parse(requestOptions.body).msg_type, "text");
 });
 
 test("status prints a readable panel instead of raw JSON", () => {

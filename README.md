@@ -32,12 +32,14 @@ npm run gba
 引导配置
 1. 安装 / 更新活动助手  ▶ 当前
 2. 配置推送和偏好  · 待执行
-3. 测试连接 / 推送可用性  · 待执行
+3. 本地预检 / 测试真实推送  · 待执行
 4. 检查状态  · 待执行
 5. 创建 / 更新活动搜寻自动化  · 待执行
 ```
 
 第 5 步会生成 `tech-events-assistant.automation.md`，并尽量把完整 Prompt 复制到剪贴板。你只需要打开 Codex → Automations → New，粘贴后保存为“活动搜寻”，时间设为每天 07:00（Asia/Shanghai，早上 7 点）。如果剪贴板不可用，直接打开生成的 Markdown 文件复制即可。
+
+第 3 步分两层：先做本地预检，不发送任何消息；如果已经配置真实飞书 webhook 或 Server 酱 SendKey，会再询问是否发送一条测试消息。只有输入 `y` 才会真实发送，并显示服务端返回摘要，例如 `HTTP 200，code 0，msg ok`。
 
 保存配置时会显示步骤流：
 
@@ -67,7 +69,7 @@ bash scripts/setup.sh
 2. 检查是否已有 `tech-events-assistant.local.json`，不会自动写入占位密钥。
 3. 运行 `npm run check` 做语法检查。
 4. 运行 `npm test`。
-5. 使用示例 Markdown 做推送连接测试，不会真实发送消息。
+5. 使用示例 Markdown 做本地预检，不会真实发送消息。
 
 ## 配置文件
 
@@ -190,7 +192,7 @@ node scripts/push-gba-events-to-serverchan.mjs <生成的Markdown文件路径>
 
 ## 测试连接
 
-测试连接会模拟生成飞书卡片和 Server 酱消息，但不会真实发送。命令里的 `DRY_RUN=1` 是脚本参数名，含义就是“不发送，只测试”。
+`npm run gba` 的第 3 步会先做本地预检：模拟生成飞书卡片和 Server 酱消息，但不会真实发送。若检测到真实配置，它会询问是否发送一条测试消息来验证 webhook / SendKey；真实发送后会显示 `HTTP/code/msg` 摘要。命令里的 `DRY_RUN=1` 是脚本参数名，含义就是“不发送，只预检”。
 
 ```bash
 FEISHU_DRY_RUN=1 FEISHU_WEBHOOK_URL=<FEISHU_WEBHOOK_URL> node skills/feishu-automation-reporter/scripts/push-ai-daily-to-feishu.mjs examples/ai-daily-example.md

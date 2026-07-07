@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 import { spawnSync } from "node:child_process";
+import { createHmac } from "node:crypto";
 import { access, copyFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { createInterface } from "node:readline";
 import { stdin as input, stdout as output } from "node:process";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 import {
   cartoonProgressLine,
@@ -32,7 +33,7 @@ const AUTOMATION_PROMPT_FILE = "tech-events-assistant.automation.md";
 const GUIDE_STEPS = [
   "安装 / 更新活动助手",
   "配置推送和偏好",
-  "测试连接 / 推送可用性",
+  "本地预检 / 测试真实推送",
   "检查状态",
   "创建 / 更新活动搜寻自动化",
 ];
@@ -317,7 +318,7 @@ async function printStatus() {
   console.log(statusLine(`自动化 Prompt：${hasAutomationPrompt ? `${AUTOMATION_PROMPT_FILE} 已生成` : "未生成，可执行第 5 步"}`, hasAutomationPrompt ? "ok" : "warn"));
   console.log("");
   if (hasFeishu || hasServerChan) {
-    console.log(statusLine("下一步：执行第 3 步测试连接 / 推送可用性", "info"));
+    console.log(statusLine("下一步：执行第 3 步本地预检，可选择发送一条真实测试消息", "info"));
   } else {
     console.log(statusLine("下一步：执行第 2 步配置飞书 webhook 或 Server 酱 SendKey", "info"));
   }
@@ -353,7 +354,7 @@ async function configurePush(rl) {
   }
 }
 
-function runDryRun() {
+function runLocalPreflight() {
   const commands = [
     {
       env: { FEISHU_DRY_RUN: "1", FEISHU_WEBHOOK_URL: "dry-run-webhook-url" },
@@ -380,11 +381,145 @@ function runDryRun() {
     if (result.status !== 0) {
       process.stderr.write(result.stderr);
       process.exitCode = result.status;
-      return;
+      return false;
     }
   }
 
-  printCompletedSteps("测试连接 / 推送可用性", ["测试飞书连接（不发送）", "测试 Server 酱连接（不发送）"], "连接测试通过，未真实发送");
+  printCompletedSteps("本地预检（不发送）", ["生成飞书卡片预览", "生成 Server 酱消息预览"], "本地预检通过，未真实发送");
+  return true;
+}
+
+function getConfiguredPushTargets(config, localEnv) {
+  return {
+    feishuWebhook: config?.push?.feishuWebhookUrl || localEnv.FEISHU_WEBHOOK_URL,
+    feishuSecret: config?.push?.feishuWebhookSecret || localEnv.FEISHU_WEBHOOK_SECRET,
+    serverChanSendKey: config?.push?.serverChanSendKey || localEnv.SERVERCHAN_SENDKEY,
+  };
+}
+
+function parseConnectionResponseBody(body) {
+  try {
+    return JSON.parse(body);
+  } catch {
+    return { raw: body };
+  }
+}
+
+function connectionResponseCode(result) {
+  return result.code ?? result.Code ?? result.StatusCode ?? result.statusCode;
+}
+
+function connectionResponseMessage(result) {
+  return result.msg ?? result.message ?? result.Msg ?? result.StatusMessage ?? result.errmsg;
+}
+
+function hasFailureCode(code) {
+  if (code === undefined || code === null || code === "") return false;
+  const numericCode = Number(code);
+  if (Number.isNaN(numericCode)) return String(code) !== "0";
+  return numericCode !== 0;
+}
+
+function shortText(value, maxLength = 80) {
+  const text = String(value ?? "").replace(/\s+/g, " ").trim();
+  if (text.length <= maxLength) return text;
+  return `${text.slice(0, maxLength - 1)}…`;
+}
+
+export function formatConnectionResponse(status, result) {
+  const parts = [`HTTP ${status}`];
+  const code = connectionResponseCode(result);
+  const message = connectionResponseMessage(result);
+  if (code !== undefined) parts.push(`code ${code}`);
+  if (message) parts.push(`msg ${shortText(message)}`);
+  return parts.join("，");
+}
+
+export async function sendFeishuConnectionTest(webhook, secret) {
+  const requestPayload = {
+    msg_type: "text",
+    content: {
+      text: "技术活动助手连接测试：如果你看到这条消息，飞书 webhook 可用。",
+    },
+  };
+
+  if (secret) {
+    const timestamp = String(Math.floor(Date.now() / 1000));
+    requestPayload.timestamp = timestamp;
+    requestPayload.sign = createHmac("sha256", `${timestamp}\n${secret}`).digest("base64");
+  }
+
+  const response = await fetch(webhook, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(requestPayload),
+  });
+  const body = await response.text();
+  const result = parseConnectionResponseBody(body);
+  const summary = formatConnectionResponse(response.status, result);
+  if (!response.ok) throw new Error(`飞书返回失败：${summary}`);
+  if (hasFailureCode(connectionResponseCode(result))) {
+    throw new Error(`飞书返回错误：${summary}`);
+  }
+  return `飞书返回：${summary}`;
+}
+
+async function sendServerChanConnectionTest(sendKey) {
+  const endpoint = `https://sctapi.ftqq.com/${encodeURIComponent(sendKey)}.send`;
+  const body = new URLSearchParams({
+    title: "技术活动助手连接测试",
+    desp: "如果你看到这条消息，Server 酱 SendKey 可用。",
+  });
+
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body,
+  });
+  const responseText = await response.text();
+  const result = parseConnectionResponseBody(responseText);
+  const summary = formatConnectionResponse(response.status, result);
+  if (!response.ok) throw new Error(`Server 酱返回失败：${summary}`);
+  if (hasFailureCode(connectionResponseCode(result))) {
+    throw new Error(`Server 酱返回错误：${summary}`);
+  }
+  return `Server 酱返回：${summary}`;
+}
+
+async function runConnectionCheck(rl) {
+  if (!runLocalPreflight()) return;
+
+  const config = await loadAssistantConfig(rootDir);
+  const localEnv = await loadLocalEnv(rootDir);
+  const targets = getConfiguredPushTargets(config, localEnv);
+  const enabledTargets = [
+    targets.feishuWebhook ? "飞书" : null,
+    targets.serverChanSendKey ? "Server 酱" : null,
+  ].filter(Boolean);
+
+  if (enabledTargets.length === 0) {
+    console.log(statusLine("未检测到真实 webhook / SendKey；本次只完成本地预检", "warn"));
+    return;
+  }
+
+  const answer = await rl.question("是否发送一条测试消息到已配置通道？输入 y 发送，直接回车跳过：");
+  if (answer.trim().toLowerCase() !== "y") {
+    console.log(statusLine("已跳过真实发送测试；本地预检已通过", "info"));
+    return;
+  }
+
+  const steps = enabledTargets.map((target) => `发送 ${target} 测试消息`);
+  try {
+    const responseSummaries = [];
+    if (targets.feishuWebhook) responseSummaries.push(await sendFeishuConnectionTest(targets.feishuWebhook, targets.feishuSecret));
+    if (targets.serverChanSendKey) responseSummaries.push(await sendServerChanConnectionTest(targets.serverChanSendKey));
+    printCompletedSteps("真实连接测试", steps, "真实连接测试通过，已发送测试消息");
+    for (const summary of responseSummaries) {
+      console.log(statusLine(summary, "ok"));
+    }
+  } catch (error) {
+    console.log(statusLine(`真实连接测试失败：${error.message}`, "error"));
+  }
 }
 
 async function createAutomationWizard() {
@@ -429,7 +564,7 @@ function printMenu(options = {}) {
   }
   console.log("1. 安装 / 更新活动助手");
   console.log("2. 配置推送和偏好");
-  console.log("3. 测试连接 / 推送可用性");
+  console.log("3. 本地预检 / 测试真实推送");
   console.log("4. 检查状态");
   console.log("5. 创建 / 更新活动搜寻自动化");
   console.log("0. 退出");
@@ -438,7 +573,7 @@ function printMenu(options = {}) {
 async function runStepByIndex(index, rl) {
   if (index === 0) await installOrUpdate();
   else if (index === 1) await configurePush(rl);
-  else if (index === 2) runDryRun();
+  else if (index === 2) await runConnectionCheck(rl);
   else if (index === 3) await printStatus();
   else if (index === 4) await createAutomationWizard();
 }
@@ -448,7 +583,7 @@ async function handleChoice(choice, rl) {
   if (choice.toLowerCase() === "g") return "guide";
   if (choice === "1") await installOrUpdate();
   else if (choice === "2") await configurePush(rl);
-  else if (choice === "3") runDryRun();
+  else if (choice === "3") await runConnectionCheck(rl);
   else if (choice === "4") await printStatus();
   else if (choice === "5") await createAutomationWizard();
   else {
@@ -515,7 +650,7 @@ async function main(argv) {
   }
 
   if (argv.includes("--dry-run")) {
-    runDryRun();
+    runLocalPreflight();
     return;
   }
 
@@ -529,7 +664,9 @@ async function main(argv) {
   await guideMenu();
 }
 
-main(process.argv.slice(2)).catch((error) => {
-  console.error(color(error.message, "red"));
-  process.exitCode = 1;
-});
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main(process.argv.slice(2)).catch((error) => {
+    console.error(color(error.message, "red"));
+    process.exitCode = 1;
+  });
+}

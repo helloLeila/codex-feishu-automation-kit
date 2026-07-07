@@ -104,7 +104,7 @@ function printGuide(completedSteps, currentStep) {
   printBanner();
   console.log("");
   console.log(renderSectionTitle("引导配置").join("\n"));
-  console.log(color("回车执行当前步骤；输入 1-5 直接执行某步；b 返回上一层；q 退出引导。", "gray"));
+  console.log(color("直接回车执行高亮步骤；输入 1-5 可跳到某步；b 返回上一层；q 退出引导。", "gray"));
   console.log("");
   GUIDE_STEPS.forEach((step, index) => {
     const number = index + 1;
@@ -116,6 +116,10 @@ function printGuide(completedSteps, currentStep) {
       console.log(color(`${number}. ${step}  · 待执行`, "gray"));
     }
   });
+}
+
+function guidePrompt(currentStep) {
+  return color(`\n下一步（回车执行：${GUIDE_STEPS[currentStep]}）：`, "cyan");
 }
 
 function printStepTransition(completedStep, nextStep) {
@@ -404,7 +408,6 @@ async function configurePush(rl) {
   const reader = rl ?? createPromptSession();
   const current = await readLocalConfig(rootDir);
 
-  console.log(color("输入留空 = 保留原值；输入 clear = 清空该项。最后确认保存前不会写文件。", "gray"));
   await offerCredentialSetupHelp(reader);
   const feishuWebhookUrl = await reader.question("飞书 webhook URL（飞书群设置 → 机器人 → 自定义机器人）：");
   const feishuWebhookSecret = await reader.question("飞书签名密钥（可空，开启签名校验才填）：");
@@ -689,7 +692,7 @@ async function guideMenu() {
   try {
     while (true) {
       printGuide(completedSteps, currentStep);
-      const answer = (await rl.question(color("\n下一步：", "cyan"))).trim().toLowerCase();
+      const answer = (await rl.question(guidePrompt(currentStep))).trim().toLowerCase();
       if (answer === "q" || answer === "0") break;
       if (answer === "b") {
         const returnToGuide = await manualMenu(rl);

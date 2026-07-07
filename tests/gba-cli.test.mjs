@@ -59,7 +59,8 @@ test("menu returns after an action so the next number is handled by the CLI", as
   assert.equal(status, 0);
   assert.equal((stdout.match(/^1\. 安装 \/ 更新活动助手/gm) ?? []).length, 2);
   assert.equal((stdout.match(/技术活动助手/g) ?? []).length, 2);
-  assert.equal(stdout.includes("回车执行当前步骤"), true);
+  assert.equal(stdout.includes("直接回车执行高亮步骤"), true);
+  assert.equal(stdout.includes("下一步（回车执行：安装 / 更新活动助手）："), true);
   assert.equal(stdout.includes("进度条演示"), false);
   assert.equal(stderr, "");
 });
@@ -78,7 +79,7 @@ test("guide advances to the next step and marks previous step complete", async (
   child.stderr.setEncoding("utf8");
   child.stdout.on("data", (chunk) => {
     stdout += chunk;
-    if (!sentInstall && stdout.includes("回车执行当前步骤")) {
+    if (!sentInstall && stdout.includes("下一步（回车执行：安装 / 更新活动助手）：")) {
       sentInstall = true;
       child.stdin.write("\n");
     }
@@ -102,6 +103,7 @@ test("guide advances to the next step and marks previous step complete", async (
   assert.equal(stdout.includes("2. 配置推送和偏好  ▶ 当前"), true);
   assert.equal(stdout.includes("✓ 安装 / 更新活动助手 已完成"), true);
   assert.equal(stdout.includes("→ 继续下一步：配置推送和偏好"), true);
+  assert.equal(stdout.includes("下一步（回车执行：配置推送和偏好）："), true);
   assert.equal(stderr, "");
 });
 
@@ -119,7 +121,7 @@ test("guide can return to the manual menu", async () => {
   child.stderr.setEncoding("utf8");
   child.stdout.on("data", (chunk) => {
     stdout += chunk;
-    if (!sentBack && stdout.includes("回车执行当前步骤")) {
+    if (!sentBack && stdout.includes("直接回车执行高亮步骤")) {
       sentBack = true;
       child.stdin.write("b\n");
     }
@@ -179,7 +181,8 @@ test("configuration can be skipped without breaking the menu loop", async () => 
   assert.equal(stdout.includes("未保存，原配置保持不变"), true);
   assert.equal((stdout.match(/^1\. 安装 \/ 更新活动助手/gm) ?? []).length, 2);
   assert.equal((stdout.match(/技术活动助手/g) ?? []).length, 2);
-  assert.equal(stdout.includes("回车执行当前步骤"), true);
+  assert.equal(stdout.includes("直接回车执行高亮步骤"), true);
+  assert.equal(stdout.includes("输入留空 = 保留原值"), false);
   assert.equal(stdout.includes("飞书 webhook URL（飞书群设置 → 机器人 → 自定义机器人）："), true);
   assert.equal(stdout.includes("Server 酱 SendKey（sct.ftqq.com → SendKey 页面）："), true);
   assert.equal(stdout.includes("进度条演示"), false);
@@ -382,7 +385,7 @@ test("interactive connection check asks before sending a real test message", asy
   child.stderr.setEncoding("utf8");
   child.stdout.on("data", (chunk) => {
     stdout += chunk;
-    if (!sentCheck && stdout.includes("回车执行当前步骤")) {
+    if (!sentCheck && stdout.includes("直接回车执行高亮步骤")) {
       sentCheck = true;
       child.stdin.write("3\n");
     }

@@ -60,6 +60,9 @@ test("menu returns after an action so the next number is handled by the CLI", as
   assert.equal((stdout.match(/技术活动助手 · 配置引导/g) ?? []).length, 2);
   assert.equal((stdout.match(/技术活动助手/g) ?? []).length, 2);
   assert.equal(stdout.includes("技术活动助手 · 配置引导 1/5"), true);
+  assert.equal(stdout.includes("普通配置"), true);
+  assert.equal(stdout.includes("飞书 webhook"), true);
+  assert.equal(stdout.includes("Server 酱 SendKey"), true);
   assert.equal(stdout.includes("[Enter] 执行当前步骤"), true);
   assert.equal(stdout.includes("引导配置 · 下一步"), false);
   assert.equal(stdout.includes("[Enter] 执行  1 安装 / 更新活动助手"), true);
@@ -102,15 +105,70 @@ test("guide advances to the next step and marks previous step complete", async (
 
   assert.equal(status, 0);
   assert.equal(stdout.includes("配置引导"), true);
-  assert.equal(stdout.includes("技术活动助手 · 配置引导 2/5"), true);
-  assert.equal(stdout.includes("● 安装   ◉ 配置"), true);
-  assert.equal(stdout.includes("  ✓ 安装 / 更新活动助手"), true);
-  assert.equal(stdout.includes("  ◉ 配置推送和偏好"), true);
-  assert.equal(stdout.includes("━━ 1 安装 / 更新活动助手"), true);
-  assert.equal(stdout.includes("✓ 安装 / 更新活动助手已完成"), true);
+  assert.equal(stdout.includes("╭─🤖──╮  技术活动助手 · 配置引导 2/5"), true);
+  assert.equal(stdout.includes("│ •ᴗ• │  ● 安装   ◉ 配置"), true);
+  assert.equal(stdout.includes("↑ 当前步骤"), false);
+  assert.equal(stdout.includes("当前任务\n  配置推送和偏好"), false);
+  assert.equal(stdout.includes("当前任务  配置推送和偏好"), true);
+  assert.equal(stdout.includes("普通配置"), true);
+  assert.equal(stdout.includes("飞书 webhook"), true);
+  assert.equal(stdout.includes("Server 酱 SendKey"), true);
+  assert.equal(stdout.includes("🤖 1 安装 / 更新活动助手"), true);
+  assert.equal(stdout.includes("✓ 安装 / 更新活动助手已完成"), false);
   assert.equal(stdout.includes("下一步\n  2 配置推送和偏好"), true);
+  assert.equal(stdout.includes("最近执行"), true);
+  assert.equal(stdout.includes("详情已收起，按 d 展开"), true);
   assert.equal(stdout.includes("[Enter] 执行  2 配置推送和偏好"), true);
+  assert.equal(stdout.includes("\n› [Enter] 执行  2 配置推送和偏好"), true);
   assert.equal(stdout.includes("下一步：2 配置推送和偏好（回车执行）："), false);
+  assert.equal(stderr, "");
+});
+
+test("guide toggles the last execution detail with d", async () => {
+  const child = spawn(process.execPath, ["scripts/gba.mjs"], {
+    cwd: rootDir,
+    env: { ...process.env, NO_COLOR: "1" },
+  });
+  let stdout = "";
+  let stderr = "";
+  let sentInstall = false;
+  let sentDetail = false;
+  let sentExit = false;
+
+  child.stdout.setEncoding("utf8");
+  child.stderr.setEncoding("utf8");
+  child.stdout.on("data", (chunk) => {
+    stdout += chunk;
+    if (!sentInstall && stdout.includes("[Enter] 执行  1 安装 / 更新活动助手")) {
+      sentInstall = true;
+      child.stdin.write("\n");
+    }
+    if (!sentDetail && stdout.includes("详情已收起，按 d 展开")) {
+      sentDetail = true;
+      child.stdin.write("d\n");
+    }
+    if (!sentExit && stdout.includes("按 d 收起详情")) {
+      sentExit = true;
+      child.stdin.write("q\n");
+      child.stdin.end();
+    }
+  });
+  child.stderr.on("data", (chunk) => {
+    stderr += chunk;
+  });
+
+  const status = await new Promise((resolve) => {
+    child.on("exit", (code) => resolve(code));
+  });
+
+  assert.equal(status, 0);
+  assert.equal(stdout.includes("最近执行"), true);
+  assert.equal(stdout.includes("执行详情"), true);
+  assert.equal(stdout.includes("├─ ✓ 检查配置文件"), true);
+  assert.equal(stdout.includes("└─ ✓ 准备本地入口"), true);
+  const expandedSection = stdout.slice(stdout.lastIndexOf("执行详情"));
+  assert.equal(expandedSection.includes("结果  活动助手已就绪"), true);
+  assert.equal(expandedSection.includes("      ✓ 活动助手已就绪"), false);
   assert.equal(stderr, "");
 });
 
@@ -315,7 +373,7 @@ test("automation wizard writes a prompt file and gives one paste step", async ()
     child.stderr.setEncoding("utf8");
     child.stdout.on("data", (chunk) => {
       stdout += chunk;
-      if (!sentGuide && (stdout.match(/导入 Codex 自动化配置/g) ?? []).length === 1) {
+      if (!sentGuide && stdout.includes("[Enter] 执行  1 安装 / 更新活动助手")) {
         sentGuide = true;
         child.stdin.write("5\n");
       }
@@ -336,7 +394,7 @@ test("automation wizard writes a prompt file and gives one paste step", async ()
 
     assert.equal(status, 0);
     assert.equal(stdout.includes("导入 Codex 自动化配置"), true);
-    assert.equal(stdout.includes("━━ 5 导入 Codex 自动化配置"), true);
+    assert.equal(stdout.includes("🤖 5 导入 Codex 自动化配置"), true);
     assert.equal(stdout.includes("├─ ✓ 生成自动化配置 Prompt"), true);
     assert.equal(stdout.includes("├─ ✓ 写入 tech-events-assistant.automation.md"), true);
     assert.equal(stdout.includes("└─ ✓ 准备手动复制文件"), true);
@@ -406,10 +464,11 @@ test("guide moves away from the final step instead of repeating it on enter", as
       1,
     );
     assert.equal(
-      stdout.includes("✓ 导入 Codex 自动化配置已完成\n\n下一步\n  1 安装 / 更新活动助手"),
+      stdout.includes("下一步\n  1 安装 / 更新活动助手"),
       true,
     );
-    assert.equal(stdout.includes("━━ 1 安装 / 更新活动助手"), true);
+    assert.equal(stdout.includes("✓ 导入 Codex 自动化配置已完成"), false);
+    assert.equal(stdout.includes("🤖 1 安装 / 更新活动助手"), true);
     assert.equal(stderr, "");
   } finally {
     if (originalAutomationPrompt === null) {
@@ -438,7 +497,7 @@ test("status step renders staged success before status details", async () => {
       sentStatus = true;
       child.stdin.write("4\n");
     }
-    if (!sentExit && stdout.includes("✓ 状态检查完成")) {
+    if (!sentExit && stdout.includes("普通配置（可提交，控制助手偏好）")) {
       sentExit = true;
       child.stdin.write("q\n");
       child.stdin.end();
@@ -453,13 +512,15 @@ test("status step renders staged success before status details", async () => {
   });
 
   assert.equal(status, 0);
-  assert.equal(stdout.includes("━━ 4 状态检查"), true);
+  assert.equal(stdout.includes("🤖 4 状态检查"), true);
   assert.equal(stdout.includes("├─ ✓ 读取配置文件"), true);
   assert.equal(stdout.includes("├─ ✓ 检查推送通道"), true);
   assert.equal(stdout.includes("├─ ✓ 检查自动化 Prompt"), true);
   assert.equal(stdout.includes("└─ ✓ 生成状态摘要"), true);
-  assert.equal(stdout.includes("✓ 状态检查完成"), true);
-  assert.equal(stdout.indexOf("✓ 状态检查完成") < stdout.indexOf("普通配置（可提交，控制助手偏好）"), true);
+  assert.equal(stdout.includes("✓ 配置状态已生成"), true);
+  assert.equal(stdout.includes("✓ 状态检查完成"), false);
+  assert.equal(stdout.includes("✓ 状态检查已完成"), false);
+  assert.equal(stdout.indexOf("✓ 配置状态已生成") < stdout.indexOf("普通配置（可提交，控制助手偏好）"), true);
   assert.equal(stderr, "");
 });
 

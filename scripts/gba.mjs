@@ -14,6 +14,7 @@ import {
   renderGuideActionPrompt,
   renderGuideCompletePrompt,
   renderGuideDashboardLines,
+  renderLastRunLines,
   renderNeonProgressLine,
   renderBannerLines,
   renderSectionTitle,
@@ -103,10 +104,15 @@ function printBanner() {
 }
 
 function printCompletedSteps(title, steps, result) {
-  console.log(renderStepFlowLines(title, steps, {
+  const run = { title, steps, result };
+  if (output.isTTY) return run;
+
+  const lines = renderStepFlowLines(title, steps, {
     complete: true,
     result,
-  }).join("\n"));
+  });
+  console.log(lines.join("\n"));
+  return run;
 }
 
 async function runAnimatedStepFlow(title, steps, result, options = {}) {
@@ -115,10 +121,11 @@ async function runAnimatedStepFlow(title, steps, result, options = {}) {
     complete: true,
     result,
   });
+  const run = { title, steps, result };
 
   if (!output.isTTY) {
     console.log(finalLines.join("\n"));
-    return;
+    return run;
   }
 
   let previousLineCount = 0;
@@ -142,20 +149,49 @@ async function runAnimatedStepFlow(title, steps, result, options = {}) {
   }
 
   output.moveCursor(0, -previousLineCount);
-  for (const line of finalLines) {
+  for (let index = 0; index < previousLineCount; index += 1) {
     output.cursorTo(0);
     output.clearLine(0);
-    output.write(`${line}\n`);
+    if (index < previousLineCount - 1) output.write("\n");
   }
+  if (previousLineCount > 1) output.moveCursor(0, -(previousLineCount - 1));
+  return run;
 }
 
-function printGuide(completedSteps, currentStep) {
-  console.log(renderGuideDashboardLines({
+async function guideStatusItems() {
+  const config = await loadAssistantConfig(rootDir);
+  const localEnv = await loadLocalEnv(rootDir);
+  const publicConfigPath = path.join(rootDir, CONFIG_FILE);
+  const hasPublicConfig = await fileExists(publicConfigPath);
+  const hasFeishu = Boolean(config?.push?.feishuWebhookUrl || localEnv.FEISHU_WEBHOOK_URL);
+  const hasServerChan = Boolean(config?.push?.serverChanSendKey || localEnv.SERVERCHAN_SENDKEY);
+
+  return [
+    {
+      state: hasPublicConfig ? "ok" : "warn",
+      label: hasPublicConfig ? "普通配置已存在" : "普通配置缺失",
+    },
+    {
+      state: hasFeishu ? "ok" : "warn",
+      label: hasFeishu ? "飞书 webhook 已配置" : "飞书 webhook 未配置",
+    },
+    {
+      state: hasServerChan ? "ok" : "warn",
+      label: hasServerChan ? "Server 酱 SendKey 已配置" : "Server 酱 SendKey 未配置",
+    },
+  ];
+}
+
+async function printGuide(completedSteps, currentStep, lastRun, detailsExpanded) {
+  const lines = renderGuideDashboardLines({
     steps: GUIDE_STEPS,
     shortLabels: GUIDE_STEP_SHORT_LABELS,
     completedSteps,
     currentStep,
-  }).join("\n"));
+    statusItems: await guideStatusItems(),
+  });
+  lines.push(...renderLastRunLines(lastRun, { expanded: detailsExpanded }));
+  console.log(lines.join("\n"));
 }
 
 function guidePrompt(currentStep) {
@@ -377,6 +413,8 @@ async function offerCredentialSetupHelp(reader) {
 async function installOrUpdate() {
   const configPath = path.join(rootDir, CONFIG_FILE);
   const examplePath = path.join(rootDir, EXAMPLE_CONFIG_FILE);
+  const steps = ["检查配置文件", "准备本地入口"];
+  const result = "活动助手已就绪";
 
   console.log(`${spinnerFrame(0)} 检查配置文件`);
   if (!(await fileExists(configPath))) {
@@ -386,12 +424,12 @@ async function installOrUpdate() {
     console.log(statusLine(`${CONFIG_FILE} 已存在，保留当前配置`, "ok"));
   }
 
-  printCompletedSteps(guideStepTitle(0), ["检查配置文件", "准备本地入口"], "活动助手已就绪");
+  return printCompletedSteps(guideStepTitle(0), steps, result);
 }
 
 async function runSaveSteps(resultLabel) {
   const steps = ["读取现有配置", "合并本次输入", "写入本地配置", "准备推送脚本"];
-  await runAnimatedStepFlow(guideStepTitle(1), steps, resultLabel, {
+  return await runAnimatedStepFlow(guideStepTitle(1), steps, resultLabel, {
     progress: true,
     delayMs: 90,
   });
@@ -412,13 +450,15 @@ async function printStatus(options = {}) {
   const hasFeishu = Boolean(config?.push?.feishuWebhookUrl || localEnv.FEISHU_WEBHOOK_URL);
   const hasServerChan = Boolean(config?.push?.serverChanSendKey || localEnv.SERVERCHAN_SENDKEY);
 
+  let stepRun = null;
   if (Number.isInteger(options.stepIndex)) {
-    await runAnimatedStepFlow(title, [
+    const steps = [
       "读取配置文件",
       "检查推送通道",
       "检查自动化 Prompt",
       "生成状态摘要",
-    ], "状态检查完成");
+    ];
+    stepRun = await runAnimatedStepFlow(title, steps, "配置状态已生成");
     console.log("");
   } else {
     console.log(renderSectionTitle(title).join("\n"));
@@ -434,6 +474,7 @@ async function printStatus(options = {}) {
   } else {
     console.log(statusLine("建议操作：执行第 2 步配置飞书 webhook 或 Server 酱 SendKey", "info"));
   }
+  return stepRun;
 }
 
 async function configurePush(rl) {
@@ -456,14 +497,19 @@ async function configurePush(rl) {
 
   if (!result.saved) {
     console.log(statusLine("未保存，原配置保持不变", "warn"));
-    return;
+    return {
+      title: guideStepTitle(1),
+      steps: ["读取现有配置", "等待用户输入", "保持原配置"],
+      result: "未保存，原配置保持不变",
+    };
   }
 
   const writeResult = await writeLocalConfig(rootDir, result.config);
-  await runSaveSteps(`${path.basename(writeResult.filePath)} 已保存`);
+  const run = await runSaveSteps(`${path.basename(writeResult.filePath)} 已保存`);
   if (writeResult.backupCreated) {
     console.log(statusLine(`已备份旧配置：${path.basename(writeResult.backupPath)}`, "info"));
   }
+  return run;
 }
 
 function runLocalPreflight() {
@@ -609,7 +655,11 @@ async function runConnectionCheck(rl) {
 
   if (enabledTargets.length === 0) {
     console.log(statusLine("未检测到真实 webhook / SendKey；请先执行第 2 步配置推送", "warn"));
-    return;
+    return {
+      title: guideStepTitle(2),
+      steps: ["检查推送通道"],
+      result: "未检测到真实 webhook / SendKey",
+    };
   }
 
   const steps = enabledTargets.map((target) => `发送 ${target} 测试消息`);
@@ -628,8 +678,14 @@ async function runConnectionCheck(rl) {
     for (const summary of responseSummaries) {
       console.log(statusLine(summary, "ok"));
     }
+    return { title: guideStepTitle(2), steps, result };
   } catch (error) {
     console.log(statusLine(`真实连接测试失败：${error.message}`, "error"));
+    return {
+      title: guideStepTitle(2),
+      steps,
+      result: `真实连接测试失败：${error.message}`,
+    };
   }
 }
 
@@ -651,7 +707,7 @@ async function createAutomationWizard() {
     ? `已生成 ${AUTOMATION_PROMPT_FILE}，并复制到剪贴板`
     : `已生成 ${AUTOMATION_PROMPT_FILE}`;
 
-  await runAnimatedStepFlow(guideStepTitle(4), steps, result, {
+  const run = await runAnimatedStepFlow(guideStepTitle(4), steps, result, {
     progress: true,
   });
   console.log("");
@@ -675,6 +731,7 @@ async function createAutomationWizard() {
   if (!pushConfigured) {
     console.log(statusLine("当前未检测到推送密钥；可先创建自动化，之后用菜单 2 配置推送", "warn"));
   }
+  return run;
 }
 
 function printMenu(options = {}) {
@@ -694,11 +751,12 @@ function printMenu(options = {}) {
 }
 
 async function runStepByIndex(index, rl) {
-  if (index === 0) await installOrUpdate();
-  else if (index === 1) await configurePush(rl);
-  else if (index === 2) await runConnectionCheck(rl);
-  else if (index === 3) await printStatus({ stepIndex: 3 });
-  else if (index === 4) await createAutomationWizard();
+  if (index === 0) return await installOrUpdate();
+  if (index === 1) return await configurePush(rl);
+  if (index === 2) return await runConnectionCheck(rl);
+  if (index === 3) return await printStatus({ stepIndex: 3 });
+  if (index === 4) return await createAutomationWizard();
+  return null;
 }
 
 async function handleChoice(choice, rl) {
@@ -732,17 +790,23 @@ async function guideMenu() {
   const rl = createPromptSession();
   const completedSteps = new Set();
   let currentStep = 0;
+  let lastRun = null;
+  let detailsExpanded = false;
 
   try {
     while (true) {
-      printGuide(completedSteps, currentStep);
+      await printGuide(completedSteps, currentStep, lastRun, detailsExpanded);
       const answer = (await rl.question(guidePrompt(currentStep))).trim().toLowerCase();
       if (currentStep === null && answer === "") break;
       if (answer === "q" || answer === "0") break;
       if (answer === "d") {
-        console.log("");
-        await printStatus();
-        console.log("");
+        if (lastRun) {
+          detailsExpanded = !detailsExpanded;
+        } else {
+          console.log("");
+          await printStatus();
+          console.log("");
+        }
         continue;
       }
       if (answer === "b") {
@@ -758,7 +822,8 @@ async function guideMenu() {
       }
       currentStep = selectedStep;
       console.log("");
-      await runStepByIndex(selectedStep, rl);
+      lastRun = await runStepByIndex(selectedStep, rl);
+      detailsExpanded = false;
       completedSteps.add(selectedStep);
       const nextStepIndex = nextIncompleteStepIndex(completedSteps, selectedStep);
       currentStep = nextStepIndex;

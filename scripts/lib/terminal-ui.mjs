@@ -72,11 +72,15 @@ export function renderBannerLines(options = {}) {
   const title = options.title ?? "技术活动助手";
   const tagline = options.tagline ?? "找活动 · 配推送 · 查状态";
   const helper = options.helper ?? "npm run gba";
-  const content = [
-    `  ╭─🤖─╮  ${title}`,
-    `  │•ᴗ•│  ${tagline}`,
-    `  ╰───╯  ${helper}`,
+  const rows = [
+    { avatar: "╭─🤖─╮", text: title, textColor: "bold" },
+    { avatar: "│ •ᴗ•│", text: tagline, textColor: "yellow" },
+    { avatar: "╰────╯", text: helper, textColor: "gray" },
   ];
+  const avatarWidth = Math.max(...rows.map((row) => terminalCellWidth(row.avatar)));
+  const content = rows.map(
+    (row) => `  ${padToCellWidth(row.avatar, avatarWidth)}  ${row.text}`,
+  );
   const innerWidth = Math.max(...content.map(terminalCellWidth)) + 2;
   const top = `╭${"─".repeat(innerWidth)}╮`;
   const bottom = `╰${"─".repeat(innerWidth)}╯`;
@@ -85,12 +89,17 @@ export function renderBannerLines(options = {}) {
 
   if (!useColor) return rawLines;
 
-  return rawLines.map((line, index) => {
-    if (index === 0 || index === rawLines.length - 1) return paint(line, "cyan", true);
-    if (index === 1) return `${paint("│", "cyan")} ${paint("╭─🤖─╮", "green")}  ${bold(title)}${" ".repeat(Math.max(0, innerWidth - terminalCellWidth(`  ╭─🤖─╮  ${title}`)))} ${paint("│", "cyan")}`;
-    if (index === 2) return `${paint("│", "cyan")} ${paint("│•ᴗ•│", "green")}  ${paint(tagline, "yellow")}${" ".repeat(Math.max(0, innerWidth - terminalCellWidth(`  │•ᴗ•│  ${tagline}`)))} ${paint("│", "cyan")}`;
-    return `${paint("│", "cyan")} ${paint("╰───╯", "green")}  ${paint(helper, "gray")}${" ".repeat(Math.max(0, innerWidth - terminalCellWidth(`  ╰───╯  ${helper}`)))} ${paint("│", "cyan")}`;
+  const coloredBody = rows.map((row, index) => {
+    const rawContent = content[index];
+    const trailing = " ".repeat(Math.max(0, innerWidth - 2 - terminalCellWidth(rawContent)));
+    const avatar = paint(padToCellWidth(row.avatar, avatarWidth), "green", true);
+    const text = row.textColor === "bold"
+      ? bold(row.text, true)
+      : paint(row.text, row.textColor, true);
+    return `${paint("│", "cyan", true)}   ${avatar}  ${text}${trailing} ${paint("│", "cyan", true)}`;
   });
+
+  return [paint(top, "cyan", true), ...coloredBody, paint(bottom, "cyan", true)];
 }
 
 export function completionLine(options = {}) {

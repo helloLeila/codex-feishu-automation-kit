@@ -33,11 +33,11 @@ npm run gba
 2. 配置推送和偏好
 3. 预览 / 测试推送
 4. 检查状态
-5. 查看活动搜寻接入步骤
+5. 创建 / 更新活动搜寻自动化
 0. 退出
 ```
 
-第 5 项不会自动添加或触发 Codex 桌面端里的 Automation；它会告诉你已有自动化时怎么 Run now、没有自动化时去哪里复制 prompt 新建。这个工具负责把本地配置、推送脚本和 dry-run 检查收拢好。
+第 5 项会生成 `tech-events-assistant.automation.md`，并尽量把完整 Prompt 复制到剪贴板。你只需要打开 Codex → Automations → New，粘贴后保存为“活动搜寻”。如果剪贴板不可用，直接打开生成的 Markdown 文件复制即可。
 
 保存配置时会显示步骤流：
 

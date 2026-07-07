@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 
 const rootDir = path.resolve(fileURLToPath(new URL("..", import.meta.url)));
 const localConfigPath = path.join(rootDir, "tech-events-assistant.local.json");
+const automationPromptPath = path.join(rootDir, "tech-events-assistant.automation.md");
 
 async function readOptionalFile(filePath) {
   try {
@@ -166,45 +167,60 @@ test("configuration save prints a completed step flow in piped output", async ()
   }
 });
 
-test("run guide explains that Codex automation is not auto-created from the CLI", async () => {
-  const child = spawn(process.execPath, ["scripts/gba.mjs"], {
-    cwd: rootDir,
-    env: { ...process.env, NO_COLOR: "1" },
-  });
-  let stdout = "";
-  let stderr = "";
-  let sentGuide = false;
-  let sentExit = false;
+test("automation wizard writes a prompt file and gives one paste step", async () => {
+  const originalAutomationPrompt = await readOptionalFile(automationPromptPath);
+  try {
+    const child = spawn(process.execPath, ["scripts/gba.mjs"], {
+      cwd: rootDir,
+      env: { ...process.env, NO_COLOR: "1", TECH_EVENTS_ASSISTANT_SKIP_CLIPBOARD: "1" },
+    });
+    let stdout = "";
+    let stderr = "";
+    let sentGuide = false;
+    let sentExit = false;
 
-  child.stdout.setEncoding("utf8");
-  child.stderr.setEncoding("utf8");
-  child.stdout.on("data", (chunk) => {
-    stdout += chunk;
-    if (!sentGuide && (stdout.match(/查看活动搜寻接入步骤/g) ?? []).length === 1) {
-      sentGuide = true;
-      child.stdin.write("5\n");
+    child.stdout.setEncoding("utf8");
+    child.stderr.setEncoding("utf8");
+    child.stdout.on("data", (chunk) => {
+      stdout += chunk;
+      if (!sentGuide && (stdout.match(/创建 \/ 更新活动搜寻自动化/g) ?? []).length === 1) {
+        sentGuide = true;
+        child.stdin.write("5\n");
+      }
+      if (!sentExit && stdout.includes("完成：已生成 tech-events-assistant.automation.md")) {
+        sentExit = true;
+        child.stdin.write("0\n");
+        child.stdin.end();
+      }
+    });
+    child.stderr.on("data", (chunk) => {
+      stderr += chunk;
+    });
+
+    const status = await new Promise((resolve) => {
+      child.on("exit", (code) => resolve(code));
+    });
+    const promptText = await readFile(automationPromptPath, "utf8");
+
+    assert.equal(status, 0);
+    assert.equal(stdout.includes("5. 创建 / 更新活动搜寻自动化"), true);
+    assert.equal(stdout.includes("创建活动搜寻自动化"), true);
+    assert.equal(stdout.includes("├─ ✓ 生成活动搜寻 Prompt"), true);
+    assert.equal(stdout.includes("├─ ✓ 写入 tech-events-assistant.automation.md"), true);
+    assert.equal(stdout.includes("└─ ✓ 准备手动复制文件"), true);
+    assert.equal(stdout.includes("打开 Codex → Automations → New → 粘贴 → 保存为：活动搜寻"), true);
+    assert.equal(stdout.includes("不会自动添加或触发 Codex Automation"), false);
+    assert.equal(promptText.includes("检索未来两周"), true);
+    assert.equal(promptText.includes("不要编造"), true);
+    assert.equal(promptText.includes("node skills/feishu-automation-reporter/scripts/push-gba-events-to-feishu.mjs"), true);
+    assert.equal(stderr, "");
+  } finally {
+    if (originalAutomationPrompt === null) {
+      await rm(automationPromptPath, { force: true });
+    } else {
+      await writeFile(automationPromptPath, originalAutomationPrompt);
     }
-    if (!sentExit && stdout.includes("不会自动添加或触发 Codex Automation")) {
-      sentExit = true;
-      child.stdin.write("0\n");
-      child.stdin.end();
-    }
-  });
-  child.stderr.on("data", (chunk) => {
-    stderr += chunk;
-  });
-
-  const status = await new Promise((resolve) => {
-    child.on("exit", (code) => resolve(code));
-  });
-
-  assert.equal(status, 0);
-  assert.equal(stdout.includes("5. 查看活动搜寻接入步骤"), true);
-  assert.equal(stdout.includes("不会自动添加或触发 Codex Automation"), true);
-  assert.equal(stdout.includes("已存在活动搜寻：Codex → Automations → 活动搜寻 → Run now"), true);
-  assert.equal(stdout.includes("还没有活动搜寻：打开 docs/codex-automation-setup.md"), true);
-  assert.equal(stdout.includes("本工具已准备好配置、dry-run 和推送脚本"), true);
-  assert.equal(stderr, "");
+  }
 });
 
 test("dry-run prints a completed step flow instead of a digital progress bar", () => {

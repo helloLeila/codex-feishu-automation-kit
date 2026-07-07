@@ -138,6 +138,8 @@ node scripts/push-ai-daily-to-serverchan.mjs <生成的Markdown文件路径>
 
 ## 推荐自动化 prompt：大湾区活动
 
+更省事的方式：运行 `npm run gba`，选择 `创建 / 更新活动搜寻自动化`，工具会生成 `tech-events-assistant.automation.md` 并尽量复制到剪贴板。下面的 prompt 仍保留给需要手动复制或二次修改的人。
+
 ```text
 检索未来两周（从本周一 00:00 至下周日 23:59）大湾区值得 AI、互联网、开发者、科研人群关注的线下真实技术活动，生成 Markdown 活动清单文件。
 

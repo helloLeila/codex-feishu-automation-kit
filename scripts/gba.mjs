@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { spawnSync } from "node:child_process";
-import { access, copyFile } from "node:fs/promises";
+import { access, copyFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { createInterface } from "node:readline";
 import { stdin as input, stdout as output } from "node:process";
@@ -28,6 +28,7 @@ import {
 import { loadLocalEnv } from "../skills/feishu-automation-reporter/scripts/lib/env.mjs";
 
 const rootDir = path.resolve(fileURLToPath(new URL("..", import.meta.url)));
+const AUTOMATION_PROMPT_FILE = "tech-events-assistant.automation.md";
 
 function createPromptSession() {
   const rl = createInterface({ input, output, crlfDelay: Infinity });
@@ -84,6 +85,132 @@ function printCompletedSteps(title, steps, result) {
     complete: true,
     result,
   }).join("\n"));
+}
+
+function buildGbaAutomationPrompt() {
+  return `# 活动搜寻自动化 Prompt
+
+把下面内容完整粘贴到 Codex Automation 的 prompt。建议自动化名称保存为：活动搜寻。
+
+---
+
+任务：检索未来两周内真实可参加的线下技术活动，并生成可推送的 Markdown 活动清单。
+
+每天检索并汇总从当前时间往后、未来两周内（从本周一 00:00 至下周日 23:59）的线下真实技术活动。城市范围：深圳、广州、珠海、香港、澳门。目标是更容易搜到真实可去的活动，严格禁止编造、虚构、凑数。
+
+不要编造活动；找不到就少写，并在备注里说明没有找到足够可靠的公开信息。
+
+只收录当前时间之后尚未开始或仍可参加的活动；已经结束的活动不要显示，即使它仍在本周检索窗口内。
+
+收录底线：
+1. 必须是线下真实活动。
+2. 必须能在公开网页上核验到，且至少有活动名称、明确时间、明确城市/地点、主题说明。
+3. 必须与计算机、AI、开发者、科研相关，且内容有技术密度。
+4. 必须面向公众、学生、开发者或科研人群可见；纯私密闭门、仅邀请制且无公开说明的不收录。
+
+优先主题：
+1. AI Coding、Agent、底层模型、多模态算法、模型训练/部署、调参、计算机视觉、强化学习、深度学习、具身智能、机器人、区块链。
+2. 前端、后端、全栈、云原生、数据库、向量数据库、K8s、Go、Rust、WebAssembly、开源社区工程实践。
+3. 高校计算机/AI学院、实验室、研究院的学术讲座、Workshop、研究型开放活动。
+4. 社会开发者社区、开源社区、Luma、Meetup、GitHub 社区、技术社区组织的线下活动。
+5. 政府、公司、产业园活动只有在有明确技术议题、工程实践、算法/系统/开发者内容时才收录；产品宣讲、招商、老板圆桌、泛商业峰会不收录。
+
+检索策略：
+1. 不要只搜高校活动；先扫 Luma、Meetup、开源社区、开发者社区、技术社区活动页。
+2. 再扫高校、研究院、学院官网讲座页。
+3. 最后补主办方官网、官方公众号原文或官方活动页。
+4. 同一活动多平台出现时，只保留最权威来源。
+
+输出要求：
+1. 活动名称优先使用中文；英文活动保留英文原名，但必须补一句中文解释。
+2. 快速卡片必须展示活动内容，不要让用户必须点进链接才知道是什么。
+3. 不确定的信息写“官方未公开”或“未核实”，不要写“官方未明确”作为默认原因。
+4. 不要显示“活动已结束；保留是因为它仍在本周检索窗口内”。
+5. 真实性优先于完整性；宁可少量字段缺失并说明，也不要过滤掉真实硬核活动。
+
+输出必须使用下面结构：
+
+# 检索结果
+- 时间范围：YYYY-MM-DD 00:00 至 YYYY-MM-DD 23:59
+- 本次找到：X 场符合条件的活动
+- 城市分布：深圳 X｜广州 X｜珠海 X｜香港 X｜澳门 X
+- 最值得优先看：活动名1；活动名2；活动名3；活动4；活动5（不足5个就如实写）
+
+# 快速卡片
+
+## 活动 N｜英文名或原名
+中文解释：用一句中文解释这场活动是干什么的。
+- 时间：YYYY-MM-DD HH:MM
+- 城市：
+- 主题：
+- 内容看点：用 2-3 个短句写清楚活动具体讲什么。
+- 值不值得去：值得 / 一般 / 不建议
+- 一句话理由：
+- 链接：
+
+# 完整档案
+
+## 活动 N｜活动名称
+- 所在城市：
+- 精确活动时间：YYYY-MM-DD HH:MM
+- 活动总时长：
+- 详细地点：
+- 核心技术主题：
+- 我能学到什么：
+- 含金量评级：高 / 中
+- 是否纯正硬核技术活动：是
+- 信息来源：
+- 公众号专属信息：若非公众号来源写“不适用”
+- 推文或原文链接：
+- 报名链接：若没有则写“无单独报名链接，以原文为准”
+- 深大地铁站出发交通建议：
+- 综合交通方案+预计耗时+费用：
+- 往返全程总耗时：
+- 是否值得专程前往：值得 / 一般 / 不建议
+- 理由：
+- 免费/付费及费用：
+- 参与门槛+能否旁听+是否限名额：
+
+# 候补链接
+- 活动名｜城市｜未入选原因关键词｜链接
+
+# 备注
+- 已剔除的典型原因：商业宣讲 / 时间地点不明 / 主题不够硬核 / 不在时间窗内 / 非公开活动（按实际写）
+- 交通时间与费用：如无官方精确数据，可基于公开交通信息估算，并明确标注“估算”
+
+完成活动清单后，在当前工作区生成一份 Markdown 文件保存本次结果。文件名使用 YYYY-MM-DD-gba-tech-events.md，如果已有同名文件则追加 -v2、-v3。
+
+生成 Markdown 文件后，如果环境变量 FEISHU_WEBHOOK_URL 已配置，或当前目录 tech-events-assistant.local.json / .env.local 中配置了飞书 webhook，请运行：
+node skills/feishu-automation-reporter/scripts/push-gba-events-to-feishu.mjs <生成的Markdown文件路径>
+
+如果环境变量 SERVERCHAN_SENDKEY 已配置，或当前目录 tech-events-assistant.local.json / .env.local 中配置了 Server 酱 SendKey，请运行：
+node skills/feishu-automation-reporter/scripts/push-gba-events-to-serverchan.mjs <生成的Markdown文件路径>
+
+如果两者都配置，请两个都推送；如果都未配置，请只生成文件并说明未推送。
+`;
+}
+
+function copyTextToClipboard(text) {
+  if (process.env.TECH_EVENTS_ASSISTANT_SKIP_CLIPBOARD === "1") {
+    return { copied: false, reason: "已按环境变量跳过剪贴板" };
+  }
+
+  const commandSets = {
+    darwin: [["pbcopy"]],
+    win32: [["clip"]],
+    linux: [["wl-copy"], ["xclip", "-selection", "clipboard"], ["xsel", "--clipboard", "--input"]],
+  };
+  const commands = commandSets[process.platform] ?? commandSets.linux;
+
+  for (const [command, ...args] of commands) {
+    const result = spawnSync(command, args, {
+      input: text,
+      encoding: "utf8",
+    });
+    if (result.status === 0) return { copied: true };
+  }
+
+  return { copied: false, reason: "未找到可用剪贴板命令" };
 }
 
 async function installOrUpdate() {
@@ -217,11 +344,36 @@ function runDryRun() {
   printCompletedSteps("预览 / 测试推送", ["生成飞书 dry-run", "生成 Server 酱 dry-run"], "dry-run 已通过，未真实发送");
 }
 
-function guideRunOnce() {
-  console.log(statusLine("不会自动添加或触发 Codex Automation，npm 菜单拿不到 Codex 桌面端内部自动化接口", "warn"));
-  console.log(statusLine("已存在活动搜寻：Codex → Automations → 活动搜寻 → Run now", "info"));
-  console.log(statusLine("还没有活动搜寻：打开 docs/codex-automation-setup.md，复制「推荐自动化 prompt：大湾区活动」新建", "info"));
-  console.log(statusLine("本工具已准备好配置、dry-run 和推送脚本；自动化本体需要在 Codex 里创建或运行", "ok"));
+async function createAutomationWizard() {
+  const promptText = buildGbaAutomationPrompt();
+  const promptPath = path.join(rootDir, AUTOMATION_PROMPT_FILE);
+  const config = await loadAssistantConfig(rootDir);
+  const localEnv = await loadLocalEnv(rootDir);
+  const pushConfigured =
+    hasConfiguredPush(config) ||
+    Boolean(localEnv.FEISHU_WEBHOOK_URL || localEnv.SERVERCHAN_SENDKEY);
+
+  await writeFile(promptPath, promptText);
+  const clipboard = copyTextToClipboard(promptText);
+  const steps = clipboard.copied
+    ? ["生成活动搜寻 Prompt", `写入 ${AUTOMATION_PROMPT_FILE}`, "检查推送配置", "复制 Prompt 到剪贴板"]
+    : ["生成活动搜寻 Prompt", `写入 ${AUTOMATION_PROMPT_FILE}`, "检查推送配置", "准备手动复制文件"];
+  const result = clipboard.copied
+    ? `已生成 ${AUTOMATION_PROMPT_FILE}，并复制到剪贴板`
+    : `已生成 ${AUTOMATION_PROMPT_FILE}`;
+
+  printCompletedSteps("创建活动搜寻自动化", steps, result);
+  console.log("");
+  console.log(statusLine("下一步：打开 Codex → Automations → New → 粘贴 → 保存为：活动搜寻", "info"));
+  console.log(statusLine(`Prompt 文件：${AUTOMATION_PROMPT_FILE}`, "info"));
+  if (clipboard.copied) {
+    console.log(statusLine("已复制到剪贴板，直接粘贴即可", "ok"));
+  } else {
+    console.log(statusLine(`未复制剪贴板：${clipboard.reason}。请打开 Prompt 文件手动复制`, "warn"));
+  }
+  if (!pushConfigured) {
+    console.log(statusLine("当前未检测到推送密钥；可先创建自动化，之后用菜单 2 配置推送", "warn"));
+  }
 }
 
 function printMenu(options = {}) {
@@ -235,7 +387,7 @@ function printMenu(options = {}) {
   console.log("2. 配置推送和偏好");
   console.log("3. 预览 / 测试推送");
   console.log("4. 检查状态");
-  console.log("5. 查看活动搜寻接入步骤");
+  console.log("5. 创建 / 更新活动搜寻自动化");
   console.log("0. 退出");
 }
 
@@ -245,7 +397,7 @@ async function handleChoice(choice, rl) {
   else if (choice === "2") await configurePush(rl);
   else if (choice === "3") runDryRun();
   else if (choice === "4") await printStatus();
-  else if (choice === "5") guideRunOnce();
+  else if (choice === "5") await createAutomationWizard();
   else {
     console.log(statusLine("没识别这个选项，输入 0 可以退出", "warn"));
   }

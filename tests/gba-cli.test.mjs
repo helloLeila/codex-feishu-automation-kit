@@ -60,7 +60,8 @@ test("menu returns after an action so the next number is handled by the CLI", as
   assert.equal((stdout.match(/^1\. 安装 \/ 更新活动助手/gm) ?? []).length, 2);
   assert.equal((stdout.match(/技术活动助手/g) ?? []).length, 2);
   assert.equal(stdout.includes("直接回车执行高亮步骤"), true);
-  assert.equal(stdout.includes("下一步（回车执行：安装 / 更新活动助手）："), true);
+  assert.equal(stdout.includes("引导配置 · 下一步 1/5"), true);
+  assert.equal(stdout.includes("下一步：1 安装 / 更新活动助手（回车执行）："), true);
   assert.equal(stdout.includes("进度条演示"), false);
   assert.equal(stderr, "");
 });
@@ -79,7 +80,7 @@ test("guide advances to the next step and marks previous step complete", async (
   child.stderr.setEncoding("utf8");
   child.stdout.on("data", (chunk) => {
     stdout += chunk;
-    if (!sentInstall && stdout.includes("下一步（回车执行：安装 / 更新活动助手）：")) {
+    if (!sentInstall && stdout.includes("下一步：1 安装 / 更新活动助手（回车执行）：")) {
       sentInstall = true;
       child.stdin.write("\n");
     }
@@ -99,11 +100,13 @@ test("guide advances to the next step and marks previous step complete", async (
 
   assert.equal(status, 0);
   assert.equal(stdout.includes("引导配置"), true);
+  assert.equal(stdout.includes("引导配置 · 下一步 2/5"), true);
   assert.equal(stdout.includes("1. 安装 / 更新活动助手  ✓ 已完成"), true);
   assert.equal(stdout.includes("2. 配置推送和偏好  ▶ 当前"), true);
+  assert.equal(stdout.includes("━━ 1 安装 / 更新活动助手"), true);
   assert.equal(stdout.includes("✓ 已完成：安装 / 更新活动助手"), true);
-  assert.equal(stdout.includes("↳ 下一步：配置推送和偏好"), true);
-  assert.equal(stdout.includes("下一步（回车执行：配置推送和偏好）："), true);
+  assert.equal(stdout.includes("下一步：2 配置推送和偏好"), true);
+  assert.equal(stdout.includes("下一步：2 配置推送和偏好（回车执行）："), true);
   assert.equal(stderr, "");
 });
 
@@ -184,7 +187,7 @@ test("configuration can be skipped without breaking the menu loop", async () => 
   assert.equal(stdout.includes("直接回车执行高亮步骤"), true);
   assert.equal(stdout.includes("输入留空 = 保留原值"), false);
   assert.equal(stdout.includes("飞书 webhook URL（飞书群设置 → 机器人 → 自定义机器人）："), true);
-  assert.equal(stdout.includes("Server 酱 SendKey（sct.ftqq.com → SendKey 页面）："), true);
+  assert.equal(stdout.includes("Server 酱 SendKey（sct.ftqq.com/login → 登录后查看 SendKey）："), true);
   assert.equal(stdout.includes("进度条演示"), false);
   assert.equal(stderr, "");
 });
@@ -224,9 +227,9 @@ test("configuration helper can open credential pages or show setup links", async
   assert.equal(status, 0);
   assert.equal(stdout.includes("打开取值页面？"), true);
   assert.equal(stdout.includes("飞书自定义机器人文档：https://open.feishu.cn/document/client-docs/bot-v3/add-custom-bot"), true);
-  assert.equal(stdout.includes("Server 酱 SendKey 页面：https://sct.ftqq.com/sendkey"), true);
+  assert.equal(stdout.includes("Server 酱登录页：https://sct.ftqq.com/login"), true);
   assert.equal(stdout.includes("未自动打开浏览器：已按环境变量跳过浏览器打开"), true);
-  assert.equal(stdout.includes("Server 酱页面链接已复制到剪贴板"), false);
+  assert.equal(stdout.includes("Server 酱登录页链接已复制到剪贴板"), false);
   assert.equal(stderr, "");
 });
 
@@ -329,16 +332,18 @@ test("automation wizard writes a prompt file and gives one paste step", async ()
 
     assert.equal(status, 0);
     assert.equal(stdout.includes("5. 导入 Codex 自动化配置"), true);
-    assert.equal(stdout.includes("导入 Codex 自动化配置"), true);
+    assert.equal(stdout.includes("━━ 5 导入 Codex 自动化配置"), true);
     assert.equal(stdout.includes("├─ ✓ 生成自动化配置 Prompt"), true);
     assert.equal(stdout.includes("├─ ✓ 写入 tech-events-assistant.automation.md"), true);
     assert.equal(stdout.includes("└─ ✓ 准备手动复制文件"), true);
     assert.equal(stdout.includes(`完成    ${neonBar} 100%`), true);
     assert.equal(stdout.includes("        ✓ 已生成 tech-events-assistant.automation.md"), true);
-    assert.equal(stdout.includes("你需要做的事情"), true);
-    assert.equal(stdout.includes("打开 Codex 左侧的「自动化（已安排）」"), true);
-    assert.equal(stdout.includes("点击「通过聊天添加」"), true);
-    assert.equal(stdout.includes("自动化名称填写：线下技术活动情报晨报"), true);
+    assert.equal(stdout.includes("▶ 你需要做的事情"), true);
+    assert.equal(stdout.includes("1. 打开位置      Codex 左侧的「自动化（已安排）」"), true);
+    assert.equal(stdout.includes("2. 点击按钮      通过聊天添加"), true);
+    assert.equal(stdout.includes("3. 粘贴内容      刚才复制的 Prompt"), true);
+    assert.equal(stdout.includes("4. 自动化名称    线下技术活动情报晨报"), true);
+    assert.equal(stdout.includes("5. 运行时间      每天 07:00（Asia/Shanghai）"), true);
     assert.equal(stdout.includes("不会自动添加或触发 Codex 自动化"), false);
     assert.equal(promptText.includes("检索未来两周"), true);
     assert.equal(promptText.includes("每天 07:00"), true);
@@ -346,6 +351,55 @@ test("automation wizard writes a prompt file and gives one paste step", async ()
     assert.equal(promptText.includes("Asia/Shanghai"), true);
     assert.equal(promptText.includes("不要编造"), true);
     assert.equal(promptText.includes("node skills/feishu-automation-reporter/scripts/push-gba-events-to-feishu.mjs"), true);
+    assert.equal(stderr, "");
+  } finally {
+    if (originalAutomationPrompt === null) {
+      await rm(automationPromptPath, { force: true });
+    } else {
+      await writeFile(automationPromptPath, originalAutomationPrompt);
+    }
+  }
+});
+
+test("guide moves away from the final step instead of repeating it on enter", async () => {
+  const originalAutomationPrompt = await readOptionalFile(automationPromptPath);
+  try {
+    const child = spawn(process.execPath, ["scripts/gba.mjs"], {
+      cwd: rootDir,
+      env: { ...process.env, NO_COLOR: "1", TECH_EVENTS_ASSISTANT_SKIP_CLIPBOARD: "1" },
+    });
+    let stdout = "";
+    let stderr = "";
+    let sentInput = false;
+
+    child.stdout.setEncoding("utf8");
+    child.stderr.setEncoding("utf8");
+    child.stdout.on("data", (chunk) => {
+      stdout += chunk;
+      if (!sentInput && stdout.includes("下一步：1 安装 / 更新活动助手（回车执行）：")) {
+        sentInput = true;
+        child.stdin.write("5\n\nq\n");
+        child.stdin.end();
+      }
+    });
+    child.stderr.on("data", (chunk) => {
+      stderr += chunk;
+    });
+
+    const status = await new Promise((resolve) => {
+      child.on("exit", (code) => resolve(code));
+    });
+
+    assert.equal(status, 0);
+    assert.equal(
+      (stdout.match(/写入 tech-events-assistant\.automation\.md/g) ?? []).length,
+      1,
+    );
+    assert.equal(
+      stdout.includes("✓ 已完成：导入 Codex 自动化配置\n  下一步：1 安装 / 更新活动助手"),
+      true,
+    );
+    assert.equal(stdout.includes("━━ 1 安装 / 更新活动助手"), true);
     assert.equal(stderr, "");
   } finally {
     if (originalAutomationPrompt === null) {

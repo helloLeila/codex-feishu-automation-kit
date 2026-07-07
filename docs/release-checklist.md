@@ -20,7 +20,7 @@ rg -n "Users/|Obsidian Vault|open-apis/bot/v2/hook/[0-9a-fA-F-]{8,}|SCT[0-9a-zA-
 ## 文档完整性
 
 - [ ] README 包含 GitHub 仓库地址。
-- [ ] README 包含飞书开放平台、自定义机器人文档、Server 酱官网和 SendKey 页面。
+- [ ] README 包含飞书开放平台、自定义机器人文档、Server 酱登录页和 SendKey 获取说明。
 - [ ] README 包含 `npm run gba`、`tech-events-assistant.config.json` 和 `tech-events-assistant.local.json` 说明。
 - [ ] README 说明第 2 步会帮助打开飞书 / Server 酱取值页面。
 - [ ] README 包含 AI 日报和大湾区活动的 Codex 自动化 prompt 片段。

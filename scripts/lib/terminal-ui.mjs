@@ -17,6 +17,11 @@ function paint(text, colorName, enabled = !process.env.NO_COLOR) {
   return `${codes[colorName]}${text}${codes.reset}`;
 }
 
+function emphasize(text, colorName, enabled = !process.env.NO_COLOR) {
+  if (!enabled) return text;
+  return `${codes.bold}${codes[colorName]}${text}${codes.reset}`;
+}
+
 export function stripAnsi(text) {
   return String(text).replace(ANSI_PATTERN, "");
 }
@@ -234,10 +239,39 @@ export function renderStepTransitionLines(completedStep, nextStep, options = {})
   ];
 
   if (nextStep) {
-    lines.push(`  ${paint("↳", "cyan", useColor)} ${paint(`下一步：${nextStep}`, "cyan", useColor)}`);
+    const prefix = Number.isInteger(options.nextStepNumber)
+      ? `下一步：${options.nextStepNumber} `
+      : "下一步：";
+    lines.push(`  ${paint(`${prefix}${nextStep}`, "gray", useColor)}`);
+  } else if (options.completeMessage) {
+    lines.push(`  ${paint(options.completeMessage, "gray", useColor)}`);
   }
 
   lines.push("");
+  return lines;
+}
+
+export function renderActionPanelLines(title, items, options = {}) {
+  const useColor = options.color ?? !process.env.NO_COLOR;
+  const safeItems = Array.isArray(items) ? items : [];
+  const labelWidth = Math.max(
+    0,
+    ...safeItems.map((item) => terminalCellWidth(Array.isArray(item) ? item[0] : String(item))),
+  );
+  const labelColumnWidth = labelWidth + 4;
+  const lines = [
+    `${paint("▶", "cyan", useColor)} ${emphasize(title, "cyan", useColor)}`,
+    "",
+  ];
+
+  safeItems.forEach((item, index) => {
+    const [label, value] = Array.isArray(item) ? item : [String(item), ""];
+    const number = emphasize(`${index + 1}.`, "cyan", useColor);
+    const labelText = emphasize(padToCellWidth(label, labelColumnWidth), "cyan", useColor);
+    const valueText = emphasize(value, index >= safeItems.length - 2 ? "yellow" : "cyan", useColor);
+    lines.push(`  ${number} ${labelText}${valueText}`);
+  });
+
   return lines;
 }
 

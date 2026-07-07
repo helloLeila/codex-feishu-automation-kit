@@ -26,20 +26,20 @@ cd codex-feishu-automation-kit
 npm run gba
 ```
 
-默认会进入 5 步引导页。回车会执行当前步骤；执行完成后，该步骤会变绿，并自动把下一步设为当前步骤。输入 `b` 可以返回手动菜单，输入 `q` 或 `0` 可以退出引导。
+默认会进入 5 步引导页。回车会执行当前步骤；执行完成后，该步骤会变绿，并自动把下一步未完成步骤设为当前步骤。全部完成后，回车会退出引导。输入 `b` 可以返回手动菜单，输入 `q` 或 `0` 可以退出引导。
 
 ```text
-引导配置
+引导配置 · 下一步 1/5
 1. 安装 / 更新活动助手  ▶ 当前
 2. 配置推送和偏好  · 待执行
 3. 测试真实连接  · 待执行
-4. 检查状态  · 待执行
+4. 状态检查  · 待执行
 5. 导入 Codex 自动化配置  · 待执行
 ```
 
 第 5 步会生成 `tech-events-assistant.automation.md`，并尽量把完整 Prompt 复制到剪贴板。工具会明确列出你要做的事情：打开 Codex 的「自动化（已安排）」、选择「通过聊天添加」、粘贴 Prompt，名称填“线下技术活动情报晨报”，时间设为每天 07:00（Asia/Shanghai，早上 7 点）。如果剪贴板不可用，直接打开生成的 Markdown 文件复制即可。
 
-第 2 步会先问是否帮你打开取值页面。回车会同时打开飞书自定义机器人文档和 Server 酱 SendKey 页面；Server 酱页面链接也会复制到剪贴板作为兜底。拿到 webhook / SendKey 后回到终端粘贴即可。
+第 2 步会先问是否帮你打开取值页面。回车会同时打开飞书自定义机器人文档和 Server 酱登录页；Server 酱登录页链接也会复制到剪贴板作为兜底。登录后查看 SendKey，拿到 webhook / SendKey 后回到终端粘贴即可。
 
 第 3 步会直接发送一条测试消息到已配置通道，并显示服务端返回摘要，例如 `HTTP 200，code 0，msg ok`。如果还没配置 webhook / SendKey，它会提示先执行第 2 步。
 
@@ -99,9 +99,9 @@ bash scripts/setup.sh
 
 Server 酱：
 
-1. 打开 Server 酱 SendKey 页面：<https://sct.ftqq.com/sendkey>
+1. 打开 Server 酱登录页：<https://sct.ftqq.com/login>
 2. 登录或按页面提示完成微信相关绑定。
-3. 复制自己的 SendKey，填到菜单里的 Server 酱 SendKey。
+3. 登录后查看并复制自己的 SendKey，填到菜单里的 Server 酱 SendKey。
 4. 微信或公众号相关绑定按 Server 酱网页提示完成；本工具只需要保存 SendKey。
 
 ## 在自己的 Codex 工作区使用

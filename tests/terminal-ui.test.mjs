@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   cartoonProgressLine,
   completionLine,
+  renderActionPanelLines,
   renderBannerLines,
   renderNeonCompletionLines,
   renderNeonProgressLine,
@@ -101,16 +102,47 @@ test("section title is visually heavier than plain text", () => {
 });
 
 test("step transition separates completed output from the next guide", () => {
-  const lines = renderStepTransitionLines("检查状态", "导入 Codex 自动化配置", {
+  const lines = renderStepTransitionLines("状态检查", "导入 Codex 自动化配置", {
+    nextStepNumber: 5,
     color: false,
   }).map(stripAnsi);
 
   assert.deepEqual(lines, [
     "",
-    "✓ 已完成：检查状态",
-    "  ↳ 下一步：导入 Codex 自动化配置",
+    "✓ 已完成：状态检查",
+    "  下一步：5 导入 Codex 自动化配置",
     "",
   ]);
+
+  const colored = renderStepTransitionLines("状态检查", "导入 Codex 自动化配置", {
+    nextStepNumber: 5,
+    color: true,
+  }).join("\n");
+  assert.equal(colored.includes("\x1b[90m下一步：5 导入 Codex 自动化配置"), true);
+});
+
+test("action panel emphasizes title and key values", () => {
+  const lines = renderActionPanelLines("你需要做的事情", [
+    ["打开位置", "Codex 左侧的「自动化（已安排）」"],
+    ["点击按钮", "通过聊天添加"],
+    ["自动化名称", "线下技术活动情报晨报"],
+  ], { color: false }).map(stripAnsi);
+
+  assert.deepEqual(lines, [
+    "▶ 你需要做的事情",
+    "",
+    "  1. 打开位置      Codex 左侧的「自动化（已安排）」",
+    "  2. 点击按钮      通过聊天添加",
+    "  3. 自动化名称    线下技术活动情报晨报",
+  ]);
+
+  const colored = renderActionPanelLines("你需要做的事情", [
+    ["自动化名称", "线下技术活动情报晨报"],
+  ], { color: true }).join("\n");
+  assert.equal(colored.includes("\x1b[1m"), true);
+  assert.equal(colored.includes("\x1b[36m"), true);
+  assert.equal(colored.includes("\x1b[33m"), true);
+  assert.equal(stripAnsi(colored).includes("▶ 你需要做的事情"), true);
 });
 
 test("banner uses a generic assistant name and wraps every line", () => {

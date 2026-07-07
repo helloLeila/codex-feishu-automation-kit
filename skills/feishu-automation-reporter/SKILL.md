@@ -52,8 +52,8 @@ SERVERCHAN_SENDKEY="<SERVERCHAN_SENDKEY>"
 
 Server 酱 SendKey 获取路径：
 
-1. 打开 `https://sct.ftqq.com/`。
-2. 登录后进入 SendKey 页面。
+1. 打开 `https://sct.ftqq.com/login`。
+2. 登录后查看 SendKey。
 3. 复制 SendKey，填入 `SERVERCHAN_SENDKEY`。
 4. 按页面提示绑定微信相关通知通道。
 

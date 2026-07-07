@@ -10,6 +10,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import {
   cartoonProgressLine,
   color,
+  renderActionPanelLines,
   renderNeonProgressLine,
   renderBannerLines,
   renderSectionTitle,
@@ -34,14 +35,18 @@ const rootDir = path.resolve(fileURLToPath(new URL("..", import.meta.url)));
 const AUTOMATION_PROMPT_FILE = "tech-events-assistant.automation.md";
 const AUTOMATION_DISPLAY_NAME = "线下技术活动情报晨报";
 const FEISHU_CUSTOM_BOT_DOC_URL = "https://open.feishu.cn/document/client-docs/bot-v3/add-custom-bot";
-const SERVERCHAN_SENDKEY_URL = "https://sct.ftqq.com/sendkey";
+const SERVERCHAN_SENDKEY_URL = "https://sct.ftqq.com/login";
 const GUIDE_STEPS = [
   "安装 / 更新活动助手",
   "配置推送和偏好",
   "测试真实连接",
-  "检查状态",
+  "状态检查",
   "导入 Codex 自动化配置",
 ];
+
+function guideStepTitle(index) {
+  return `${index + 1} ${GUIDE_STEPS[index]}`;
+}
 
 function createPromptSession() {
   const rl = createInterface({ input, output, crlfDelay: Infinity });
@@ -103,7 +108,10 @@ function printCompletedSteps(title, steps, result) {
 function printGuide(completedSteps, currentStep) {
   printBanner();
   console.log("");
-  console.log(renderSectionTitle("引导配置").join("\n"));
+  const guideTitle = currentStep === null
+    ? `引导配置 · 已完成 ${GUIDE_STEPS.length}/${GUIDE_STEPS.length}`
+    : `引导配置 · 下一步 ${currentStep + 1}/${GUIDE_STEPS.length}`;
+  console.log(renderSectionTitle(guideTitle).join("\n"));
   console.log(color("直接回车执行高亮步骤；输入 1-5 可跳到某步；b 返回上一层；q 退出引导。", "gray"));
   console.log("");
   GUIDE_STEPS.forEach((step, index) => {
@@ -119,11 +127,25 @@ function printGuide(completedSteps, currentStep) {
 }
 
 function guidePrompt(currentStep) {
-  return color(`\n下一步（回车执行：${GUIDE_STEPS[currentStep]}）：`, "cyan");
+  if (currentStep === null) {
+    return color("\n全部步骤已完成（回车退出；输入 1-5 可重新执行）：", "cyan");
+  }
+  return color(`\n下一步：${currentStep + 1} ${GUIDE_STEPS[currentStep]}（回车执行）：`, "cyan");
 }
 
-function printStepTransition(completedStep, nextStep) {
-  console.log(renderStepTransitionLines(completedStep, nextStep).join("\n"));
+function printStepTransition(completedStep, nextStep, nextStepNumber) {
+  console.log(renderStepTransitionLines(completedStep, nextStep, {
+    nextStepNumber,
+    completeMessage: nextStep ? undefined : "全部步骤已完成，回车退出；输入 1-5 可重新执行某步",
+  }).join("\n"));
+}
+
+function nextIncompleteStepIndex(completedSteps, fromIndex) {
+  for (let offset = 1; offset <= GUIDE_STEPS.length; offset += 1) {
+    const index = (fromIndex + offset) % GUIDE_STEPS.length;
+    if (!completedSteps.has(index)) return index;
+  }
+  return null;
 }
 
 function buildGbaAutomationPrompt() {
@@ -298,7 +320,7 @@ function openSetupPage(label, url) {
 
 async function offerCredentialSetupHelp(reader) {
   console.log(color("我可以先帮你打开取值页面，拿到之后再回到这里粘贴。", "gray"));
-  console.log(color("回车 = 打开飞书文档 + Server 酱 SendKey 页；f = 只开飞书；s = 只开 Server 酱；n = 跳过。", "gray"));
+  console.log(color("回车 = 打开飞书文档 + Server 酱登录页；f = 只开飞书；s = 只开 Server 酱；n = 跳过。", "gray"));
   const answer = (await reader.question("打开取值页面？")).trim().toLowerCase();
   if (answer === "n" || answer === "no" || answer === "skip") return;
 
@@ -310,12 +332,12 @@ async function offerCredentialSetupHelp(reader) {
     console.log(statusLine("飞书取值路径：群聊设置 → 机器人 → 添加机器人 → 自定义机器人 → 复制 webhook", "info"));
   }
   if (openServerChan) {
-    openSetupPage("Server 酱 SendKey 页面", SERVERCHAN_SENDKEY_URL);
+    openSetupPage("Server 酱登录页", SERVERCHAN_SENDKEY_URL);
     const clipboard = copySetupLinkToClipboard(SERVERCHAN_SENDKEY_URL);
     if (clipboard.copied) {
-      console.log(statusLine("Server 酱页面链接已复制到剪贴板", "ok"));
+      console.log(statusLine("Server 酱登录页链接已复制到剪贴板", "ok"));
     } else {
-      console.log(statusLine(`未复制 Server 酱链接：${clipboard.reason}`, "warn"));
+      console.log(statusLine(`未复制 Server 酱登录页链接：${clipboard.reason}`, "warn"));
     }
   }
 }
@@ -332,13 +354,13 @@ async function installOrUpdate() {
     console.log(statusLine(`${CONFIG_FILE} 已存在，保留当前配置`, "ok"));
   }
 
-  printCompletedSteps("安装 / 更新活动助手", ["检查配置文件", "准备本地入口"], "活动助手已就绪");
+  printCompletedSteps(guideStepTitle(0), ["检查配置文件", "准备本地入口"], "活动助手已就绪");
 }
 
 async function runSaveSteps(resultLabel) {
   const steps = ["读取现有配置", "合并本次输入", "写入本地配置", "准备推送脚本"];
   const frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧"];
-  const finalLines = renderStepFlowLines("配置推送", steps, {
+  const finalLines = renderStepFlowLines(guideStepTitle(1), steps, {
     complete: true,
     result: resultLabel,
   });
@@ -352,7 +374,7 @@ async function runSaveSteps(resultLabel) {
   for (let index = 0; index < steps.length; index += 1) {
     const percent = Math.round(((index + 1) / (steps.length + 1)) * 100);
     const lines = [
-      ...renderStepFlowLines("配置推送", steps, {
+      ...renderStepFlowLines(guideStepTitle(1), steps, {
         activeIndex: index,
         spinner: frames[index % frames.length],
       }),
@@ -377,7 +399,7 @@ async function runSaveSteps(resultLabel) {
   }
 }
 
-async function printStatus() {
+async function printStatus(options = {}) {
   const config = await loadAssistantConfig(rootDir);
   const localEnv = await loadLocalEnv(rootDir);
   const publicConfigPath = path.join(rootDir, CONFIG_FILE);
@@ -389,7 +411,10 @@ async function printStatus() {
   const hasFeishu = Boolean(config?.push?.feishuWebhookUrl || localEnv.FEISHU_WEBHOOK_URL);
   const hasServerChan = Boolean(config?.push?.serverChanSendKey || localEnv.SERVERCHAN_SENDKEY);
 
-  console.log(renderSectionTitle("状态检查").join("\n"));
+  const title = Number.isInteger(options.stepIndex)
+    ? guideStepTitle(options.stepIndex)
+    : "状态检查";
+  console.log(renderSectionTitle(title).join("\n"));
   console.log(statusLine(`普通配置（可提交，控制助手偏好）：${hasPublicConfig ? `${CONFIG_FILE} 已存在` : "缺失，建议先执行第 1 步"}`, hasPublicConfig ? "ok" : "warn"));
   console.log(statusLine(`本机私密配置（.gitignore，不提交，保存 webhook/SendKey）：${hasLocalConfig ? `${LOCAL_CONFIG_FILE} 已存在` : "未配置，可执行第 2 步"}`, hasLocalConfig ? "ok" : "warn"));
   console.log(statusLine(`飞书推送：${hasFeishu ? "已配置 webhook" : "未配置 webhook"}`, hasFeishu ? "ok" : "warn"));
@@ -411,7 +436,7 @@ async function configurePush(rl) {
   await offerCredentialSetupHelp(reader);
   const feishuWebhookUrl = await reader.question("飞书 webhook URL（飞书群设置 → 机器人 → 自定义机器人）：");
   const feishuWebhookSecret = await reader.question("飞书签名密钥（可空，开启签名校验才填）：");
-  const serverChanSendKey = await reader.question("Server 酱 SendKey（sct.ftqq.com → SendKey 页面）：");
+  const serverChanSendKey = await reader.question("Server 酱 SendKey（sct.ftqq.com/login → 登录后查看 SendKey）：");
   const saveAnswer = await reader.question("保存到 tech-events-assistant.local.json？输入 y 保存：");
   if (ownsReadline) reader.close();
 
@@ -591,7 +616,7 @@ async function runConnectionCheck(rl) {
     const result = process.env.TECH_EVENTS_ASSISTANT_SKIP_REAL_SEND === "1"
       ? "已检测到真实配置，未发送测试消息"
       : "真实连接测试通过，已发送测试消息";
-    printCompletedSteps("测试真实连接", steps, result);
+    printCompletedSteps(guideStepTitle(2), steps, result);
     for (const summary of responseSummaries) {
       console.log(statusLine(summary, "ok"));
     }
@@ -618,14 +643,15 @@ async function createAutomationWizard() {
     ? `已生成 ${AUTOMATION_PROMPT_FILE}，并复制到剪贴板`
     : `已生成 ${AUTOMATION_PROMPT_FILE}`;
 
-  printCompletedSteps("导入 Codex 自动化配置", steps, result);
+  printCompletedSteps(guideStepTitle(4), steps, result);
   console.log("");
-  console.log(renderSectionTitle("你需要做的事情").join("\n"));
-  console.log(statusLine("打开 Codex 左侧的「自动化（已安排）」", "info"));
-  console.log(statusLine("点击「通过聊天添加」", "info"));
-  console.log(statusLine("粘贴刚才复制的 Prompt", "info"));
-  console.log(statusLine(`自动化名称填写：${AUTOMATION_DISPLAY_NAME}`, "info"));
-  console.log(statusLine("运行时间设置：每天 07:00（Asia/Shanghai）", "info"));
+  console.log(renderActionPanelLines("你需要做的事情", [
+    ["打开位置", "Codex 左侧的「自动化（已安排）」"],
+    ["点击按钮", "通过聊天添加"],
+    ["粘贴内容", "刚才复制的 Prompt"],
+    ["自动化名称", AUTOMATION_DISPLAY_NAME],
+    ["运行时间", "每天 07:00（Asia/Shanghai）"],
+  ]).join("\n"));
   console.log(statusLine(`Prompt 文件：${AUTOMATION_PROMPT_FILE}`, "info"));
   if (clipboard.copied) {
     console.log(statusLine("已复制到剪贴板，直接粘贴即可", "ok"));
@@ -648,7 +674,7 @@ function printMenu(options = {}) {
   console.log("1. 安装 / 更新活动助手");
   console.log("2. 配置推送和偏好");
   console.log("3. 测试真实连接");
-  console.log("4. 检查状态");
+  console.log("4. 状态检查");
   console.log("5. 导入 Codex 自动化配置");
   console.log("0. 退出");
 }
@@ -657,7 +683,7 @@ async function runStepByIndex(index, rl) {
   if (index === 0) await installOrUpdate();
   else if (index === 1) await configurePush(rl);
   else if (index === 2) await runConnectionCheck(rl);
-  else if (index === 3) await printStatus();
+  else if (index === 3) await printStatus({ stepIndex: 3 });
   else if (index === 4) await createAutomationWizard();
 }
 
@@ -667,7 +693,7 @@ async function handleChoice(choice, rl) {
   if (choice === "1") await installOrUpdate();
   else if (choice === "2") await configurePush(rl);
   else if (choice === "3") await runConnectionCheck(rl);
-  else if (choice === "4") await printStatus();
+  else if (choice === "4") await printStatus({ stepIndex: 3 });
   else if (choice === "5") await createAutomationWizard();
   else {
     console.log(statusLine("没识别这个选项，输入 0 可以退出", "warn"));
@@ -697,6 +723,7 @@ async function guideMenu() {
     while (true) {
       printGuide(completedSteps, currentStep);
       const answer = (await rl.question(guidePrompt(currentStep))).trim().toLowerCase();
+      if (currentStep === null && answer === "") break;
       if (answer === "q" || answer === "0") break;
       if (answer === "b") {
         const returnToGuide = await manualMenu(rl);
@@ -705,16 +732,22 @@ async function guideMenu() {
       }
 
       const selectedStep = /^[1-5]$/.test(answer) ? Number(answer) - 1 : currentStep;
+      if (selectedStep === null) {
+        console.log(statusLine("全部步骤已完成，输入 1-5 可重新执行，或回车退出", "info"));
+        continue;
+      }
       currentStep = selectedStep;
       console.log("");
       await runStepByIndex(selectedStep, rl);
       completedSteps.add(selectedStep);
-      let nextStep = null;
-      if (selectedStep < GUIDE_STEPS.length - 1) {
-        currentStep = selectedStep + 1;
-        nextStep = GUIDE_STEPS[currentStep];
-      }
-      printStepTransition(GUIDE_STEPS[selectedStep], nextStep);
+      const nextStepIndex = nextIncompleteStepIndex(completedSteps, selectedStep);
+      currentStep = nextStepIndex;
+      const nextStep = nextStepIndex === null ? null : GUIDE_STEPS[nextStepIndex];
+      printStepTransition(
+        GUIDE_STEPS[selectedStep],
+        nextStep,
+        nextStepIndex === null ? null : nextStepIndex + 1,
+      );
     }
   } catch (error) {
     if (error.message !== "输入已结束") throw error;

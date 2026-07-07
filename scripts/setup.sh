@@ -17,42 +17,22 @@ if [ "$NODE_MAJOR" -lt 18 ]; then
 fi
 echo "Node.js: $(node -v)"
 
-echo "==> 准备 .env.local"
-if [ -f ".env.local" ]; then
-  echo ".env.local 已存在，跳过复制。"
+echo "==> 检查本地私密配置"
+if [ -f "tech-events-assistant.local.json" ]; then
+  echo "tech-events-assistant.local.json 已存在，后续推送会优先读取它。"
 else
-  cp examples/.env.local.example .env.local
-  echo "已从 examples/.env.local.example 创建 .env.local。"
-  echo "请把 .env.local 里的占位符替换成真实飞书 webhook 或 Server 酱 SendKey。"
+  echo "未创建私密配置。需要推送时请运行 npm run gba，在菜单里配置。"
 fi
 
 echo "==> 检查脚本语法"
-node --check skills/feishu-automation-reporter/scripts/push-ai-daily-to-feishu.mjs
-node --check skills/feishu-automation-reporter/scripts/push-gba-events-to-feishu.mjs
-node --check skills/feishu-automation-reporter/scripts/push-ai-daily-to-serverchan.mjs
-node --check skills/feishu-automation-reporter/scripts/push-gba-events-to-serverchan.mjs
+npm run check
+
+echo "==> 运行测试"
+npm test
 
 echo "==> 运行 dry-run 验证"
-FEISHU_DRY_RUN=1 FEISHU_WEBHOOK_URL=dry-run-webhook-url \
-  node skills/feishu-automation-reporter/scripts/push-ai-daily-to-feishu.mjs \
-  examples/ai-daily-example.md >/tmp/codex-feishu-ai-daily-card.json
+npm run gba -- --dry-run >/tmp/codex-gba-dry-run.txt
 
-FEISHU_DRY_RUN=1 FEISHU_WEBHOOK_URL=dry-run-webhook-url \
-  node skills/feishu-automation-reporter/scripts/push-gba-events-to-feishu.mjs \
-  examples/gba-events-example.md >/tmp/codex-feishu-gba-events-card.json
-
-SERVERCHAN_DRY_RUN=1 SERVERCHAN_SENDKEY=dry-run-serverchan-key \
-  node skills/feishu-automation-reporter/scripts/push-ai-daily-to-serverchan.mjs \
-  examples/ai-daily-example.md >/tmp/codex-serverchan-ai-daily-message.json
-
-SERVERCHAN_DRY_RUN=1 SERVERCHAN_SENDKEY=dry-run-serverchan-key \
-  node skills/feishu-automation-reporter/scripts/push-gba-events-to-serverchan.mjs \
-  examples/gba-events-example.md >/tmp/codex-serverchan-gba-events-message.json
-
-echo "已生成 dry-run 输出："
-echo "- /tmp/codex-feishu-ai-daily-card.json"
-echo "- /tmp/codex-feishu-gba-events-card.json"
-echo "- /tmp/codex-serverchan-ai-daily-message.json"
-echo "- /tmp/codex-serverchan-gba-events-message.json"
+echo "已生成 dry-run 输出：/tmp/codex-gba-dry-run.txt"
 echo
-echo "配置完成。下一步：编辑 .env.local，然后运行真实推送命令。"
+echo "配置完成。下一步：运行 npm run gba，在菜单里配置飞书 webhook 或 Server 酱 SendKey。"

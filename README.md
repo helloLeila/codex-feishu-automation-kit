@@ -20,7 +20,34 @@ git clone https://github.com/helloLeila/codex-feishu-automation-kit.git
 cd codex-feishu-automation-kit
 ```
 
-运行一键配置：
+运行一个入口：
+
+```bash
+npm run gba
+```
+
+你会看到一个彩色菜单：
+
+```text
+1. 安装 / 更新活动助手
+2. 配置推送和偏好
+3. 预览 / 测试推送
+4. 检查状态
+5. 运行 / 引导一次活动搜寻
+6. 进度条演示
+0. 退出
+```
+
+进度条会长这样：
+
+```text
+进度  🤖🤖🤖🤖🤖▫️▫️▫️▫️▫️  50%
+完成  ✨🤖🎉🤖✨  已完成
+```
+
+不需要安装 npm 依赖；脚本只使用 Node.js 内置模块。Node.js 版本需要 18 或更高。
+
+如果想一次跑完本地检查：
 
 ```bash
 bash scripts/setup.sh
@@ -29,19 +56,22 @@ bash scripts/setup.sh
 这个脚本会：
 
 1. 检查 Node.js 版本是否为 18 或更高。
-2. 如果没有 `.env.local`，从 `examples/.env.local.example` 创建一份。
-3. 对四个推送脚本做 `node --check` 语法检查。
-4. 使用示例 Markdown 生成 dry-run 输出，不会真实发送消息。
+2. 检查是否已有 `tech-events-assistant.local.json`，不会自动写入占位密钥。
+3. 运行 `npm run check` 做语法检查。
+4. 运行 `npm test`。
+5. 使用示例 Markdown 做 dry-run，不会真实发送消息。
 
-然后编辑 `.env.local`：
+## 配置文件
 
-```bash
-FEISHU_WEBHOOK_URL="<FEISHU_WEBHOOK_URL>"
-# FEISHU_WEBHOOK_SECRET="<FEISHU_WEBHOOK_SECRET>"
-SERVERCHAN_SENDKEY="<SERVERCHAN_SENDKEY>"
-```
+这个工具包使用三个明显命名的配置文件：
 
-只用飞书就只填 `FEISHU_WEBHOOK_URL`；只用 Server 酱就只填 `SERVERCHAN_SENDKEY`。`.env.local` 已被 `.gitignore` 忽略，不要提交到 GitHub。
+- `tech-events-assistant.config.json`：普通配置，可以提交。
+- `tech-events-assistant.local.json`：本机私密配置，保存飞书 webhook、飞书签名密钥、Server 酱 SendKey，不提交。
+- `tech-events-assistant.config.example.json`：示例配置。
+
+推荐在 `npm run gba` 的菜单里选择 `配置推送和偏好` 输入密钥。输入留空会保留原值，输入 `clear` 会清空该项；最后选择不保存就不会写入文件。
+
+`.env.local` 仍然兼容旧工作流，但新用户优先使用 `tech-events-assistant.local.json`。
 
 ## 去哪里拿密钥
 
@@ -50,8 +80,8 @@ SERVERCHAN_SENDKEY="<SERVERCHAN_SENDKEY>"
 1. 打开飞书开放平台文档：<https://open.feishu.cn/document/client-docs/bot-v3/add-custom-bot>
 2. 在飞书群里进入“群设置”。
 3. 找到“机器人”或“群机器人”，添加“自定义机器人”。
-4. 复制生成的 webhook，填到 `.env.local` 的 `FEISHU_WEBHOOK_URL`。
-5. 如果你在机器人安全设置里开启了“签名校验”，把签名密钥填到 `FEISHU_WEBHOOK_SECRET`。
+4. 复制生成的 webhook，填到菜单里的飞书 webhook URL。
+5. 如果你在机器人安全设置里开启了“签名校验”，把签名密钥填到菜单里的飞书签名密钥。
 
 飞书开放平台入口：<https://open.feishu.cn/>
 
@@ -59,7 +89,7 @@ Server 酱：
 
 1. 打开 Server 酱官网：<https://sct.ftqq.com/>
 2. 登录后进入 SendKey 页面。
-3. 复制自己的 SendKey，填到 `.env.local` 的 `SERVERCHAN_SENDKEY`。
+3. 复制自己的 SendKey，填到菜单里的 Server 酱 SendKey。
 4. 按 Server 酱页面提示绑定微信相关通知通道。
 
 ## 在自己的 Codex 工作区使用
@@ -73,10 +103,10 @@ cp skills/feishu-automation-reporter/scripts/push-gba-events-to-feishu.mjs /path
 cp skills/feishu-automation-reporter/scripts/push-ai-daily-to-serverchan.mjs /path/to/your-codex-workspace/scripts/
 cp skills/feishu-automation-reporter/scripts/push-gba-events-to-serverchan.mjs /path/to/your-codex-workspace/scripts/
 cp skills/feishu-automation-reporter/scripts/lib/*.mjs /path/to/your-codex-workspace/scripts/lib/
-cp examples/.env.local.example /path/to/your-codex-workspace/.env.local
+cp tech-events-assistant.config.example.json /path/to/your-codex-workspace/tech-events-assistant.config.json
 ```
 
-把 `/path/to/your-codex-workspace` 替换成你的实际工作区路径。复制完成后，在目标工作区编辑 `.env.local`，填入真实密钥。
+把 `/path/to/your-codex-workspace` 替换成你的实际工作区路径。复制完成后，在目标工作区运行 `npm run gba`，用菜单配置真实密钥。
 
 ## 推送 AI 日报
 
@@ -122,14 +152,14 @@ node scripts/push-gba-events-to-serverchan.mjs gba-events/YYYY-MM-DD-gba-events.
 
 ## Codex 自动化提示词模板
 
-把下面片段追加到对应自动化 prompt 的结尾。重点是让 Codex 在生成 Markdown 后，根据 `.env.local` 或环境变量自动决定是否推送。
+把下面片段追加到对应自动化 prompt 的结尾。重点是让 Codex 在生成 Markdown 后，根据 `tech-events-assistant.local.json`、`.env.local` 或环境变量自动决定是否推送。
 
 AI 行业日报：
 
 ```text
-生成 Markdown 文件后，如果环境变量 FEISHU_WEBHOOK_URL 已配置，或当前目录 .env.local 中配置了 FEISHU_WEBHOOK_URL，请运行：
+生成 Markdown 文件后，如果环境变量 FEISHU_WEBHOOK_URL 已配置，或当前目录 tech-events-assistant.local.json / .env.local 中配置了飞书 webhook，请运行：
 node scripts/push-ai-daily-to-feishu.mjs <生成的Markdown文件路径>
-如果环境变量 SERVERCHAN_SENDKEY 已配置，或当前目录 .env.local 中配置了 SERVERCHAN_SENDKEY，请运行：
+如果环境变量 SERVERCHAN_SENDKEY 已配置，或当前目录 tech-events-assistant.local.json / .env.local 中配置了 Server 酱 SendKey，请运行：
 node scripts/push-ai-daily-to-serverchan.mjs <生成的Markdown文件路径>
 如果两者都配置，请两个都推送；如果都未配置，请只生成文件并说明未推送。
 ```
@@ -137,9 +167,9 @@ node scripts/push-ai-daily-to-serverchan.mjs <生成的Markdown文件路径>
 大湾区活动清单：
 
 ```text
-生成 Markdown 文件后，如果环境变量 FEISHU_WEBHOOK_URL 已配置，或当前目录 .env.local 中配置了 FEISHU_WEBHOOK_URL，请运行：
+生成 Markdown 文件后，如果环境变量 FEISHU_WEBHOOK_URL 已配置，或当前目录 tech-events-assistant.local.json / .env.local 中配置了飞书 webhook，请运行：
 node scripts/push-gba-events-to-feishu.mjs <生成的Markdown文件路径>
-如果环境变量 SERVERCHAN_SENDKEY 已配置，或当前目录 .env.local 中配置了 SERVERCHAN_SENDKEY，请运行：
+如果环境变量 SERVERCHAN_SENDKEY 已配置，或当前目录 tech-events-assistant.local.json / .env.local 中配置了 Server 酱 SendKey，请运行：
 node scripts/push-gba-events-to-serverchan.mjs <生成的Markdown文件路径>
 如果两者都配置，请两个都推送；如果都未配置，请只生成文件并说明未推送。
 ```
@@ -147,7 +177,7 @@ node scripts/push-gba-events-to-serverchan.mjs <生成的Markdown文件路径>
 如果你的自动化运行在 git worktree、CI 或其他目录，推荐把 env 文件路径写清楚：
 
 ```text
-如果当前目录读不到 .env.local，请使用 FEISHU_ENV_FILE=/absolute/path/to/.env.local 或 SERVERCHAN_ENV_FILE=/absolute/path/to/.env.local 指定密钥文件。
+如果当前目录读不到 tech-events-assistant.local.json 或 .env.local，请使用 FEISHU_ENV_FILE=/absolute/path/to/.env.local 或 SERVERCHAN_ENV_FILE=/absolute/path/to/.env.local 指定密钥文件。
 ```
 
 ## Dry-run 验证
@@ -168,7 +198,7 @@ SERVERCHAN_DRY_RUN=1 SERVERCHAN_SENDKEY=<SERVERCHAN_SENDKEY> node skills/feishu-
 适合在这些任务中触发：
 
 - 给 Markdown 生成类自动化增加飞书或 Server 酱推送。
-- 配置 `.env.local`、飞书 webhook 和 Server 酱 SendKey。
+- 配置 `tech-events-assistant.local.json`、`.env.local`、飞书 webhook 和 Server 酱 SendKey。
 - 生成或改造飞书 interactive card 脚本。
 - 生成或改造 Server 酱通知脚本。
 - 排查为什么自动化没有推送。
@@ -200,9 +230,9 @@ scripts/
 
 ## 常见问题
 
-`缺少 FEISHU_WEBHOOK_URL`：没有配置飞书 webhook。检查 `.env.local` 是否在当前运行目录，或用 `FEISHU_ENV_FILE=/absolute/path/to/.env.local` 指定。
+`缺少 FEISHU_WEBHOOK_URL`：没有配置飞书 webhook。检查 `tech-events-assistant.local.json` 或 `.env.local` 是否在当前运行目录，或用 `FEISHU_ENV_FILE=/absolute/path/to/.env.local` 指定。
 
-`缺少 SERVERCHAN_SENDKEY`：没有配置 Server 酱 SendKey。检查 `.env.local` 是否在当前运行目录，或用 `SERVERCHAN_ENV_FILE=/absolute/path/to/.env.local` 指定。
+`缺少 SERVERCHAN_SENDKEY`：没有配置 Server 酱 SendKey。检查 `tech-events-assistant.local.json` 或 `.env.local` 是否在当前运行目录，或用 `SERVERCHAN_ENV_FILE=/absolute/path/to/.env.local` 指定。
 
 飞书推送失败且提示签名错误：机器人开启了签名校验，但没有配置 `FEISHU_WEBHOOK_SECRET`，或密钥填错。
 
@@ -211,6 +241,7 @@ Server 酱消息不完整：Server 酱适合提醒和摘要，不适合完整替
 ## 安全提醒
 
 - 不要提交 `.env.local`。
+- 不要提交 `tech-events-assistant.local.json`。
 - 不要把真实 webhook、SendKey 或签名密钥写进 README、示例、issue、截图或 prompt。
 - 如果密钥泄露，立即在对应平台重置。
 - 开源前运行 `docs/release-checklist.md` 里的扫描命令。

@@ -3,43 +3,7 @@
 import { createHmac } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-
-const parseEnvFile = (content) => {
-  const values = {};
-  for (const rawLine of content.split(/\r?\n/)) {
-    const line = rawLine.trim();
-    if (!line || line.startsWith("#")) continue;
-    const match = line.match(/^([A-Za-z_][A-Za-z0-9_]*)=(.*)$/);
-    if (!match) continue;
-    let value = match[2].trim();
-    if (
-      (value.startsWith('"') && value.endsWith('"')) ||
-      (value.startsWith("'") && value.endsWith("'"))
-    ) {
-      value = value.slice(1, -1);
-    }
-    values[match[1]] = value;
-  }
-  return values;
-};
-
-const loadLocalEnv = async () => {
-  // 读取顺序：显式指定的 FEISHU_ENV_FILE 优先，其次读取当前目录的 .env.local。
-  // 这样同一份脚本可以同时适配本地目录、git worktree 和 CI。
-  const envPaths = [
-    process.env.FEISHU_ENV_FILE,
-    path.resolve(".env.local"),
-  ].filter(Boolean);
-
-  for (const envPath of envPaths) {
-    try {
-      return parseEnvFile(await readFile(envPath, "utf8"));
-    } catch (error) {
-      if (error.code !== "ENOENT") throw error;
-    }
-  }
-  return {};
-};
+import { loadLocalEnv } from "./lib/env.mjs";
 
 const localEnv = await loadLocalEnv();
 const webhook = process.env.FEISHU_WEBHOOK_URL || localEnv.FEISHU_WEBHOOK_URL;
@@ -47,7 +11,7 @@ const secret = process.env.FEISHU_WEBHOOK_SECRET || localEnv.FEISHU_WEBHOOK_SECR
 const file = process.argv[2];
 
 if (!webhook) {
-  console.error("缺少 FEISHU_WEBHOOK_URL。请设置环境变量或在 .env.local 中配置。");
+  console.error("缺少 FEISHU_WEBHOOK_URL。请设置环境变量、.env.local 或 tech-events-assistant.local.json。");
   process.exit(2);
 }
 

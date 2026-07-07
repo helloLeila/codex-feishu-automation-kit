@@ -1,0 +1,18 @@
+{
+  "assistantName": "大湾区硬核技术活动助手",
+  "schedule": {
+    "timezone": "Asia/Shanghai",
+    "window": "current-monday-00:00-to-next-sunday-23:59"
+  },
+  "output": {
+    "language": "zh-CN",
+    "preferChineseTitles": true,
+    "quickCardsIncludeContent": true,
+    "hideAlreadyStartedOrEndedEvents": true,
+    "omitUnknownFieldsInPushCards": true
+  },
+  "push": {
+    "feishu": true,
+    "serverChan": true
+  }
+}

@@ -11,7 +11,7 @@ const sendKey = process.env.SERVERCHAN_SENDKEY || localEnv.SERVERCHAN_SENDKEY;
 const file = process.argv[2];
 
 if (!sendKey) {
-  console.error("缺少 SERVERCHAN_SENDKEY。请设置环境变量或在 .env.local 中配置。");
+  console.error("缺少 SERVERCHAN_SENDKEY。请设置环境变量、.env.local 或 tech-events-assistant.local.json。");
   process.exit(2);
 }
 

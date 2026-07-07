@@ -1,6 +1,6 @@
 ---
 name: feishu-automation-reporter
-description: 用于把 Codex 自动化或 Markdown 生成流程接入飞书 / Lark / Server 酱通知，特别适合 AI 日报、活动清单、周报摘要、.env.local 密钥配置、飞书卡片、Server 酱 SendKey、dry-run 验证、签名校验和未推送排查。
+description: 用于把 Codex 自动化或 Markdown 生成流程接入飞书 / Lark / Server 酱通知，特别适合 AI 日报、活动清单、周报摘要、tech-events-assistant.local.json / .env.local 密钥配置、飞书卡片、Server 酱 SendKey、dry-run 验证、签名校验和未推送排查。
 ---
 
 # 飞书 / Server 酱自动化推送
@@ -12,7 +12,7 @@ description: 用于把 Codex 自动化或 Markdown 生成流程接入飞书 / La
 - AI 行业日报生成后推送飞书或 Server 酱。
 - 大湾区活动清单生成后推送飞书或 Server 酱。
 - 飞书负责完整卡片展示，Server 酱负责手机提醒。
-- 配置 `.env.local`、webhook、SendKey、签名校验、dry-run 验证和未推送排查。
+- 配置 `tech-events-assistant.local.json`、`.env.local`、webhook、SendKey、签名校验、dry-run 验证和未推送排查。
 
 ## 官方入口
 
@@ -24,7 +24,7 @@ description: 用于把 Codex 自动化或 Markdown 生成流程接入飞书 / La
 ## 工作流
 
 1. 确认自动化会生成一个稳定路径的 Markdown 文件。
-2. 配置本地 secret 文件或环境变量：
+2. 优先运行 `npm run gba`，在菜单里配置本地 secret；或手动配置环境变量：
 
 ```bash
 FEISHU_WEBHOOK_URL="<FEISHU_WEBHOOK_URL>"
@@ -32,7 +32,7 @@ FEISHU_WEBHOOK_URL="<FEISHU_WEBHOOK_URL>"
 SERVERCHAN_SENDKEY="<SERVERCHAN_SENDKEY>"
 ```
 
-3. 确认 `.gitignore` 忽略 `.env.local`。
+3. 确认 `.gitignore` 忽略 `tech-events-assistant.local.json` 和 `.env.local`。
 4. 选择脚本：
    - AI 行业日报到飞书：`scripts/push-ai-daily-to-feishu.mjs`
    - AI 行业日报到 Server 酱：`scripts/push-ai-daily-to-serverchan.mjs`
@@ -77,9 +77,9 @@ cp skills/feishu-automation-reporter/scripts/lib/*.mjs scripts/lib/
 AI 日报：
 
 ```text
-生成 Markdown 文件后，如果环境变量 FEISHU_WEBHOOK_URL 已配置，或当前目录 .env.local 中配置了 FEISHU_WEBHOOK_URL，请运行：
+生成 Markdown 文件后，如果环境变量 FEISHU_WEBHOOK_URL 已配置，或当前目录 tech-events-assistant.local.json / .env.local 中配置了飞书 webhook，请运行：
 node scripts/push-ai-daily-to-feishu.mjs <生成的Markdown文件路径>
-如果环境变量 SERVERCHAN_SENDKEY 已配置，或当前目录 .env.local 中配置了 SERVERCHAN_SENDKEY，请运行：
+如果环境变量 SERVERCHAN_SENDKEY 已配置，或当前目录 tech-events-assistant.local.json / .env.local 中配置了 Server 酱 SendKey，请运行：
 node scripts/push-ai-daily-to-serverchan.mjs <生成的Markdown文件路径>
 如果两者都配置，请两个都推送；如果都未配置，请只生成文件并说明未推送。
 ```
@@ -87,9 +87,9 @@ node scripts/push-ai-daily-to-serverchan.mjs <生成的Markdown文件路径>
 活动清单：
 
 ```text
-生成 Markdown 文件后，如果环境变量 FEISHU_WEBHOOK_URL 已配置，或当前目录 .env.local 中配置了 FEISHU_WEBHOOK_URL，请运行：
+生成 Markdown 文件后，如果环境变量 FEISHU_WEBHOOK_URL 已配置，或当前目录 tech-events-assistant.local.json / .env.local 中配置了飞书 webhook，请运行：
 node scripts/push-gba-events-to-feishu.mjs <生成的Markdown文件路径>
-如果环境变量 SERVERCHAN_SENDKEY 已配置，或当前目录 .env.local 中配置了 SERVERCHAN_SENDKEY，请运行：
+如果环境变量 SERVERCHAN_SENDKEY 已配置，或当前目录 tech-events-assistant.local.json / .env.local 中配置了 Server 酱 SendKey，请运行：
 node scripts/push-gba-events-to-serverchan.mjs <生成的Markdown文件路径>
 如果两者都配置，请两个都推送；如果都未配置，请只生成文件并说明未推送。
 ```
@@ -114,8 +114,8 @@ SERVERCHAN_DRY_RUN=1 SERVERCHAN_SENDKEY=<SERVERCHAN_SENDKEY> node scripts/push-g
 
 ## 排查
 
-- `缺少 FEISHU_WEBHOOK_URL`：配置环境变量或创建 `.env.local`。
-- `缺少 SERVERCHAN_SENDKEY`：配置环境变量或创建 `.env.local`。
+- `缺少 FEISHU_WEBHOOK_URL`：配置环境变量、创建 `tech-events-assistant.local.json`，或创建 `.env.local`。
+- `缺少 SERVERCHAN_SENDKEY`：配置环境变量、创建 `tech-events-assistant.local.json`，或创建 `.env.local`。
 - 飞书签名错误：机器人开启签名校验时，需要配置 `FEISHU_WEBHOOK_SECRET`。
 - 飞书卡片里 Markdown 标题原样显示：不要整篇 Markdown 直接塞进一个文本块，应拆成多个 card elements。
 - worktree 自动化读不到 `.env.local`：使用 `FEISHU_ENV_FILE=/absolute/path/to/.env.local` 或 `SERVERCHAN_ENV_FILE=/absolute/path/to/.env.local` 指定密钥文件。

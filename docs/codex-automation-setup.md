@@ -23,6 +23,7 @@ Codex 自动化
 Server 酱：
 
 - Server 酱官网：<https://sct.ftqq.com/>
+- SendKey 页面：<https://sct.ftqq.com/sendkey>
 
 GitHub：
 
@@ -36,7 +37,7 @@ GitHub：
 npm run gba
 ```
 
-然后在菜单里选择 `配置推送和偏好`。密钥会保存到 `tech-events-assistant.local.json`，这个文件不要提交。
+然后在菜单里选择 `配置推送和偏好`。工具会先帮你打开飞书自定义机器人文档和 Server 酱 SendKey 页面；密钥会保存到 `tech-events-assistant.local.json`，这个文件不要提交。
 
 旧工作流仍然可以使用 `.env.local`：
 

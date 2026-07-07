@@ -30,6 +30,8 @@ import { loadLocalEnv } from "../skills/feishu-automation-reporter/scripts/lib/e
 
 const rootDir = path.resolve(fileURLToPath(new URL("..", import.meta.url)));
 const AUTOMATION_PROMPT_FILE = "tech-events-assistant.automation.md";
+const FEISHU_CUSTOM_BOT_DOC_URL = "https://open.feishu.cn/document/client-docs/bot-v3/add-custom-bot";
+const SERVERCHAN_SENDKEY_URL = "https://sct.ftqq.com/sendkey";
 const GUIDE_STEPS = [
   "安装 / 更新活动助手",
   "配置推送和偏好",
@@ -241,6 +243,72 @@ function copyTextToClipboard(text) {
   return { copied: false, reason: "未找到可用剪贴板命令" };
 }
 
+function openExternalUrl(url) {
+  if (process.env.TECH_EVENTS_ASSISTANT_SKIP_BROWSER === "1") {
+    return { opened: false, reason: "已按环境变量跳过浏览器打开" };
+  }
+  if (!output.isTTY) {
+    return { opened: false, reason: "当前不是交互式终端" };
+  }
+
+  const commandSets = {
+    darwin: [["open", url]],
+    win32: [["cmd", "/c", "start", "", url]],
+    linux: [["xdg-open", url]],
+  };
+  const commands = commandSets[process.platform] ?? commandSets.linux;
+
+  for (const [command, ...args] of commands) {
+    const result = spawnSync(command, args, { stdio: "ignore" });
+    if (result.status === 0) return { opened: true };
+  }
+
+  return { opened: false, reason: "没有找到可用的浏览器打开命令" };
+}
+
+function copySetupLinkToClipboard(text) {
+  if (!output.isTTY) return { copied: false, reason: "当前不是交互式终端" };
+  return copyTextToClipboard(text);
+}
+
+function printSetupLink(label, url) {
+  console.log(statusLine(`${label}：${url}`, "info"));
+}
+
+function openSetupPage(label, url) {
+  printSetupLink(label, url);
+  const result = openExternalUrl(url);
+  if (result.opened) {
+    console.log(statusLine(`已打开浏览器：${label}`, "ok"));
+  } else {
+    console.log(statusLine(`未自动打开浏览器：${result.reason}`, "warn"));
+  }
+}
+
+async function offerCredentialSetupHelp(reader) {
+  console.log(color("我可以先帮你打开取值页面，拿到之后再回到这里粘贴。", "gray"));
+  console.log(color("回车 = 打开飞书文档 + Server 酱 SendKey 页；f = 只开飞书；s = 只开 Server 酱；n = 跳过。", "gray"));
+  const answer = (await reader.question("打开取值页面？")).trim().toLowerCase();
+  if (answer === "n" || answer === "no" || answer === "skip") return;
+
+  const openFeishu = answer === "" || answer === "f" || answer === "feishu" || answer === "both";
+  const openServerChan = answer === "" || answer === "s" || answer === "server" || answer === "serverchan" || answer === "both";
+
+  if (openFeishu) {
+    openSetupPage("飞书自定义机器人文档", FEISHU_CUSTOM_BOT_DOC_URL);
+    console.log(statusLine("飞书取值路径：群聊设置 → 机器人 → 添加机器人 → 自定义机器人 → 复制 webhook", "info"));
+  }
+  if (openServerChan) {
+    openSetupPage("Server 酱 SendKey 页面", SERVERCHAN_SENDKEY_URL);
+    const clipboard = copySetupLinkToClipboard(SERVERCHAN_SENDKEY_URL);
+    if (clipboard.copied) {
+      console.log(statusLine("Server 酱页面链接已复制到剪贴板", "ok"));
+    } else {
+      console.log(statusLine(`未复制 Server 酱链接：${clipboard.reason}`, "warn"));
+    }
+  }
+}
+
 async function installOrUpdate() {
   const configPath = path.join(rootDir, CONFIG_FILE);
   const examplePath = path.join(rootDir, EXAMPLE_CONFIG_FILE);
@@ -330,6 +398,7 @@ async function configurePush(rl) {
   const current = await readLocalConfig(rootDir);
 
   console.log(color("输入留空 = 保留原值；输入 clear = 清空该项。最后确认保存前不会写文件。", "gray"));
+  await offerCredentialSetupHelp(reader);
   const feishuWebhookUrl = await reader.question("飞书 webhook URL（飞书群设置 → 机器人 → 自定义机器人）：");
   const feishuWebhookSecret = await reader.question("飞书签名密钥（可空，开启签名校验才填）：");
   const serverChanSendKey = await reader.question("Server 酱 SendKey（sct.ftqq.com → SendKey 页面）：");

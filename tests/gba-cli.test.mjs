@@ -157,7 +157,7 @@ test("configuration can be skipped without breaking the menu loop", async () => 
     stdout += chunk;
     if (!sentConfig && (stdout.match(/^1\. 安装 \/ 更新活动助手/gm) ?? []).length === 1) {
       sentConfig = true;
-      child.stdin.write("2\n\n\n\nn\n");
+      child.stdin.write("2\nn\n\n\n\nn\n");
     }
     if (!sentExit && stdout.includes("未保存，原配置保持不变")) {
       sentExit = true;
@@ -184,6 +184,47 @@ test("configuration can be skipped without breaking the menu loop", async () => 
   assert.equal(stderr, "");
 });
 
+test("configuration helper can open credential pages or show setup links", async () => {
+  const child = spawn(process.execPath, ["scripts/gba.mjs"], {
+    cwd: rootDir,
+    env: { ...process.env, NO_COLOR: "1", TECH_EVENTS_ASSISTANT_SKIP_BROWSER: "1" },
+  });
+  let stdout = "";
+  let stderr = "";
+  let sentConfig = false;
+  let sentExit = false;
+
+  child.stdout.setEncoding("utf8");
+  child.stderr.setEncoding("utf8");
+  child.stdout.on("data", (chunk) => {
+    stdout += chunk;
+    if (!sentConfig && (stdout.match(/^1\. 安装 \/ 更新活动助手/gm) ?? []).length === 1) {
+      sentConfig = true;
+      child.stdin.write("2\n\n\n\n\nn\n");
+    }
+    if (!sentExit && stdout.includes("未保存，原配置保持不变")) {
+      sentExit = true;
+      child.stdin.write("0\n");
+      child.stdin.end();
+    }
+  });
+  child.stderr.on("data", (chunk) => {
+    stderr += chunk;
+  });
+
+  const status = await new Promise((resolve) => {
+    child.on("exit", (code) => resolve(code));
+  });
+
+  assert.equal(status, 0);
+  assert.equal(stdout.includes("打开取值页面？"), true);
+  assert.equal(stdout.includes("飞书自定义机器人文档：https://open.feishu.cn/document/client-docs/bot-v3/add-custom-bot"), true);
+  assert.equal(stdout.includes("Server 酱 SendKey 页面：https://sct.ftqq.com/sendkey"), true);
+  assert.equal(stdout.includes("未自动打开浏览器：已按环境变量跳过浏览器打开"), true);
+  assert.equal(stdout.includes("Server 酱页面链接已复制到剪贴板"), false);
+  assert.equal(stderr, "");
+});
+
 test("configuration save prints a completed step flow in piped output", async () => {
   const originalLocalConfig = await readOptionalFile(localConfigPath);
   const originalBackups = await listLocalConfigBackups();
@@ -203,7 +244,7 @@ test("configuration save prints a completed step flow in piped output", async ()
       stdout += chunk;
       if (!sentConfig && (stdout.match(/^1\. 安装 \/ 更新活动助手/gm) ?? []).length === 1) {
         sentConfig = true;
-        child.stdin.write("2\nhttps://example.test/hook\n\nclear\ny\n");
+        child.stdin.write("2\nn\nhttps://example.test/hook\n\nclear\ny\n");
       }
       if (!sentExit && stdout.includes("✓ tech-events-assistant.local.json 已保存")) {
         sentExit = true;

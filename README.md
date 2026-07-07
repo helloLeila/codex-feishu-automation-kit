@@ -39,6 +39,8 @@ npm run gba
 
 第 5 步会生成 `tech-events-assistant.automation.md`，并尽量把完整 Prompt 复制到剪贴板。你只需要打开 Codex → Automations → New，粘贴后保存为“活动搜寻”，时间设为每天 07:00（Asia/Shanghai，早上 7 点）。如果剪贴板不可用，直接打开生成的 Markdown 文件复制即可。
 
+第 2 步会先问是否帮你打开取值页面。回车会同时打开飞书自定义机器人文档和 Server 酱 SendKey 页面；Server 酱页面链接也会复制到剪贴板作为兜底。拿到 webhook / SendKey 后回到终端粘贴即可。
+
 第 3 步分两层：先做本地预检，不发送任何消息；如果已经配置真实飞书 webhook 或 Server 酱 SendKey，会再询问是否发送一条测试消息。只有输入 `y` 才会真实发送，并显示服务端返回摘要，例如 `HTTP 200，code 0，msg ok`。
 
 保存配置时会显示步骤流：
@@ -79,7 +81,7 @@ bash scripts/setup.sh
 - `tech-events-assistant.local.json`：本机私密配置，保存飞书 webhook、飞书签名密钥、Server 酱 SendKey，不提交。
 - `tech-events-assistant.config.example.json`：示例配置。
 
-推荐在 `npm run gba` 的菜单里选择 `配置推送和偏好` 输入密钥。输入留空会保留原值，输入 `clear` 会清空该项；最后选择不保存就不会写入文件。
+推荐在 `npm run gba` 的菜单里选择 `配置推送和偏好` 输入密钥。它会帮你打开飞书和 Server 酱取值页面；输入留空会保留原值，输入 `clear` 会清空该项；最后选择不保存就不会写入文件。
 
 `.env.local` 仍然兼容旧工作流，但新用户优先使用 `tech-events-assistant.local.json`。
 
@@ -97,10 +99,10 @@ bash scripts/setup.sh
 
 Server 酱：
 
-1. 打开 Server 酱官网：<https://sct.ftqq.com/>
-2. 登录后进入 SendKey 页面。
+1. 打开 Server 酱 SendKey 页面：<https://sct.ftqq.com/sendkey>
+2. 登录或按页面提示完成微信相关绑定。
 3. 复制自己的 SendKey，填到菜单里的 Server 酱 SendKey。
-4. 按 Server 酱页面提示绑定微信相关通知通道。
+4. 微信或公众号相关绑定按 Server 酱网页提示完成；本工具只需要保存 SendKey。
 
 ## 在自己的 Codex 工作区使用
 

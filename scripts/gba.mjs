@@ -9,6 +9,7 @@ import { fileURLToPath } from "node:url";
 import {
   cartoonProgressLine,
   color,
+  renderNeonProgressLine,
   renderBannerLines,
   renderStepFlowLines,
   spinnerFrame,
@@ -243,10 +244,15 @@ async function runSaveSteps(resultLabel) {
 
   let previousLineCount = 0;
   for (let index = 0; index < steps.length; index += 1) {
-    const lines = renderStepFlowLines("配置推送", steps, {
-      activeIndex: index,
-      spinner: frames[index % frames.length],
-    });
+    const percent = Math.round(((index + 1) / (steps.length + 1)) * 100);
+    const lines = [
+      ...renderStepFlowLines("配置推送", steps, {
+        activeIndex: index,
+        spinner: frames[index % frames.length],
+      }),
+      "",
+      renderNeonProgressLine(percent),
+    ];
     if (previousLineCount > 0) output.moveCursor(0, -previousLineCount);
     for (const line of lines) {
       output.cursorTo(0);

@@ -175,6 +175,49 @@ export function classicProgressLine(percent, options = {}) {
   ].join("");
 }
 
+export function renderNeonProgressLine(percent, options = {}) {
+  const width = options.width ?? 56;
+  const label = options.label ?? "保存中";
+  const useColor = options.color ?? !process.env.NO_COLOR;
+  const safePercent = Math.max(0, Math.min(100, Number(percent) || 0));
+  const filled = Math.floor((safePercent / 100) * width);
+  const empty = width - filled;
+  const isComplete = safePercent >= 100;
+  const labelGap = label === "完成" ? "    " : "  ";
+
+  if (isComplete) {
+    return [
+      bold(paint(label, "green", useColor), useColor),
+      labelGap,
+      paint("█".repeat(width), "green", useColor),
+      " ",
+      paint("100%", "green", useColor),
+    ].join("");
+  }
+
+  const cyanCount = Math.ceil(filled / 2);
+  const magentaCount = filled - cyanCount;
+
+  return [
+    paint(label, "cyan", useColor),
+    labelGap,
+    paint("█".repeat(cyanCount), "cyan", useColor),
+    paint("█".repeat(magentaCount), "magenta", useColor),
+    paint("░".repeat(empty), "gray", useColor),
+    " ",
+    paint(`${Math.round(safePercent)}%`, "magenta", useColor),
+  ].join("");
+}
+
+export function renderNeonCompletionLines(result, options = {}) {
+  const useColor = options.color ?? !process.env.NO_COLOR;
+  const width = options.width ?? 56;
+  return [
+    renderNeonProgressLine(100, { label: "完成", width, color: useColor }),
+    `        ${paint("✓", "green", useColor)} ${paint(result, "green", useColor)}`,
+  ];
+}
+
 export function renderStepFlowLines(title, steps, options = {}) {
   const useColor = options.color ?? !process.env.NO_COLOR;
   const activeIndex = Number.isInteger(options.activeIndex) ? options.activeIndex : -1;
@@ -200,7 +243,10 @@ export function renderStepFlowLines(title, steps, options = {}) {
 
   if (complete && options.result) {
     lines.push("");
-    lines.push(`${paint("完成：", "green", useColor)}${paint(options.result, "green", useColor)}`);
+    lines.push(...renderNeonCompletionLines(options.result, {
+      color: useColor,
+      width: options.completionWidth,
+    }));
   }
 
   return lines;

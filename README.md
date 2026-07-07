@@ -49,7 +49,8 @@ npm run gba
 ├─ ✓ 写入本地配置
 └─ ✓ 准备推送脚本
 
-完成：tech-events-assistant.local.json 已保存
+完成    ████████████████████████████████████████████████████████ 100%
+        ✓ tech-events-assistant.local.json 已保存
 ```
 
 不需要安装 npm 依赖；脚本只使用 Node.js 内置模块。Node.js 版本需要 18 或更高。

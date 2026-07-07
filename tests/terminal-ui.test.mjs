@@ -5,12 +5,36 @@ import {
   cartoonProgressLine,
   completionLine,
   renderBannerLines,
+  renderNeonCompletionLines,
+  renderNeonProgressLine,
   renderStepFlowLines,
   stripAnsi,
   terminalCellWidth,
 } from "../scripts/lib/terminal-ui.mjs";
 
 const DIGITAL_COMPLETION = "完成  ██████████████████████████████ 100%  已完成";
+const NEON_BAR = "█".repeat(56);
+const NEON_64 = `${"█".repeat(35)}${"░".repeat(21)}`;
+
+test("neon progress uses a long bar and neon colors", () => {
+  const activeLine = stripAnsi(renderNeonProgressLine(64, { color: false }));
+  const doneLines = renderNeonCompletionLines("tech-events-assistant.local.json 已保存", {
+    color: false,
+  }).map(stripAnsi);
+  const coloredActiveLine = renderNeonProgressLine(64, { color: true });
+  const coloredDoneLines = renderNeonCompletionLines("tech-events-assistant.local.json 已保存", {
+    color: true,
+  });
+
+  assert.equal(activeLine, `保存中  ${NEON_64} 64%`);
+  assert.deepEqual(doneLines, [
+    `完成    ${NEON_BAR} 100%`,
+    "        ✓ tech-events-assistant.local.json 已保存",
+  ]);
+  assert.equal(coloredActiveLine.includes("\x1b[36m"), true);
+  assert.equal(coloredActiveLine.includes("\x1b[35m"), true);
+  assert.equal(coloredDoneLines.join("\n").includes("\x1b[32m"), true);
+});
 
 test("cartoon progress uses robots for in-progress percentages", () => {
   const line = stripAnsi(cartoonProgressLine(50, { color: false }));
@@ -61,7 +85,8 @@ test("step flow renders an active step and final completed state", () => {
     "├─ ✓ 读取现有配置",
     "└─ ✓ 写入本地配置",
     "",
-    "完成：tech-events-assistant.local.json 已保存",
+    `完成    ${NEON_BAR} 100%`,
+    "        ✓ tech-events-assistant.local.json 已保存",
   ]);
 });
 

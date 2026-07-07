@@ -8,6 +8,7 @@ import { fileURLToPath } from "node:url";
 const rootDir = path.resolve(fileURLToPath(new URL("..", import.meta.url)));
 const localConfigPath = path.join(rootDir, "tech-events-assistant.local.json");
 const automationPromptPath = path.join(rootDir, "tech-events-assistant.automation.md");
+const neonBar = "█".repeat(56);
 
 async function readOptionalFile(filePath) {
   try {
@@ -127,7 +128,7 @@ test("configuration save prints a completed step flow in piped output", async ()
         sentConfig = true;
         child.stdin.write("2\nhttps://example.test/hook\n\nclear\ny\n");
       }
-      if (!sentExit && stdout.includes("完成：tech-events-assistant.local.json 已保存")) {
+      if (!sentExit && stdout.includes("✓ tech-events-assistant.local.json 已保存")) {
         sentExit = true;
         child.stdin.write("0\n");
         child.stdin.end();
@@ -149,8 +150,9 @@ test("configuration save prints a completed step flow in piped output", async ()
     assert.equal(stdout.includes("├─ ✓ 合并本次输入"), true);
     assert.equal(stdout.includes("├─ ✓ 写入本地配置"), true);
     assert.equal(stdout.includes("└─ ✓ 准备推送脚本"), true);
-    assert.equal(stdout.includes("完成：tech-events-assistant.local.json 已保存"), true);
-    assert.equal(stdout.indexOf("配置推送") < stdout.indexOf("完成：tech-events-assistant.local.json 已保存"), true);
+    assert.equal(stdout.includes(`完成    ${neonBar} 100%`), true);
+    assert.equal(stdout.includes("        ✓ tech-events-assistant.local.json 已保存"), true);
+    assert.equal(stdout.indexOf("配置推送") < stdout.indexOf(`完成    ${neonBar} 100%`), true);
     assert.equal(stderr, "");
   } finally {
     const currentBackups = await listLocalConfigBackups();
@@ -187,7 +189,7 @@ test("automation wizard writes a prompt file and gives one paste step", async ()
         sentGuide = true;
         child.stdin.write("5\n");
       }
-      if (!sentExit && stdout.includes("完成：已生成 tech-events-assistant.automation.md")) {
+      if (!sentExit && stdout.includes("✓ 已生成 tech-events-assistant.automation.md")) {
         sentExit = true;
         child.stdin.write("0\n");
         child.stdin.end();
@@ -208,6 +210,8 @@ test("automation wizard writes a prompt file and gives one paste step", async ()
     assert.equal(stdout.includes("├─ ✓ 生成活动搜寻 Prompt"), true);
     assert.equal(stdout.includes("├─ ✓ 写入 tech-events-assistant.automation.md"), true);
     assert.equal(stdout.includes("└─ ✓ 准备手动复制文件"), true);
+    assert.equal(stdout.includes(`完成    ${neonBar} 100%`), true);
+    assert.equal(stdout.includes("        ✓ 已生成 tech-events-assistant.automation.md"), true);
     assert.equal(stdout.includes("打开 Codex → Automations → New → 粘贴 → 保存为：活动搜寻"), true);
     assert.equal(stdout.includes("不会自动添加或触发 Codex Automation"), false);
     assert.equal(promptText.includes("检索未来两周"), true);
@@ -236,5 +240,6 @@ test("dry-run prints a completed step flow instead of a digital progress bar", (
   assert.equal(result.stdout.includes("预览 / 测试推送"), true);
   assert.equal(result.stdout.includes("├─ ✓ 生成飞书 dry-run"), true);
   assert.equal(result.stdout.includes("└─ ✓ 生成 Server 酱 dry-run"), true);
-  assert.equal(result.stdout.includes("完成：dry-run 已通过，未真实发送"), true);
+  assert.equal(result.stdout.includes(`完成    ${neonBar} 100%`), true);
+  assert.equal(result.stdout.includes("        ✓ dry-run 已通过，未真实发送"), true);
 });

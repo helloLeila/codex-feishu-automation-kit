@@ -4,7 +4,9 @@ import test from "node:test";
 import {
   cartoonProgressLine,
   completionLine,
+  renderBannerLines,
   stripAnsi,
+  terminalCellWidth,
 } from "../scripts/lib/terminal-ui.mjs";
 
 test("cartoon progress uses robots for in-progress percentages", () => {
@@ -25,4 +27,15 @@ test("completionLine mirrors final progress state", () => {
     stripAnsi(completionLine({ color: false })),
     "完成  ✨🤖🎉🤖✨  已完成",
   );
+});
+
+test("banner uses a generic assistant name and wraps every line", () => {
+  const lines = renderBannerLines({ color: false }).map(stripAnsi);
+  const widths = lines.map(terminalCellWidth);
+
+  assert.equal(lines.some((line) => line.includes("技术活动助手")), true);
+  assert.equal(lines.some((line) => line.includes("大湾区")), false);
+  assert.equal(new Set(widths).size, 1);
+  assert.match(lines[0], /^╭─+╮$/);
+  assert.match(lines.at(-1), /^╰─+╯$/);
 });

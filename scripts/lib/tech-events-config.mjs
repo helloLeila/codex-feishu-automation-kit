@@ -6,7 +6,7 @@ export const LOCAL_CONFIG_FILE = "tech-events-assistant.local.json";
 export const EXAMPLE_CONFIG_FILE = "tech-events-assistant.config.example.json";
 
 export const defaultAssistantConfig = {
-  assistantName: "大湾区硬核技术活动助手",
+  assistantName: "技术活动助手",
   schedule: {
     timezone: "Asia/Shanghai",
     window: "current-monday-00:00-to-next-sunday-23:59",

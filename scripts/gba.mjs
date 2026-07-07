@@ -2,15 +2,15 @@
 import { spawnSync } from "node:child_process";
 import { access, copyFile } from "node:fs/promises";
 import path from "node:path";
-import { createInterface } from "node:readline/promises";
+import { createInterface } from "node:readline";
 import { stdin as input, stdout as output } from "node:process";
 import { fileURLToPath } from "node:url";
 
 import {
-  bold,
   cartoonProgressLine,
   color,
   completionLine,
+  renderBannerLines,
   spinnerFrame,
   statusLine,
 } from "./lib/terminal-ui.mjs";
@@ -29,6 +29,43 @@ import { loadLocalEnv } from "../skills/feishu-automation-reporter/scripts/lib/e
 
 const rootDir = path.resolve(fileURLToPath(new URL("..", import.meta.url)));
 
+function createPromptSession() {
+  const rl = createInterface({ input, output, crlfDelay: Infinity });
+  const queuedLines = [];
+  const waiters = [];
+  let closed = false;
+
+  rl.on("line", (line) => {
+    const waiter = waiters.shift();
+    if (waiter) {
+      waiter.resolve(line);
+    } else {
+      queuedLines.push(line);
+    }
+  });
+
+  rl.on("close", () => {
+    closed = true;
+    while (waiters.length) {
+      waiters.shift().reject(new Error("输入已结束"));
+    }
+  });
+
+  return {
+    question(prompt) {
+      output.write(prompt);
+      if (queuedLines.length) return Promise.resolve(queuedLines.shift());
+      if (closed) return Promise.reject(new Error("输入已结束"));
+      return new Promise((resolve, reject) => {
+        waiters.push({ resolve, reject });
+      });
+    },
+    close() {
+      rl.close();
+    },
+  };
+}
+
 async function fileExists(filePath) {
   try {
     await access(filePath);
@@ -39,9 +76,7 @@ async function fileExists(filePath) {
 }
 
 function printBanner() {
-  console.log(color("╭────────────────────────────────────╮", "cyan"));
-  console.log(`${color("│", "cyan")} ${bold("大湾区技术活动助手")}  ${color("🤖 找活动 · 配推送 · 查状态", "yellow")} ${color("│", "cyan")}`);
-  console.log(color("╰────────────────────────────────────╯", "cyan"));
+  console.log(renderBannerLines().join("\n"));
 }
 
 async function runProgressDemo() {
@@ -81,16 +116,17 @@ async function printStatus() {
   console.log(JSON.stringify(redactPushConfig(config), null, 2));
 }
 
-async function configurePush() {
-  const rl = createInterface({ input, output });
+async function configurePush(rl) {
+  const ownsReadline = !rl;
+  const reader = rl ?? createPromptSession();
   const current = await readLocalConfig(rootDir);
 
   console.log(color("输入留空 = 保留原值；输入 clear = 清空该项。最后确认保存前不会写文件。", "gray"));
-  const feishuWebhookUrl = await rl.question("飞书 webhook URL：");
-  const feishuWebhookSecret = await rl.question("飞书签名密钥（可空）：");
-  const serverChanSendKey = await rl.question("Server 酱 SendKey：");
-  const saveAnswer = await rl.question("保存到 tech-events-assistant.local.json？输入 y 保存：");
-  rl.close();
+  const feishuWebhookUrl = await reader.question("飞书 webhook URL：");
+  const feishuWebhookSecret = await reader.question("飞书签名密钥（可空）：");
+  const serverChanSendKey = await reader.question("Server 酱 SendKey：");
+  const saveAnswer = await reader.question("保存到 tech-events-assistant.local.json？输入 y 保存：");
+  if (ownsReadline) reader.close();
 
   const result = applySecretInputs(
     current,
@@ -151,8 +187,7 @@ function guideRunOnce() {
   console.log("本工具负责把配置、推送测试和排查步骤收拢到一个入口。");
 }
 
-async function menu() {
-  const rl = createInterface({ input, output });
+function printMenu() {
   printBanner();
   console.log("");
   console.log("1. 安装 / 更新活动助手");
@@ -162,15 +197,36 @@ async function menu() {
   console.log("5. 运行 / 引导一次活动搜寻");
   console.log("6. 进度条演示");
   console.log("0. 退出");
-  const choice = await rl.question(color("\n选择一个数字：", "cyan"));
-  rl.close();
+}
 
-  if (choice === "1") return installOrUpdate();
-  if (choice === "2") return configurePush();
-  if (choice === "3") return runDryRun();
-  if (choice === "4") return printStatus();
-  if (choice === "5") return guideRunOnce();
-  if (choice === "6") return runProgressDemo();
+async function handleChoice(choice, rl) {
+  if (choice === "0") return false;
+  if (choice === "1") await installOrUpdate();
+  else if (choice === "2") await configurePush(rl);
+  else if (choice === "3") runDryRun();
+  else if (choice === "4") await printStatus();
+  else if (choice === "5") guideRunOnce();
+  else if (choice === "6") await runProgressDemo();
+  else {
+    console.log(statusLine("没识别这个选项，输入 0 可以退出", "warn"));
+  }
+  return true;
+}
+
+async function menu() {
+  const rl = createPromptSession();
+  let keepGoing = true;
+  try {
+    while (keepGoing) {
+      printMenu();
+      const choice = await rl.question(color("\n选择一个数字：", "cyan"));
+      keepGoing = await handleChoice(choice.trim(), rl);
+      if (keepGoing) console.log("");
+    }
+  } catch (error) {
+    if (error.message !== "输入已结束") throw error;
+  }
+  rl.close();
   console.log(statusLine("已退出", "info"));
 }
 

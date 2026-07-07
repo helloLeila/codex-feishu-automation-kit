@@ -79,13 +79,6 @@ function printBanner() {
   console.log(renderBannerLines().join("\n"));
 }
 
-async function runProgressDemo() {
-  for (const percent of [0, 20, 50, 80, 100]) {
-    await new Promise((resolve) => setTimeout(resolve, 80));
-    console.log(cartoonProgressLine(percent));
-  }
-}
-
 async function installOrUpdate() {
   const configPath = path.join(rootDir, CONFIG_FILE);
   const examplePath = path.join(rootDir, EXAMPLE_CONFIG_FILE);
@@ -122,9 +115,9 @@ async function configurePush(rl) {
   const current = await readLocalConfig(rootDir);
 
   console.log(color("输入留空 = 保留原值；输入 clear = 清空该项。最后确认保存前不会写文件。", "gray"));
-  const feishuWebhookUrl = await reader.question("飞书 webhook URL：");
-  const feishuWebhookSecret = await reader.question("飞书签名密钥（可空）：");
-  const serverChanSendKey = await reader.question("Server 酱 SendKey：");
+  const feishuWebhookUrl = await reader.question("飞书 webhook URL（飞书群设置 → 机器人 → 自定义机器人）：");
+  const feishuWebhookSecret = await reader.question("飞书签名密钥（可空，开启签名校验才填）：");
+  const serverChanSendKey = await reader.question("Server 酱 SendKey（sct.ftqq.com → SendKey 页面）：");
   const saveAnswer = await reader.question("保存到 tech-events-assistant.local.json？输入 y 保存：");
   if (ownsReadline) reader.close();
 
@@ -199,7 +192,6 @@ function printMenu(options = {}) {
   console.log("3. 预览 / 测试推送");
   console.log("4. 检查状态");
   console.log("5. 运行 / 引导一次活动搜寻");
-  console.log("6. 进度条演示");
   console.log("0. 退出");
 }
 
@@ -210,7 +202,6 @@ async function handleChoice(choice, rl) {
   else if (choice === "3") runDryRun();
   else if (choice === "4") await printStatus();
   else if (choice === "5") guideRunOnce();
-  else if (choice === "6") await runProgressDemo();
   else {
     console.log(statusLine("没识别这个选项，输入 0 可以退出", "warn"));
   }
@@ -255,15 +246,10 @@ async function main(argv) {
     return;
   }
 
-  if (argv.includes("--demo-progress")) {
-    await runProgressDemo();
-    return;
-  }
-
   if (argv.includes("--help") || argv.includes("-h")) {
     printBanner();
     console.log("用法：npm run gba");
-    console.log("可选：node scripts/gba.mjs --status | --dry-run | --demo-progress");
+    console.log("可选：node scripts/gba.mjs --status | --dry-run");
     return;
   }
 

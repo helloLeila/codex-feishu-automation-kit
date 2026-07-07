@@ -42,6 +42,7 @@ test("menu returns after an action so the next number is handled by the CLI", as
   assert.equal((stdout.match(/安装 \/ 更新活动助手/g) ?? []).length, 2);
   assert.equal((stdout.match(/技术活动助手/g) ?? []).length, 1);
   assert.equal(stdout.includes("继续选择下一步"), true);
+  assert.equal(stdout.includes("进度条演示"), false);
   assert.equal(stderr, "");
 });
 
@@ -82,5 +83,8 @@ test("configuration can be skipped without breaking the menu loop", async () => 
   assert.equal((stdout.match(/安装 \/ 更新活动助手/g) ?? []).length, 2);
   assert.equal((stdout.match(/技术活动助手/g) ?? []).length, 1);
   assert.equal(stdout.includes("继续选择下一步"), true);
+  assert.equal(stdout.includes("飞书 webhook URL（飞书群设置 → 机器人 → 自定义机器人）："), true);
+  assert.equal(stdout.includes("Server 酱 SendKey（sct.ftqq.com → SendKey 页面）："), true);
+  assert.equal(stdout.includes("进度条演示"), false);
   assert.equal(stderr, "");
 });

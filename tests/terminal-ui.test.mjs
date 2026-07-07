@@ -12,14 +12,17 @@ import {
 test("cartoon progress uses robots for in-progress percentages", () => {
   const line = stripAnsi(cartoonProgressLine(50, { color: false }));
 
-  assert.equal(line, "进度  🤖🤖🤖🤖🤖▫️▫️▫️▫️▫️  50%");
+  assert.equal(line, "进度  🤖🤖🤖🤖🤖🤖🤖🤖🤖🤖▫️▫️▫️▫️▫️▫️▫️▫️▫️▫️  50%");
 });
 
 test("completion state is green wording and does not show 100 percent", () => {
   const line = stripAnsi(cartoonProgressLine(100, { color: false }));
+  const coloredLine = cartoonProgressLine(100, { color: true });
 
   assert.equal(line, "完成  ✨🤖🎉🤖✨  已完成");
   assert.equal(line.includes("100%"), false);
+  assert.equal(coloredLine.includes("\x1b[32m完成"), true);
+  assert.equal(coloredLine.includes("\x1b[32m已完成"), true);
 });
 
 test("completionLine mirrors final progress state", () => {

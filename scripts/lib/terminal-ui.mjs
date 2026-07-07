@@ -112,7 +112,7 @@ export function completionLine(options = {}) {
 }
 
 export function cartoonProgressLine(percent, options = {}) {
-  const width = options.width ?? 10;
+  const width = options.width ?? 20;
   const useColor = options.color ?? !process.env.NO_COLOR;
   const safePercent = Math.max(0, Math.min(100, Number(percent) || 0));
 
@@ -132,7 +132,7 @@ export function cartoonProgressLine(percent, options = {}) {
 }
 
 export function classicProgressLine(percent, options = {}) {
-  const width = options.width ?? 10;
+  const width = options.width ?? 20;
   const useColor = options.color ?? !process.env.NO_COLOR;
   const safePercent = Math.max(0, Math.min(100, Number(percent) || 0));
 

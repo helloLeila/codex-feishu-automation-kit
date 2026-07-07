@@ -12,7 +12,9 @@ import {
   color,
   renderNeonProgressLine,
   renderBannerLines,
+  renderSectionTitle,
   renderStepFlowLines,
+  renderStepTransitionLines,
   spinnerFrame,
   statusLine,
 } from "./lib/terminal-ui.mjs";
@@ -101,7 +103,7 @@ function printCompletedSteps(title, steps, result) {
 function printGuide(completedSteps, currentStep) {
   printBanner();
   console.log("");
-  console.log(color("引导配置", "cyan"));
+  console.log(renderSectionTitle("引导配置").join("\n"));
   console.log(color("回车执行当前步骤；输入 1-5 直接执行某步；b 返回上一层；q 退出引导。", "gray"));
   console.log("");
   GUIDE_STEPS.forEach((step, index) => {
@@ -114,6 +116,10 @@ function printGuide(completedSteps, currentStep) {
       console.log(color(`${number}. ${step}  · 待执行`, "gray"));
     }
   });
+}
+
+function printStepTransition(completedStep, nextStep) {
+  console.log(renderStepTransitionLines(completedStep, nextStep).join("\n"));
 }
 
 function buildGbaAutomationPrompt() {
@@ -379,7 +385,7 @@ async function printStatus() {
   const hasFeishu = Boolean(config?.push?.feishuWebhookUrl || localEnv.FEISHU_WEBHOOK_URL);
   const hasServerChan = Boolean(config?.push?.serverChanSendKey || localEnv.SERVERCHAN_SENDKEY);
 
-  console.log(color("状态检查", "cyan"));
+  console.log(renderSectionTitle("状态检查").join("\n"));
   console.log(statusLine(`普通配置（可提交，控制助手偏好）：${hasPublicConfig ? `${CONFIG_FILE} 已存在` : "缺失，建议先执行第 1 步"}`, hasPublicConfig ? "ok" : "warn"));
   console.log(statusLine(`本机私密配置（.gitignore，不提交，保存 webhook/SendKey）：${hasLocalConfig ? `${LOCAL_CONFIG_FILE} 已存在` : "未配置，可执行第 2 步"}`, hasLocalConfig ? "ok" : "warn"));
   console.log(statusLine(`飞书推送：${hasFeishu ? "已配置 webhook" : "未配置 webhook"}`, hasFeishu ? "ok" : "warn"));
@@ -387,9 +393,9 @@ async function printStatus() {
   console.log(statusLine(`自动化 Prompt：${hasAutomationPrompt ? `${AUTOMATION_PROMPT_FILE} 已生成` : "未生成，可执行第 5 步"}`, hasAutomationPrompt ? "ok" : "warn"));
   console.log("");
   if (hasFeishu || hasServerChan) {
-    console.log(statusLine("下一步：执行第 3 步本地预检，可选择发送一条真实测试消息", "info"));
+    console.log(statusLine("建议操作：执行第 3 步本地预检，可选择发送一条真实测试消息", "info"));
   } else {
-    console.log(statusLine("下一步：执行第 2 步配置飞书 webhook 或 Server 酱 SendKey", "info"));
+    console.log(statusLine("建议操作：执行第 2 步配置飞书 webhook 或 Server 酱 SendKey", "info"));
   }
 }
 
@@ -693,12 +699,15 @@ async function guideMenu() {
 
       const selectedStep = /^[1-5]$/.test(answer) ? Number(answer) - 1 : currentStep;
       currentStep = selectedStep;
+      console.log("");
       await runStepByIndex(selectedStep, rl);
       completedSteps.add(selectedStep);
+      let nextStep = null;
       if (selectedStep < GUIDE_STEPS.length - 1) {
         currentStep = selectedStep + 1;
+        nextStep = GUIDE_STEPS[currentStep];
       }
-      console.log("");
+      printStepTransition(GUIDE_STEPS[selectedStep], nextStep);
     }
   } catch (error) {
     if (error.message !== "输入已结束") throw error;

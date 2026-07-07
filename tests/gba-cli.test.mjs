@@ -100,6 +100,8 @@ test("guide advances to the next step and marks previous step complete", async (
   assert.equal(stdout.includes("引导配置"), true);
   assert.equal(stdout.includes("1. 安装 / 更新活动助手  ✓ 已完成"), true);
   assert.equal(stdout.includes("2. 配置推送和偏好  ▶ 当前"), true);
+  assert.equal(stdout.includes("✓ 安装 / 更新活动助手 已完成"), true);
+  assert.equal(stdout.includes("→ 继续下一步：配置推送和偏好"), true);
   assert.equal(stderr, "");
 });
 

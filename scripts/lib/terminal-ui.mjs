@@ -218,13 +218,42 @@ export function renderNeonCompletionLines(result, options = {}) {
   ];
 }
 
+export function renderSectionTitle(title, options = {}) {
+  const useColor = options.color ?? !process.env.NO_COLOR;
+  const width = options.width ?? 48;
+  const text = `━━ ${title} `;
+  const line = `${text}${"━".repeat(Math.max(2, width - terminalCellWidth(text)))}`;
+  return [bold(paint(line, "cyan", useColor), useColor)];
+}
+
+export function renderStepTransitionLines(completedStep, nextStep, options = {}) {
+  const useColor = options.color ?? !process.env.NO_COLOR;
+  const width = options.width ?? 48;
+  const line = "━".repeat(width);
+  const lines = [
+    "",
+    paint(line, "gray", useColor),
+    `${paint("✓", "green", useColor)} ${paint(`${completedStep} 已完成`, "green", useColor)}`,
+  ];
+
+  if (nextStep) {
+    lines.push(`${paint("→", "cyan", useColor)} ${paint(`继续下一步：${nextStep}`, "cyan", useColor)}`);
+  }
+
+  lines.push(paint(line, "gray", useColor), "");
+  return lines;
+}
+
 export function renderStepFlowLines(title, steps, options = {}) {
   const useColor = options.color ?? !process.env.NO_COLOR;
   const activeIndex = Number.isInteger(options.activeIndex) ? options.activeIndex : -1;
   const complete = Boolean(options.complete);
   const spinner = options.spinner ?? "⠙";
   const safeSteps = Array.isArray(steps) ? steps : [];
-  const lines = [bold(title, useColor), paint("│", "gray", useColor)];
+  const lines = [
+    ...renderSectionTitle(title, { color: useColor }),
+    paint("│", "gray", useColor),
+  ];
 
   safeSteps.forEach((step, index) => {
     const connector = index === safeSteps.length - 1 ? "└─" : "├─";

@@ -7,7 +7,9 @@ import {
   renderBannerLines,
   renderNeonCompletionLines,
   renderNeonProgressLine,
+  renderSectionTitle,
   renderStepFlowLines,
+  renderStepTransitionLines,
   stripAnsi,
   terminalCellWidth,
 } from "../scripts/lib/terminal-ui.mjs";
@@ -74,19 +76,42 @@ test("step flow renders an active step and final completed state", () => {
   }).map(stripAnsi);
 
   assert.deepEqual(activeLines, [
-    "配置推送",
+    `━━ 配置推送 ${"━".repeat(36)}`,
     "│",
     "├─ ✓ 读取现有配置",
     "└─ ⠙ 写入本地配置",
   ]);
   assert.deepEqual(doneLines, [
-    "配置推送",
+    `━━ 配置推送 ${"━".repeat(36)}`,
     "│",
     "├─ ✓ 读取现有配置",
     "└─ ✓ 写入本地配置",
     "",
     `完成    ${NEON_BAR} 100%`,
     "        ✓ tech-events-assistant.local.json 已保存",
+  ]);
+});
+
+test("section title is visually heavier than plain text", () => {
+  const lines = renderSectionTitle("状态检查", { color: false }).map(stripAnsi);
+
+  assert.deepEqual(lines, [
+    `━━ 状态检查 ${"━".repeat(36)}`,
+  ]);
+});
+
+test("step transition separates completed output from the next guide", () => {
+  const lines = renderStepTransitionLines("检查状态", "创建 / 更新技术活动晨报自动化", {
+    color: false,
+  }).map(stripAnsi);
+
+  assert.deepEqual(lines, [
+    "",
+    "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+    "✓ 检查状态 已完成",
+    "→ 继续下一步：创建 / 更新技术活动晨报自动化",
+    "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+    "",
   ]);
 });
 

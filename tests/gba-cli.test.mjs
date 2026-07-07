@@ -141,9 +141,10 @@ test("configuration save shows a progress bar before saved status", async () => 
     });
 
     assert.equal(status, 0);
-    assert.equal(stdout.includes("保存中  █████"), true);
-    assert.equal(stdout.includes("完成  ████████████████████ 100%  已完成"), true);
-    assert.equal(stdout.indexOf("保存中  █████") < stdout.indexOf("已保存：tech-events-assistant.local.json"), true);
+    assert.equal(stdout.includes("⠋ 保存中"), true);
+    assert.equal(stdout.includes("保存中  ██████"), true);
+    assert.equal(stdout.includes("完成  ██████████████████████████████ 100%  已完成"), true);
+    assert.equal(stdout.indexOf("⠋ 保存中") < stdout.indexOf("已保存：tech-events-assistant.local.json"), true);
     assert.equal(stderr, "");
   } finally {
     const currentBackups = await listLocalConfigBackups();

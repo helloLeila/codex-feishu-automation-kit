@@ -104,10 +104,11 @@ export function renderBannerLines(options = {}) {
 
 export function completionLine(options = {}) {
   const useColor = options.color ?? !process.env.NO_COLOR;
+  const width = options.width ?? 30;
   return [
     bold(paint("完成", "green", useColor), useColor),
     "  ",
-    paint("█".repeat(20), "green", useColor),
+    paint("█".repeat(width), "green", useColor),
     " ",
     paint("100%", "yellow", useColor),
     "  ",
@@ -116,17 +117,19 @@ export function completionLine(options = {}) {
 }
 
 export function digitalProgressLine(percent, options = {}) {
-  const width = options.width ?? 20;
+  const width = options.width ?? 30;
   const label = options.label ?? "进度";
+  const prefix = options.prefix ? `${options.prefix} ` : "";
   const useColor = options.color ?? !process.env.NO_COLOR;
   const safePercent = Math.max(0, Math.min(100, Number(percent) || 0));
 
-  if (safePercent >= 100 && label === "完成") return completionLine({ color: useColor });
+  if (safePercent >= 100 && label === "完成") return completionLine({ color: useColor, width });
 
   const filled = Math.floor((safePercent / 100) * width);
   const empty = width - filled;
 
   return [
+    prefix ? paint(prefix, "cyan", useColor) : "",
     paint(`${label}  `, safePercent >= 100 ? "green" : "gray", useColor),
     paint("█".repeat(filled), safePercent >= 100 ? "green" : "cyan", useColor),
     paint("░".repeat(empty), "gray", useColor),

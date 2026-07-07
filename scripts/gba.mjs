@@ -96,8 +96,14 @@ async function installOrUpdate() {
 }
 
 async function runSaveProgress() {
-  for (const percent of [25, 50, 75]) {
-    console.log(digitalProgressLine(percent, { label: "保存中" }));
+  const frames = [
+    { spinner: "⠋", percent: 20 },
+    { spinner: "⠙", percent: 40 },
+    { spinner: "⠹", percent: 60 },
+    { spinner: "⠸", percent: 80 },
+  ];
+  for (const frame of frames) {
+    console.log(digitalProgressLine(frame.percent, { label: "保存中", prefix: frame.spinner }));
     await new Promise((resolve) => setTimeout(resolve, 50));
   }
   console.log(completionLine());

@@ -9,7 +9,7 @@ import {
   terminalCellWidth,
 } from "../scripts/lib/terminal-ui.mjs";
 
-const DIGITAL_COMPLETION = "完成  ████████████████████ 100%  已完成";
+const DIGITAL_COMPLETION = "完成  ██████████████████████████████ 100%  已完成";
 
 test("cartoon progress uses robots for in-progress percentages", () => {
   const line = stripAnsi(cartoonProgressLine(50, { color: false }));
@@ -25,7 +25,7 @@ test("completion state is a colored digital progress bar", () => {
   assert.equal(line.includes("100%"), true);
   assert.equal(line.includes("🎉"), false);
   assert.equal(coloredLine.includes("\x1b[32m完成"), true);
-  assert.equal(coloredLine.includes("\x1b[32m████████████████████"), true);
+  assert.equal(coloredLine.includes("\x1b[32m██████████████████████████████"), true);
   assert.equal(coloredLine.includes("\x1b[33m100%"), true);
   assert.equal(coloredLine.includes("\x1b[32m已完成"), true);
 });

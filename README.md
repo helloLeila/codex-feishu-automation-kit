@@ -34,10 +34,10 @@ npm run gba
 2. 配置推送和偏好  · 待执行
 3. 本地预检 / 测试真实推送  · 待执行
 4. 检查状态  · 待执行
-5. 创建 / 更新活动搜寻自动化  · 待执行
+5. 创建 / 更新技术活动晨报自动化  · 待执行
 ```
 
-第 5 步会生成 `tech-events-assistant.automation.md`，并尽量把完整 Prompt 复制到剪贴板。你只需要打开 Codex → Automations → New，粘贴后保存为“活动搜寻”，时间设为每天 07:00（Asia/Shanghai，早上 7 点）。如果剪贴板不可用，直接打开生成的 Markdown 文件复制即可。
+第 5 步会生成 `tech-events-assistant.automation.md`，并尽量把完整 Prompt 复制到剪贴板。你只需要打开 Codex → 自动化（已安排）→ 通过聊天添加，粘贴后保存为“线下技术活动情报晨报”，时间设为每天 07:00（Asia/Shanghai，早上 7 点）。如果剪贴板不可用，直接打开生成的 Markdown 文件复制即可。
 
 第 2 步会先问是否帮你打开取值页面。回车会同时打开飞书自定义机器人文档和 Server 酱 SendKey 页面；Server 酱页面链接也会复制到剪贴板作为兜底。拿到 webhook / SendKey 后回到终端粘贴即可。
 

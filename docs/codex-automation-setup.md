@@ -139,7 +139,7 @@ node scripts/push-ai-daily-to-serverchan.mjs <生成的Markdown文件路径>
 
 ## 推荐自动化 prompt：大湾区活动
 
-更省事的方式：运行 `npm run gba`，按默认 5 步引导走到 `创建 / 更新活动搜寻自动化`。工具会生成 `tech-events-assistant.automation.md` 并尽量复制到剪贴板。新建 Codex Automation 时建议保存为“活动搜寻”，时间设置为每天 07:00（Asia/Shanghai，早上 7 点）。下面的 prompt 仍保留给需要手动复制或二次修改的人。
+更省事的方式：运行 `npm run gba`，按默认 5 步引导走到 `创建 / 更新技术活动晨报自动化`。工具会生成 `tech-events-assistant.automation.md` 并尽量复制到剪贴板。打开 Codex → 自动化（已安排）→ 通过聊天添加，粘贴后建议保存为“线下技术活动情报晨报”，时间设置为每天 07:00（Asia/Shanghai，早上 7 点）。下面的 prompt 仍保留给需要手动复制或二次修改的人。
 
 ```text
 建议自动化时间：每天 07:00（Asia/Shanghai，早上 7 点）。

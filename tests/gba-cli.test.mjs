@@ -303,7 +303,7 @@ test("automation wizard writes a prompt file and gives one paste step", async ()
     child.stderr.setEncoding("utf8");
     child.stdout.on("data", (chunk) => {
       stdout += chunk;
-      if (!sentGuide && (stdout.match(/创建 \/ 更新活动搜寻自动化/g) ?? []).length === 1) {
+      if (!sentGuide && (stdout.match(/创建 \/ 更新技术活动晨报自动化/g) ?? []).length === 1) {
         sentGuide = true;
         child.stdin.write("5\n");
       }
@@ -323,15 +323,15 @@ test("automation wizard writes a prompt file and gives one paste step", async ()
     const promptText = await readFile(automationPromptPath, "utf8");
 
     assert.equal(status, 0);
-    assert.equal(stdout.includes("5. 创建 / 更新活动搜寻自动化"), true);
-    assert.equal(stdout.includes("创建活动搜寻自动化"), true);
-    assert.equal(stdout.includes("├─ ✓ 生成活动搜寻 Prompt"), true);
+    assert.equal(stdout.includes("5. 创建 / 更新技术活动晨报自动化"), true);
+    assert.equal(stdout.includes("创建技术活动晨报自动化"), true);
+    assert.equal(stdout.includes("├─ ✓ 生成技术活动晨报 Prompt"), true);
     assert.equal(stdout.includes("├─ ✓ 写入 tech-events-assistant.automation.md"), true);
     assert.equal(stdout.includes("└─ ✓ 准备手动复制文件"), true);
     assert.equal(stdout.includes(`完成    ${neonBar} 100%`), true);
     assert.equal(stdout.includes("        ✓ 已生成 tech-events-assistant.automation.md"), true);
-    assert.equal(stdout.includes("打开 Codex → Automations → New → 粘贴 → 保存为：活动搜寻"), true);
-    assert.equal(stdout.includes("不会自动添加或触发 Codex Automation"), false);
+    assert.equal(stdout.includes("打开 Codex → 自动化（已安排）→ 通过聊天添加 → 粘贴 Prompt → 保存为：线下技术活动情报晨报"), true);
+    assert.equal(stdout.includes("不会自动添加或触发 Codex 自动化"), false);
     assert.equal(promptText.includes("检索未来两周"), true);
     assert.equal(promptText.includes("每天 07:00"), true);
     assert.equal(promptText.includes("早上 7 点"), true);

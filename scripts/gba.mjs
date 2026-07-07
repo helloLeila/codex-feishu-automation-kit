@@ -30,6 +30,7 @@ import { loadLocalEnv } from "../skills/feishu-automation-reporter/scripts/lib/e
 
 const rootDir = path.resolve(fileURLToPath(new URL("..", import.meta.url)));
 const AUTOMATION_PROMPT_FILE = "tech-events-assistant.automation.md";
+const AUTOMATION_DISPLAY_NAME = "线下技术活动情报晨报";
 const FEISHU_CUSTOM_BOT_DOC_URL = "https://open.feishu.cn/document/client-docs/bot-v3/add-custom-bot";
 const SERVERCHAN_SENDKEY_URL = "https://sct.ftqq.com/sendkey";
 const GUIDE_STEPS = [
@@ -37,7 +38,7 @@ const GUIDE_STEPS = [
   "配置推送和偏好",
   "本地预检 / 测试真实推送",
   "检查状态",
-  "创建 / 更新活动搜寻自动化",
+  "创建 / 更新技术活动晨报自动化",
 ];
 
 function createPromptSession() {
@@ -116,11 +117,11 @@ function printGuide(completedSteps, currentStep) {
 }
 
 function buildGbaAutomationPrompt() {
-  return `# 活动搜寻自动化 Prompt
+  return `# ${AUTOMATION_DISPLAY_NAME}自动化 Prompt
 
-把下面内容完整粘贴到 Codex Automation 的 prompt。建议自动化名称保存为：活动搜寻。
+把下面内容完整粘贴到 Codex 自动化的 prompt。建议自动化名称保存为：${AUTOMATION_DISPLAY_NAME}。
 
-建议在 Codex Automation 的时间设置里选择：每天 07:00（Asia/Shanghai），也就是每天早上 7 点运行。
+建议在 Codex 自动化的时间设置里选择：每天 07:00（Asia/Shanghai），也就是每天早上 7 点运行。
 
 ---
 
@@ -603,15 +604,15 @@ async function createAutomationWizard() {
   await writeFile(promptPath, promptText);
   const clipboard = copyTextToClipboard(promptText);
   const steps = clipboard.copied
-    ? ["生成活动搜寻 Prompt", `写入 ${AUTOMATION_PROMPT_FILE}`, "检查推送配置", "复制 Prompt 到剪贴板"]
-    : ["生成活动搜寻 Prompt", `写入 ${AUTOMATION_PROMPT_FILE}`, "检查推送配置", "准备手动复制文件"];
+    ? ["生成技术活动晨报 Prompt", `写入 ${AUTOMATION_PROMPT_FILE}`, "检查推送配置", "复制 Prompt 到剪贴板"]
+    : ["生成技术活动晨报 Prompt", `写入 ${AUTOMATION_PROMPT_FILE}`, "检查推送配置", "准备手动复制文件"];
   const result = clipboard.copied
     ? `已生成 ${AUTOMATION_PROMPT_FILE}，并复制到剪贴板`
     : `已生成 ${AUTOMATION_PROMPT_FILE}`;
 
-  printCompletedSteps("创建活动搜寻自动化", steps, result);
+  printCompletedSteps("创建技术活动晨报自动化", steps, result);
   console.log("");
-  console.log(statusLine("下一步：打开 Codex → Automations → New → 粘贴 → 保存为：活动搜寻", "info"));
+  console.log(statusLine(`下一步：打开 Codex → 自动化（已安排）→ 通过聊天添加 → 粘贴 Prompt → 保存为：${AUTOMATION_DISPLAY_NAME}`, "info"));
   console.log(statusLine(`Prompt 文件：${AUTOMATION_PROMPT_FILE}`, "info"));
   if (clipboard.copied) {
     console.log(statusLine("已复制到剪贴板，直接粘贴即可", "ok"));
@@ -635,7 +636,7 @@ function printMenu(options = {}) {
   console.log("2. 配置推送和偏好");
   console.log("3. 本地预检 / 测试真实推送");
   console.log("4. 检查状态");
-  console.log("5. 创建 / 更新活动搜寻自动化");
+  console.log("5. 创建 / 更新技术活动晨报自动化");
   console.log("0. 退出");
 }
 

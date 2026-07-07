@@ -102,11 +102,21 @@ async function runSaveProgress() {
     { spinner: "⠹", percent: 60 },
     { spinner: "⠸", percent: 80 },
   ];
+
+  if (!output.isTTY) {
+    console.log(completionLine());
+    return;
+  }
+
   for (const frame of frames) {
-    console.log(digitalProgressLine(frame.percent, { label: "保存中", prefix: frame.spinner }));
+    output.cursorTo(0);
+    output.clearLine(0);
+    output.write(digitalProgressLine(frame.percent, { label: "保存中", prefix: frame.spinner }));
     await new Promise((resolve) => setTimeout(resolve, 50));
   }
-  console.log(completionLine());
+  output.cursorTo(0);
+  output.clearLine(0);
+  output.write(`${completionLine()}\n`);
 }
 
 async function printStatus() {

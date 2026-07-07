@@ -105,7 +105,7 @@ test("configuration can be skipped without breaking the menu loop", async () => 
   assert.equal(stderr, "");
 });
 
-test("configuration save shows a progress bar before saved status", async () => {
+test("configuration save does not print animation frames in piped output", async () => {
   const originalLocalConfig = await readOptionalFile(localConfigPath);
   const originalBackups = await listLocalConfigBackups();
   try {
@@ -141,10 +141,9 @@ test("configuration save shows a progress bar before saved status", async () => 
     });
 
     assert.equal(status, 0);
-    assert.equal(stdout.includes("⠋ 保存中"), true);
-    assert.equal(stdout.includes("保存中  ██████"), true);
+    assert.equal((stdout.match(/保存中/g) ?? []).length, 0);
     assert.equal(stdout.includes("完成  ██████████████████████████████ 100%  已完成"), true);
-    assert.equal(stdout.indexOf("⠋ 保存中") < stdout.indexOf("已保存：tech-events-assistant.local.json"), true);
+    assert.equal(stdout.indexOf("完成  ██████████████████████████████ 100%  已完成") < stdout.indexOf("已保存：tech-events-assistant.local.json"), true);
     assert.equal(stderr, "");
   } finally {
     const currentBackups = await listLocalConfigBackups();

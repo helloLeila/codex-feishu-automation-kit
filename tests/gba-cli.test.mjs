@@ -58,9 +58,86 @@ test("menu returns after an action so the next number is handled by the CLI", as
 
   assert.equal(status, 0);
   assert.equal((stdout.match(/^1\. 安装 \/ 更新活动助手/gm) ?? []).length, 2);
-  assert.equal((stdout.match(/技术活动助手/g) ?? []).length, 1);
-  assert.equal(stdout.includes("继续选择下一步"), true);
+  assert.equal((stdout.match(/技术活动助手/g) ?? []).length, 2);
+  assert.equal(stdout.includes("回车执行当前步骤"), true);
   assert.equal(stdout.includes("进度条演示"), false);
+  assert.equal(stderr, "");
+});
+
+test("guide advances to the next step and marks previous step complete", async () => {
+  const child = spawn(process.execPath, ["scripts/gba.mjs"], {
+    cwd: rootDir,
+    env: { ...process.env, NO_COLOR: "1" },
+  });
+  let stdout = "";
+  let stderr = "";
+  let sentInstall = false;
+  let sentExit = false;
+
+  child.stdout.setEncoding("utf8");
+  child.stderr.setEncoding("utf8");
+  child.stdout.on("data", (chunk) => {
+    stdout += chunk;
+    if (!sentInstall && stdout.includes("回车执行当前步骤")) {
+      sentInstall = true;
+      child.stdin.write("\n");
+    }
+    if (!sentExit && stdout.includes("1. 安装 / 更新活动助手  ✓ 已完成")) {
+      sentExit = true;
+      child.stdin.write("q\n");
+      child.stdin.end();
+    }
+  });
+  child.stderr.on("data", (chunk) => {
+    stderr += chunk;
+  });
+
+  const status = await new Promise((resolve) => {
+    child.on("exit", (code) => resolve(code));
+  });
+
+  assert.equal(status, 0);
+  assert.equal(stdout.includes("引导配置"), true);
+  assert.equal(stdout.includes("1. 安装 / 更新活动助手  ✓ 已完成"), true);
+  assert.equal(stdout.includes("2. 配置推送和偏好  ▶ 当前"), true);
+  assert.equal(stderr, "");
+});
+
+test("guide can return to the manual menu", async () => {
+  const child = spawn(process.execPath, ["scripts/gba.mjs"], {
+    cwd: rootDir,
+    env: { ...process.env, NO_COLOR: "1" },
+  });
+  let stdout = "";
+  let stderr = "";
+  let sentBack = false;
+  let sentExit = false;
+
+  child.stdout.setEncoding("utf8");
+  child.stderr.setEncoding("utf8");
+  child.stdout.on("data", (chunk) => {
+    stdout += chunk;
+    if (!sentBack && stdout.includes("回车执行当前步骤")) {
+      sentBack = true;
+      child.stdin.write("b\n");
+    }
+    if (!sentExit && stdout.includes("手动菜单")) {
+      sentExit = true;
+      child.stdin.write("0\n");
+      child.stdin.end();
+    }
+  });
+  child.stderr.on("data", (chunk) => {
+    stderr += chunk;
+  });
+
+  const status = await new Promise((resolve) => {
+    child.on("exit", (code) => resolve(code));
+  });
+
+  assert.equal(status, 0);
+  assert.equal(stdout.includes("手动菜单"), true);
+  assert.equal(stdout.includes("g 返回引导"), true);
   assert.equal(stderr, "");
 });
 
@@ -99,8 +176,8 @@ test("configuration can be skipped without breaking the menu loop", async () => 
   assert.equal(status, 0);
   assert.equal(stdout.includes("未保存，原配置保持不变"), true);
   assert.equal((stdout.match(/^1\. 安装 \/ 更新活动助手/gm) ?? []).length, 2);
-  assert.equal((stdout.match(/技术活动助手/g) ?? []).length, 1);
-  assert.equal(stdout.includes("继续选择下一步"), true);
+  assert.equal((stdout.match(/技术活动助手/g) ?? []).length, 2);
+  assert.equal(stdout.includes("回车执行当前步骤"), true);
   assert.equal(stdout.includes("飞书 webhook URL（飞书群设置 → 机器人 → 自定义机器人）："), true);
   assert.equal(stdout.includes("Server 酱 SendKey（sct.ftqq.com → SendKey 页面）："), true);
   assert.equal(stdout.includes("进度条演示"), false);
@@ -215,6 +292,9 @@ test("automation wizard writes a prompt file and gives one paste step", async ()
     assert.equal(stdout.includes("打开 Codex → Automations → New → 粘贴 → 保存为：活动搜寻"), true);
     assert.equal(stdout.includes("不会自动添加或触发 Codex Automation"), false);
     assert.equal(promptText.includes("检索未来两周"), true);
+    assert.equal(promptText.includes("每天 07:00"), true);
+    assert.equal(promptText.includes("早上 7 点"), true);
+    assert.equal(promptText.includes("Asia/Shanghai"), true);
     assert.equal(promptText.includes("不要编造"), true);
     assert.equal(promptText.includes("node skills/feishu-automation-reporter/scripts/push-gba-events-to-feishu.mjs"), true);
     assert.equal(stderr, "");

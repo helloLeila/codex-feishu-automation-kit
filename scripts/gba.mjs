@@ -30,6 +30,13 @@ import { loadLocalEnv } from "../skills/feishu-automation-reporter/scripts/lib/e
 
 const rootDir = path.resolve(fileURLToPath(new URL("..", import.meta.url)));
 const AUTOMATION_PROMPT_FILE = "tech-events-assistant.automation.md";
+const GUIDE_STEPS = [
+  "安装 / 更新活动助手",
+  "配置推送和偏好",
+  "预览 / 测试推送",
+  "检查状态",
+  "创建 / 更新活动搜寻自动化",
+];
 
 function createPromptSession() {
   const rl = createInterface({ input, output, crlfDelay: Infinity });
@@ -88,10 +95,30 @@ function printCompletedSteps(title, steps, result) {
   }).join("\n"));
 }
 
+function printGuide(completedSteps, currentStep) {
+  printBanner();
+  console.log("");
+  console.log(color("引导配置", "cyan"));
+  console.log(color("回车执行当前步骤；输入 1-5 直接执行某步；b 返回上一层；q 退出引导。", "gray"));
+  console.log("");
+  GUIDE_STEPS.forEach((step, index) => {
+    const number = index + 1;
+    if (completedSteps.has(index)) {
+      console.log(color(`${number}. ${step}  ✓ 已完成`, "green"));
+    } else if (index === currentStep) {
+      console.log(color(`${number}. ${step}  ▶ 当前`, "cyan"));
+    } else {
+      console.log(color(`${number}. ${step}  · 待执行`, "gray"));
+    }
+  });
+}
+
 function buildGbaAutomationPrompt() {
   return `# 活动搜寻自动化 Prompt
 
 把下面内容完整粘贴到 Codex Automation 的 prompt。建议自动化名称保存为：活动搜寻。
+
+建议在 Codex Automation 的时间设置里选择：每天 07:00（Asia/Shanghai），也就是每天早上 7 点运行。
 
 ---
 
@@ -384,10 +411,11 @@ async function createAutomationWizard() {
 
 function printMenu(options = {}) {
   if (options.compact) {
-    console.log(color("── 继续选择下一步（0 退出）──", "gray"));
+    console.log(color("── 手动菜单（g 返回引导，0 退出）──", "gray"));
   } else {
     printBanner();
     console.log("");
+    console.log(color("手动菜单（g 返回引导，0 退出）", "cyan"));
   }
   console.log("1. 安装 / 更新活动助手");
   console.log("2. 配置推送和偏好");
@@ -397,8 +425,17 @@ function printMenu(options = {}) {
   console.log("0. 退出");
 }
 
+async function runStepByIndex(index, rl) {
+  if (index === 0) await installOrUpdate();
+  else if (index === 1) await configurePush(rl);
+  else if (index === 2) runDryRun();
+  else if (index === 3) await printStatus();
+  else if (index === 4) await createAutomationWizard();
+}
+
 async function handleChoice(choice, rl) {
-  if (choice === "0") return false;
+  if (choice === "0") return "exit";
+  if (choice.toLowerCase() === "g") return "guide";
   if (choice === "1") await installOrUpdate();
   else if (choice === "2") await configurePush(rl);
   else if (choice === "3") runDryRun();
@@ -407,22 +444,46 @@ async function handleChoice(choice, rl) {
   else {
     console.log(statusLine("没识别这个选项，输入 0 可以退出", "warn"));
   }
-  return true;
+  return "continue";
 }
 
-async function menu() {
-  const rl = createPromptSession();
-  let keepGoing = true;
+async function manualMenu(rl) {
   let compact = false;
+  while (true) {
+    printMenu({ compact });
+    const choice = await rl.question(color("\n选择一个数字：", "cyan"));
+    const result = await handleChoice(choice.trim(), rl);
+    if (result === "exit") return false;
+    if (result === "guide") return true;
+    compact = true;
+    console.log("");
+  }
+}
+
+async function guideMenu() {
+  const rl = createPromptSession();
+  const completedSteps = new Set();
+  let currentStep = 0;
+
   try {
-    while (keepGoing) {
-      printMenu({ compact });
-      const choice = await rl.question(color("\n选择一个数字：", "cyan"));
-      keepGoing = await handleChoice(choice.trim(), rl);
-      if (keepGoing) {
-        compact = true;
-        console.log("");
+    while (true) {
+      printGuide(completedSteps, currentStep);
+      const answer = (await rl.question(color("\n下一步：", "cyan"))).trim().toLowerCase();
+      if (answer === "q" || answer === "0") break;
+      if (answer === "b") {
+        const returnToGuide = await manualMenu(rl);
+        if (!returnToGuide) break;
+        continue;
       }
+
+      const selectedStep = /^[1-5]$/.test(answer) ? Number(answer) - 1 : currentStep;
+      currentStep = selectedStep;
+      await runStepByIndex(selectedStep, rl);
+      completedSteps.add(selectedStep);
+      if (selectedStep < GUIDE_STEPS.length - 1) {
+        currentStep = selectedStep + 1;
+      }
+      console.log("");
     }
   } catch (error) {
     if (error.message !== "输入已结束") throw error;
@@ -455,7 +516,7 @@ async function main(argv) {
     return;
   }
 
-  await menu();
+  await guideMenu();
 }
 
 main(process.argv.slice(2)).catch((error) => {

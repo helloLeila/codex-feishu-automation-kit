@@ -159,3 +159,44 @@ test("configuration save does not print animation frames in piped output", async
     }
   }
 });
+
+test("run guide explains that Codex automation is not auto-created from the CLI", async () => {
+  const child = spawn(process.execPath, ["scripts/gba.mjs"], {
+    cwd: rootDir,
+    env: { ...process.env, NO_COLOR: "1" },
+  });
+  let stdout = "";
+  let stderr = "";
+  let sentGuide = false;
+  let sentExit = false;
+
+  child.stdout.setEncoding("utf8");
+  child.stderr.setEncoding("utf8");
+  child.stdout.on("data", (chunk) => {
+    stdout += chunk;
+    if (!sentGuide && (stdout.match(/查看活动搜寻接入步骤/g) ?? []).length === 1) {
+      sentGuide = true;
+      child.stdin.write("5\n");
+    }
+    if (!sentExit && stdout.includes("不会自动添加或触发 Codex Automation")) {
+      sentExit = true;
+      child.stdin.write("0\n");
+      child.stdin.end();
+    }
+  });
+  child.stderr.on("data", (chunk) => {
+    stderr += chunk;
+  });
+
+  const status = await new Promise((resolve) => {
+    child.on("exit", (code) => resolve(code));
+  });
+
+  assert.equal(status, 0);
+  assert.equal(stdout.includes("5. 查看活动搜寻接入步骤"), true);
+  assert.equal(stdout.includes("不会自动添加或触发 Codex Automation"), true);
+  assert.equal(stdout.includes("已存在活动搜寻：Codex → Automations → 活动搜寻 → Run now"), true);
+  assert.equal(stdout.includes("还没有活动搜寻：打开 docs/codex-automation-setup.md"), true);
+  assert.equal(stdout.includes("本工具已准备好配置、dry-run 和推送脚本"), true);
+  assert.equal(stderr, "");
+});

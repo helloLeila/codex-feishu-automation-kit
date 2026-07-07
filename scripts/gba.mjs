@@ -201,9 +201,10 @@ function runDryRun() {
 }
 
 function guideRunOnce() {
-  console.log(color("Codex 桌面端暂未暴露稳定的 CLI 自动化运行接口，所以这里不假装能强行触发。", "yellow"));
-  console.log("打开 Codex → Automations → 活动搜寻 → Run now。");
-  console.log("本工具负责把配置、推送测试和排查步骤收拢到一个入口。");
+  console.log(statusLine("不会自动添加或触发 Codex Automation，npm 菜单拿不到 Codex 桌面端内部自动化接口", "warn"));
+  console.log(statusLine("已存在活动搜寻：Codex → Automations → 活动搜寻 → Run now", "info"));
+  console.log(statusLine("还没有活动搜寻：打开 docs/codex-automation-setup.md，复制「推荐自动化 prompt：大湾区活动」新建", "info"));
+  console.log(statusLine("本工具已准备好配置、dry-run 和推送脚本；自动化本体需要在 Codex 里创建或运行", "ok"));
 }
 
 function printMenu(options = {}) {
@@ -217,7 +218,7 @@ function printMenu(options = {}) {
   console.log("2. 配置推送和偏好");
   console.log("3. 预览 / 测试推送");
   console.log("4. 检查状态");
-  console.log("5. 运行 / 引导一次活动搜寻");
+  console.log("5. 查看活动搜寻接入步骤");
   console.log("0. 退出");
 }
 

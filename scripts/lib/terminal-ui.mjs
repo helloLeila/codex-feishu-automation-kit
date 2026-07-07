@@ -228,19 +228,16 @@ export function renderSectionTitle(title, options = {}) {
 
 export function renderStepTransitionLines(completedStep, nextStep, options = {}) {
   const useColor = options.color ?? !process.env.NO_COLOR;
-  const width = options.width ?? 48;
-  const line = "━".repeat(width);
   const lines = [
     "",
-    paint(line, "gray", useColor),
-    `${paint("✓", "green", useColor)} ${paint(`${completedStep} 已完成`, "green", useColor)}`,
+    `${paint("✓", "green", useColor)} ${paint(`已完成：${completedStep}`, "green", useColor)}`,
   ];
 
   if (nextStep) {
-    lines.push(`${paint("→", "cyan", useColor)} ${paint(`继续下一步：${nextStep}`, "cyan", useColor)}`);
+    lines.push(`  ${paint("↳", "cyan", useColor)} ${paint(`下一步：${nextStep}`, "cyan", useColor)}`);
   }
 
-  lines.push(paint(line, "gray", useColor), "");
+  lines.push("");
   return lines;
 }
 

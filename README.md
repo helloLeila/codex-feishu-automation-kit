@@ -9,7 +9,7 @@ GitHub 仓库地址：<https://github.com/helloLeila/codex-feishu-automation-kit
 - AI 行业日报生成后自动推送。
 - 大湾区技术活动清单生成后自动推送。
 - 周报、监控结果、调研摘要等 Markdown 文件需要变成通知。
-- 想把“配置 webhook / SendKey、生成卡片、dry-run 验证、排查未推送”沉淀成可复用 Codex Skill。
+- 想把“配置 webhook / SendKey、测试连接、排查未推送”沉淀成可复用 Codex Skill。
 
 ## 快速开始
 
@@ -32,7 +32,7 @@ npm run gba
 引导配置
 1. 安装 / 更新活动助手  ▶ 当前
 2. 配置推送和偏好  · 待执行
-3. 预览 / 测试推送  · 待执行
+3. 测试连接 / 推送可用性  · 待执行
 4. 检查状态  · 待执行
 5. 创建 / 更新活动搜寻自动化  · 待执行
 ```
@@ -67,7 +67,7 @@ bash scripts/setup.sh
 2. 检查是否已有 `tech-events-assistant.local.json`，不会自动写入占位密钥。
 3. 运行 `npm run check` 做语法检查。
 4. 运行 `npm test`。
-5. 使用示例 Markdown 做 dry-run，不会真实发送消息。
+5. 使用示例 Markdown 做推送连接测试，不会真实发送消息。
 
 ## 配置文件
 
@@ -188,9 +188,9 @@ node scripts/push-gba-events-to-serverchan.mjs <生成的Markdown文件路径>
 如果当前目录读不到 tech-events-assistant.local.json 或 .env.local，请使用 FEISHU_ENV_FILE=/absolute/path/to/.env.local 或 SERVERCHAN_ENV_FILE=/absolute/path/to/.env.local 指定密钥文件。
 ```
 
-## Dry-run 验证
+## 测试连接
 
-dry-run 只生成请求内容，不会真实发送。
+测试连接会模拟生成飞书卡片和 Server 酱消息，但不会真实发送。命令里的 `DRY_RUN=1` 是脚本参数名，含义就是“不发送，只测试”。
 
 ```bash
 FEISHU_DRY_RUN=1 FEISHU_WEBHOOK_URL=<FEISHU_WEBHOOK_URL> node skills/feishu-automation-reporter/scripts/push-ai-daily-to-feishu.mjs examples/ai-daily-example.md
@@ -210,7 +210,7 @@ SERVERCHAN_DRY_RUN=1 SERVERCHAN_SENDKEY=<SERVERCHAN_SENDKEY> node skills/feishu-
 - 生成或改造飞书 interactive card 脚本。
 - 生成或改造 Server 酱通知脚本。
 - 排查为什么自动化没有推送。
-- 使用 dry-run 验证卡片或请求结构。
+- 测试飞书或 Server 酱连接是否可用。
 
 ## 目录结构
 

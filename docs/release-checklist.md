@@ -37,8 +37,8 @@ npm run gba -- --dry-run
 预期：
 
 - 四条 `node --check` 命令退出码为 0。
-- 飞书 dry-run 输出 JSON，且 `msg_type` 为 `interactive`。
-- Server 酱 dry-run 输出 JSON，且包含 `endpoint` 和 `payload`。
+- `npm run gba -- --dry-run` 显示“测试连接 / 推送可用性”。
+- 飞书和 Server 酱连接测试均显示通过，且不会真实发送。
 
 ## GitHub 发布
 

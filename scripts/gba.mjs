@@ -23,7 +23,6 @@ import {
   hasConfiguredPush,
   loadAssistantConfig,
   readLocalConfig,
-  redactPushConfig,
   writeLocalConfig,
 } from "./lib/tech-events-config.mjs";
 import { loadLocalEnv } from "../skills/feishu-automation-reporter/scripts/lib/env.mjs";
@@ -33,7 +32,7 @@ const AUTOMATION_PROMPT_FILE = "tech-events-assistant.automation.md";
 const GUIDE_STEPS = [
   "安装 / 更新活动助手",
   "配置推送和偏好",
-  "预览 / 测试推送",
+  "测试连接 / 推送可用性",
   "检查状态",
   "创建 / 更新活动搜寻自动化",
 ];
@@ -303,14 +302,25 @@ async function printStatus() {
   const localEnv = await loadLocalEnv(rootDir);
   const publicConfigPath = path.join(rootDir, CONFIG_FILE);
   const localConfigPath = path.join(rootDir, LOCAL_CONFIG_FILE);
-  const pushConfigured =
-    hasConfiguredPush(config) ||
-    Boolean(localEnv.FEISHU_WEBHOOK_URL || localEnv.SERVERCHAN_SENDKEY);
+  const automationPromptPath = path.join(rootDir, AUTOMATION_PROMPT_FILE);
+  const hasPublicConfig = await fileExists(publicConfigPath);
+  const hasLocalConfig = await fileExists(localConfigPath);
+  const hasAutomationPrompt = await fileExists(automationPromptPath);
+  const hasFeishu = Boolean(config?.push?.feishuWebhookUrl || localEnv.FEISHU_WEBHOOK_URL);
+  const hasServerChan = Boolean(config?.push?.serverChanSendKey || localEnv.SERVERCHAN_SENDKEY);
 
-  console.log(statusLine(`${CONFIG_FILE}: ${await fileExists(publicConfigPath) ? "存在" : "缺失"}`, "info"));
-  console.log(statusLine(`${LOCAL_CONFIG_FILE}: ${await fileExists(localConfigPath) ? "存在" : "未配置，可跳过"}`, "info"));
-  console.log(statusLine(`推送密钥: ${pushConfigured ? "已配置" : "未配置"}`, pushConfigured ? "ok" : "warn"));
-  console.log(JSON.stringify(redactPushConfig(config), null, 2));
+  console.log(color("状态检查", "cyan"));
+  console.log(statusLine(`普通配置：${hasPublicConfig ? `${CONFIG_FILE} 已存在` : "缺失，建议先执行第 1 步"}`, hasPublicConfig ? "ok" : "warn"));
+  console.log(statusLine(`本机私密配置：${hasLocalConfig ? `${LOCAL_CONFIG_FILE} 已存在` : "未配置，可执行第 2 步"}`, hasLocalConfig ? "ok" : "warn"));
+  console.log(statusLine(`飞书推送：${hasFeishu ? "已配置 webhook" : "未配置 webhook"}`, hasFeishu ? "ok" : "warn"));
+  console.log(statusLine(`Server 酱推送：${hasServerChan ? "已配置 SendKey" : "未配置 SendKey"}`, hasServerChan ? "ok" : "warn"));
+  console.log(statusLine(`自动化 Prompt：${hasAutomationPrompt ? `${AUTOMATION_PROMPT_FILE} 已生成` : "未生成，可执行第 5 步"}`, hasAutomationPrompt ? "ok" : "warn"));
+  console.log("");
+  if (hasFeishu || hasServerChan) {
+    console.log(statusLine("下一步：执行第 3 步测试连接 / 推送可用性", "info"));
+  } else {
+    console.log(statusLine("下一步：执行第 2 步配置飞书 webhook 或 Server 酱 SendKey", "info"));
+  }
 }
 
 async function configurePush(rl) {
@@ -374,7 +384,7 @@ function runDryRun() {
     }
   }
 
-  printCompletedSteps("预览 / 测试推送", ["生成飞书 dry-run", "生成 Server 酱 dry-run"], "dry-run 已通过，未真实发送");
+  printCompletedSteps("测试连接 / 推送可用性", ["测试飞书连接（不发送）", "测试 Server 酱连接（不发送）"], "连接测试通过，未真实发送");
 }
 
 async function createAutomationWizard() {
@@ -419,7 +429,7 @@ function printMenu(options = {}) {
   }
   console.log("1. 安装 / 更新活动助手");
   console.log("2. 配置推送和偏好");
-  console.log("3. 预览 / 测试推送");
+  console.log("3. 测试连接 / 推送可用性");
   console.log("4. 检查状态");
   console.log("5. 创建 / 更新活动搜寻自动化");
   console.log("0. 退出");

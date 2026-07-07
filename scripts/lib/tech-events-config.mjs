@@ -137,11 +137,3 @@ export function hasConfiguredPush(config) {
       process.env.SERVERCHAN_SENDKEY,
   );
 }
-
-export function redactPushConfig(config) {
-  const redacted = deepMerge(config);
-  for (const key of ["feishuWebhookUrl", "feishuWebhookSecret", "serverChanSendKey"]) {
-    if (redacted?.push?.[key]) redacted.push[key] = "已配置";
-  }
-  return redacted;
-}

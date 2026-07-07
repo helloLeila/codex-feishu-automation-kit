@@ -317,9 +317,28 @@ test("dry-run prints a completed step flow instead of a digital progress bar", (
   assert.equal(result.status, 0);
   assert.equal(result.stderr, "");
   assert.equal(result.stdout.includes("完成  ██████████████████████████████ 100%  已完成"), false);
-  assert.equal(result.stdout.includes("预览 / 测试推送"), true);
-  assert.equal(result.stdout.includes("├─ ✓ 生成飞书 dry-run"), true);
-  assert.equal(result.stdout.includes("└─ ✓ 生成 Server 酱 dry-run"), true);
+  assert.equal(result.stdout.includes("测试连接 / 推送可用性"), true);
+  assert.equal(result.stdout.includes("├─ ✓ 测试飞书连接（不发送）"), true);
+  assert.equal(result.stdout.includes("└─ ✓ 测试 Server 酱连接（不发送）"), true);
   assert.equal(result.stdout.includes(`完成    ${neonBar} 100%`), true);
-  assert.equal(result.stdout.includes("        ✓ dry-run 已通过，未真实发送"), true);
+  assert.equal(result.stdout.includes("        ✓ 连接测试通过，未真实发送"), true);
+});
+
+test("status prints a readable panel instead of raw JSON", () => {
+  const result = spawnSync(process.execPath, ["scripts/gba.mjs", "--status"], {
+    cwd: rootDir,
+    env: { ...process.env, NO_COLOR: "1" },
+    encoding: "utf8",
+  });
+
+  assert.equal(result.status, 0);
+  assert.equal(result.stderr, "");
+  assert.equal(result.stdout.includes("状态检查"), true);
+  assert.equal(result.stdout.includes("普通配置"), true);
+  assert.equal(result.stdout.includes("本机私密配置"), true);
+  assert.equal(result.stdout.includes("飞书推送"), true);
+  assert.equal(result.stdout.includes("Server 酱推送"), true);
+  assert.equal(result.stdout.includes("自动化 Prompt"), true);
+  assert.equal(result.stdout.includes("{"), false);
+  assert.equal(result.stdout.includes('"push"'), false);
 });

@@ -106,7 +106,7 @@ export function completionLine(options = {}) {
   const useColor = options.color ?? !process.env.NO_COLOR;
   return [
     bold(paint("完成", "green", useColor), useColor),
-    "  ✨🤖🎉🤖✨  ",
+    "  ✨🤖🎉🤖🎉🤖🎉🤖🎉🤖🎉🤖🎉🤖🎉🤖🎉🤖🎉🤖✨  ",
     paint("已完成", "green", useColor),
   ].join("");
 }

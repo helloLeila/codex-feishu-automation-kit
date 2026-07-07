@@ -9,7 +9,7 @@ import {
   terminalCellWidth,
 } from "../scripts/lib/terminal-ui.mjs";
 
-const LONG_COMPLETION = "完成  ✨🤖🎉🤖🎉🤖🎉🤖🎉🤖🎉🤖🎉🤖🎉🤖🎉🤖🎉🤖✨  已完成";
+const DIGITAL_COMPLETION = "完成  ████████████████████ 100%  已完成";
 
 test("cartoon progress uses robots for in-progress percentages", () => {
   const line = stripAnsi(cartoonProgressLine(50, { color: false }));
@@ -17,20 +17,23 @@ test("cartoon progress uses robots for in-progress percentages", () => {
   assert.equal(line, "进度  🤖🤖🤖🤖🤖🤖🤖🤖🤖🤖▫️▫️▫️▫️▫️▫️▫️▫️▫️▫️  50%");
 });
 
-test("completion state is green wording and does not show 100 percent", () => {
+test("completion state is a colored digital progress bar", () => {
   const line = stripAnsi(cartoonProgressLine(100, { color: false }));
   const coloredLine = cartoonProgressLine(100, { color: true });
 
-  assert.equal(line, LONG_COMPLETION);
-  assert.equal(line.includes("100%"), false);
+  assert.equal(line, DIGITAL_COMPLETION);
+  assert.equal(line.includes("100%"), true);
+  assert.equal(line.includes("🎉"), false);
   assert.equal(coloredLine.includes("\x1b[32m完成"), true);
+  assert.equal(coloredLine.includes("\x1b[32m████████████████████"), true);
+  assert.equal(coloredLine.includes("\x1b[33m100%"), true);
   assert.equal(coloredLine.includes("\x1b[32m已完成"), true);
 });
 
 test("completionLine mirrors final progress state", () => {
   assert.equal(
     stripAnsi(completionLine({ color: false })),
-    LONG_COMPLETION,
+    DIGITAL_COMPLETION,
   );
 });
 

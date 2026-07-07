@@ -10,6 +10,7 @@ import {
   cartoonProgressLine,
   color,
   completionLine,
+  digitalProgressLine,
   renderBannerLines,
   spinnerFrame,
   statusLine,
@@ -94,6 +95,14 @@ async function installOrUpdate() {
   console.log(completionLine());
 }
 
+async function runSaveProgress() {
+  for (const percent of [25, 50, 75]) {
+    console.log(digitalProgressLine(percent, { label: "保存中" }));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  console.log(completionLine());
+}
+
 async function printStatus() {
   const config = await loadAssistantConfig(rootDir);
   const localEnv = await loadLocalEnv(rootDir);
@@ -133,6 +142,7 @@ async function configurePush(rl) {
   }
 
   const writeResult = await writeLocalConfig(rootDir, result.config);
+  await runSaveProgress();
   console.log(statusLine(`已保存：${path.basename(writeResult.filePath)}`, "ok"));
   if (writeResult.backupCreated) {
     console.log(statusLine(`已备份旧配置：${path.basename(writeResult.backupPath)}`, "info"));

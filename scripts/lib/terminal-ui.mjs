@@ -106,8 +106,31 @@ export function completionLine(options = {}) {
   const useColor = options.color ?? !process.env.NO_COLOR;
   return [
     bold(paint("完成", "green", useColor), useColor),
-    "  ✨🤖🎉🤖🎉🤖🎉🤖🎉🤖🎉🤖🎉🤖🎉🤖🎉🤖🎉🤖✨  ",
+    "  ",
+    paint("█".repeat(20), "green", useColor),
+    " ",
+    paint("100%", "yellow", useColor),
+    "  ",
     paint("已完成", "green", useColor),
+  ].join("");
+}
+
+export function digitalProgressLine(percent, options = {}) {
+  const width = options.width ?? 20;
+  const label = options.label ?? "进度";
+  const useColor = options.color ?? !process.env.NO_COLOR;
+  const safePercent = Math.max(0, Math.min(100, Number(percent) || 0));
+
+  if (safePercent >= 100 && label === "完成") return completionLine({ color: useColor });
+
+  const filled = Math.floor((safePercent / 100) * width);
+  const empty = width - filled;
+
+  return [
+    paint(`${label}  `, safePercent >= 100 ? "green" : "gray", useColor),
+    paint("█".repeat(filled), safePercent >= 100 ? "green" : "cyan", useColor),
+    paint("░".repeat(empty), "gray", useColor),
+    paint(` ${safePercent}%`, "yellow", useColor),
   ].join("");
 }
 

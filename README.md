@@ -77,9 +77,9 @@ bash scripts/setup.sh
 
 这个工具包使用三个明显命名的配置文件：
 
-- `tech-events-assistant.config.json`：普通配置，可以提交。
-- `tech-events-assistant.local.json`：本机私密配置，保存飞书 webhook、飞书签名密钥、Server 酱 SendKey，不提交。
-- `tech-events-assistant.config.example.json`：示例配置。
+- `tech-events-assistant.config.json`：普通配置，可以提交到 Git；主要放助手名称、时间窗口、输出偏好、默认推送开关等不含密钥的设置。
+- `tech-events-assistant.local.json`：本机私密配置，已在 `.gitignore` 中；保存飞书 webhook、飞书签名密钥、Server 酱 SendKey，不要提交。
+- `tech-events-assistant.config.example.json`：示例配置，用来给新用户复制参考，不放真实密钥。
 
 推荐在 `npm run gba` 的菜单里选择 `配置推送和偏好` 输入密钥。它会帮你打开飞书和 Server 酱取值页面；输入留空会保留原值，输入 `clear` 会清空该项；最后选择不保存就不会写入文件。
 

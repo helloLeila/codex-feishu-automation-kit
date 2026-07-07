@@ -444,8 +444,8 @@ test("status prints a readable panel instead of raw JSON", () => {
   assert.equal(result.status, 0);
   assert.equal(result.stderr, "");
   assert.equal(result.stdout.includes("状态检查"), true);
-  assert.equal(result.stdout.includes("普通配置"), true);
-  assert.equal(result.stdout.includes("本机私密配置"), true);
+  assert.equal(result.stdout.includes("普通配置（可提交，控制助手偏好）"), true);
+  assert.equal(result.stdout.includes("本机私密配置（.gitignore，不提交，保存 webhook/SendKey）"), true);
   assert.equal(result.stdout.includes("飞书推送"), true);
   assert.equal(result.stdout.includes("Server 酱推送"), true);
   assert.equal(result.stdout.includes("自动化 Prompt"), true);

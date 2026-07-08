@@ -25,10 +25,10 @@ async function listLocalConfigBackups() {
   return new Set(names.filter((name) => name.startsWith("tech-events-assistant.local.json.bak-")));
 }
 
-test("guide starts on configuration after automatic setup", async () => {
+test("guide starts on configuration overview after automatic setup", async () => {
   const child = spawn(process.execPath, ["scripts/gba.mjs"], {
     cwd: rootDir,
-    env: { ...process.env, NO_COLOR: "1" },
+    env: { ...process.env, NO_COLOR: "1", TECH_EVENTS_ASSISTANT_SKIP_EDITOR: "1" },
   });
   let stdout = "";
   let stderr = "";
@@ -38,7 +38,7 @@ test("guide starts on configuration after automatic setup", async () => {
   child.stderr.setEncoding("utf8");
   child.stdout.on("data", (chunk) => {
     stdout += chunk;
-    if (!sentExit && stdout.includes("[Enter] 执行  1 配置推送和偏好")) {
+    if (!sentExit && stdout.includes("[Enter] 执行  1 查看配置及安装说明")) {
       sentExit = true;
       child.stdin.write("q\n");
       child.stdin.end();
@@ -56,7 +56,7 @@ test("guide starts on configuration after automatic setup", async () => {
   assert.equal((stdout.match(/技术活动助手 · 配置引导/g) ?? []).length, 1);
   assert.equal(stdout.includes("✓ 配置文件已就绪"), true);
   assert.equal(stdout.includes("技术活动助手 · 配置引导 1/4"), true);
-  assert.equal(stdout.includes("│ •ᴗ• │  ◉ 1 配置推送偏好   ○ 2 测试真实连接   ○ 3 查看配置状态   ○ 4 导入自动化"), true);
+  assert.equal(stdout.includes("│ •ᴗ• │  ◉ 1 配置及安装   ○ 2 推送地址偏好   ○ 3 飞书/微信连接   ○ 4 剪切板导入"), true);
   assert.equal(stdout.includes("已检测"), false);
   assert.equal(stdout.includes("普通配置"), false);
   assert.equal(stdout.includes("飞书 webhook"), false);
@@ -70,10 +70,61 @@ test("guide starts on configuration after automatic setup", async () => {
   assert.equal(stdout.includes("[1-5] 跳转"), false);
   assert.equal(stdout.includes("[d] 详情"), false);
   assert.equal(stdout.includes("引导配置 · 下一步"), false);
-  assert.equal(stdout.includes("[Enter] 执行  1 配置推送和偏好"), true);
+  assert.equal(stdout.includes("[Enter] 执行  1 查看配置及安装说明"), true);
   assert.equal(stdout.includes("安装 / 更新活动助手"), false);
-  assert.equal(stdout.includes("下一步：1 配置推送和偏好（回车执行）："), false);
+  assert.equal(stdout.includes("下一步：1 查看配置及安装说明（回车执行）："), false);
   assert.equal(stdout.includes("进度条演示"), false);
+  assert.equal(stderr, "");
+});
+
+test("configuration overview displays current config and opens the config file", async () => {
+  const child = spawn(process.execPath, ["scripts/gba.mjs"], {
+    cwd: rootDir,
+    env: { ...process.env, NO_COLOR: "1", TECH_EVENTS_ASSISTANT_SKIP_EDITOR: "1" },
+  });
+  let stdout = "";
+  let stderr = "";
+  let sentOverview = false;
+  let sentExit = false;
+
+  child.stdout.setEncoding("utf8");
+  child.stderr.setEncoding("utf8");
+  child.stdout.on("data", (chunk) => {
+    stdout += chunk;
+    if (!sentOverview && stdout.includes("[Enter] 执行  1 查看配置及安装说明")) {
+      sentOverview = true;
+      child.stdin.write("\n");
+    }
+    if (!sentExit && stdout.includes("配置文件未打开")) {
+      sentExit = true;
+      child.stdin.write("q\n");
+      child.stdin.end();
+    }
+  });
+  child.stderr.on("data", (chunk) => {
+    stderr += chunk;
+  });
+
+  const status = await new Promise((resolve) => {
+    child.on("exit", (code) => resolve(code));
+  });
+
+  assert.equal(status, 0);
+  assert.equal(stdout.includes("1 查看配置及安装说明"), true);
+  assert.equal(stdout.includes("├─ ✓ 读取当前配置"), true);
+  assert.equal(stdout.includes("├─ ✓ 展示安装说明"), true);
+  assert.equal(stdout.includes("└─ ✓ 打开配置文件"), true);
+  assert.equal(stdout.includes("当前配置"), true);
+  assert.equal(stdout.includes("助手名称：技术活动助手"), true);
+  assert.equal(stdout.includes("时间窗口：run-day-00:00-plus-15-days"), true);
+  assert.equal(stdout.includes("推送开关：飞书开启，Server 酱开启"), true);
+  assert.equal(stdout.includes("安装说明"), true);
+  assert.equal(stdout.includes("运行 npm run gba 后按 1-4 选择步骤"), true);
+  assert.equal(stdout.includes("tech-events-assistant.config.json 这个配置可以修改"), true);
+  assert.equal(stdout.includes("配置文件未打开：已按环境变量跳过编辑器打开"), true);
+  assert.equal(stdout.includes("已打开 tech-events-assistant.config.json"), false);
+  assert.equal(stdout.includes("技术活动助手 · 配置引导 2/4"), true);
+  assert.equal(stdout.includes("[Enter] 执行  2 配置推送地址偏好"), true);
   assert.equal(stderr, "");
 });
 
@@ -91,11 +142,11 @@ test("guide advances to the next step and marks previous step complete", async (
   child.stderr.setEncoding("utf8");
   child.stdout.on("data", (chunk) => {
     stdout += chunk;
-    if (!sentConfig && stdout.includes("[Enter] 执行  1 配置推送和偏好")) {
+    if (!sentConfig && stdout.includes("[Enter] 执行  1 查看配置及安装说明")) {
       sentConfig = true;
-      child.stdin.write("\nn\n\n\n\nn\n");
+      child.stdin.write("2\nn\n\n\n\nn\n");
     }
-    if (!sentExit && stdout.includes("技术活动助手 · 配置引导 2/4")) {
+    if (!sentExit && stdout.includes("技术活动助手 · 配置引导 3/4")) {
       sentExit = true;
       child.stdin.write("q\n");
       child.stdin.end();
@@ -110,12 +161,12 @@ test("guide advances to the next step and marks previous step complete", async (
   });
 
   assert.equal(status, 0);
-  const latestGuide = stdout.slice(stdout.lastIndexOf("╭─🤖──╮  技术活动助手 · 配置引导 2/4"));
+  const latestGuide = stdout.slice(stdout.lastIndexOf("╭─🤖──╮  技术活动助手 · 配置引导 3/4"));
   assert.equal(stdout.includes("配置引导"), true);
-  assert.equal(stdout.includes("╭─🤖──╮  技术活动助手 · 配置引导 2/4"), true);
-  assert.equal(stdout.includes("│ •ᴗ• │  ● 1 配置推送偏好   ◉ 2 测试真实连接"), true);
+  assert.equal(stdout.includes("╭─🤖──╮  技术活动助手 · 配置引导 3/4"), true);
+  assert.equal(stdout.includes("● 2 推送地址偏好   ◉ 3 飞书/微信连接"), true);
   assert.equal(stdout.includes("↑ 当前步骤"), false);
-  assert.equal(stdout.includes("当前任务\n  测试真实连接"), false);
+  assert.equal(stdout.includes("当前任务\n  测试飞书/微信连接"), false);
   assert.equal(stdout.includes("当前任务"), false);
   assert.equal(latestGuide.includes("已检测"), false);
   assert.equal(latestGuide.includes("╰─────╯\n[Enter] 执行当前步骤"), true);
@@ -134,10 +185,10 @@ test("guide advances to the next step and marks previous step complete", async (
   assert.equal(stdout.includes("详情已收起"), false);
   assert.equal(stdout.includes("按 d"), false);
   assert.equal(stdout.includes("[d] 详情"), false);
-  assert.equal(stdout.includes("[Enter] 执行  2 测试真实连接"), true);
-  assert.equal(stdout.includes("\n> [Enter] 执行  2 测试真实连接"), true);
+  assert.equal(stdout.includes("[Enter] 执行  3 测试飞书/微信连接"), true);
+  assert.equal(stdout.includes("\n> [Enter] 执行  3 测试飞书/微信连接"), true);
   assert.equal(stdout.includes("当前操作"), false);
-  assert.equal(stdout.includes("下一步：2 测试真实连接（回车执行）："), false);
+  assert.equal(stdout.includes("下一步：3 测试飞书/微信连接（回车执行）："), false);
   assert.equal(stderr, "");
 });
 
@@ -155,11 +206,11 @@ test("guide returns to the next step without replaying the last execution", asyn
   child.stderr.setEncoding("utf8");
   child.stdout.on("data", (chunk) => {
     stdout += chunk;
-    if (!sentConfig && stdout.includes("[Enter] 执行  1 配置推送和偏好")) {
+    if (!sentConfig && stdout.includes("[Enter] 执行  1 查看配置及安装说明")) {
       sentConfig = true;
-      child.stdin.write("\nn\n\n\n\nn\n");
+      child.stdin.write("2\nn\n\n\n\nn\n");
     }
-    if (!sentExit && stdout.includes("技术活动助手 · 配置引导 2/4")) {
+    if (!sentExit && stdout.includes("技术活动助手 · 配置引导 3/4")) {
       sentExit = true;
       child.stdin.write("q\n");
       child.stdin.end();
@@ -174,7 +225,7 @@ test("guide returns to the next step without replaying the last execution", asyn
   });
 
   assert.equal(status, 0);
-  const latestGuide = stdout.slice(stdout.lastIndexOf("╭─🤖──╮  技术活动助手 · 配置引导 2/4"));
+  const latestGuide = stdout.slice(stdout.lastIndexOf("╭─🤖──╮  技术活动助手 · 配置引导 3/4"));
   assert.equal(stdout.includes("最近执行"), false);
   assert.equal(stdout.includes("执行详情"), false);
   assert.equal(latestGuide.includes("├─ ✓ 读取现有配置"), false);
@@ -239,9 +290,9 @@ test("configuration can be skipped without breaking the menu loop", async () => 
   child.stderr.setEncoding("utf8");
   child.stdout.on("data", (chunk) => {
     stdout += chunk;
-    if (!sentConfig && stdout.includes("[Enter] 执行  1 配置推送和偏好")) {
+    if (!sentConfig && stdout.includes("[Enter] 执行  1 查看配置及安装说明")) {
       sentConfig = true;
-      child.stdin.write("\nn\n\n\n\nn\n");
+      child.stdin.write("2\nn\n\n\n\nn\n");
     }
     if (!sentExit && stdout.includes("未保存，原配置保持不变")) {
       sentExit = true;
@@ -283,9 +334,9 @@ test("configuration helper can open credential pages or show setup links", async
   child.stderr.setEncoding("utf8");
   child.stdout.on("data", (chunk) => {
     stdout += chunk;
-    if (!sentConfig && stdout.includes("[Enter] 执行  1 配置推送和偏好")) {
+    if (!sentConfig && stdout.includes("[Enter] 执行  1 查看配置及安装说明")) {
       sentConfig = true;
-      child.stdin.write("\n\n\n\n\nn\n");
+      child.stdin.write("2\n\n\n\n\nn\n");
     }
     if (!sentExit && stdout.includes("未保存，原配置保持不变")) {
       sentExit = true;
@@ -330,9 +381,9 @@ test("configuration save prints a completed step flow in piped output", async ()
     child.stderr.setEncoding("utf8");
     child.stdout.on("data", (chunk) => {
       stdout += chunk;
-      if (!sentConfig && stdout.includes("[Enter] 执行  1 配置推送和偏好")) {
+      if (!sentConfig && stdout.includes("[Enter] 执行  1 查看配置及安装说明")) {
         sentConfig = true;
-        child.stdin.write("\nn\nhttps://example.test/hook\n\nclear\ny\n");
+        child.stdin.write("2\nn\nhttps://example.test/hook\n\nclear\ny\n");
       }
       if (!sentExit && stdout.includes("✓ tech-events-assistant.local.json 已保存")) {
         sentExit = true;
@@ -351,14 +402,14 @@ test("configuration save prints a completed step flow in piped output", async ()
     assert.equal(status, 0);
     assert.equal((stdout.match(/保存中/g) ?? []).length, 0);
     assert.equal(stdout.includes("完成  ██████████████████████████████ 100%  已完成"), false);
-    assert.equal(stdout.includes("配置推送"), true);
+    assert.equal(stdout.includes("推送地址偏好"), true);
     assert.equal(stdout.includes("├─ ✓ 读取现有配置"), true);
     assert.equal(stdout.includes("├─ ✓ 合并本次输入"), true);
     assert.equal(stdout.includes("├─ ✓ 写入本地配置"), true);
     assert.equal(stdout.includes("└─ ✓ 准备推送脚本"), true);
     assert.equal(stdout.includes(`完成  ${neonBar} 100%`), true);
     assert.equal(stdout.includes("      ✓ tech-events-assistant.local.json 已保存"), true);
-    assert.equal(stdout.indexOf("配置推送") < stdout.indexOf(`完成  ${neonBar} 100%`), true);
+    assert.equal(stdout.indexOf("推送地址偏好") < stdout.indexOf(`完成  ${neonBar} 100%`), true);
     assert.equal(stderr, "");
   } finally {
     const currentBackups = await listLocalConfigBackups();
@@ -391,7 +442,7 @@ test("automation wizard writes a prompt file and gives one paste step", async ()
     child.stderr.setEncoding("utf8");
     child.stdout.on("data", (chunk) => {
       stdout += chunk;
-      if (!sentGuide && stdout.includes("[Enter] 执行  1 配置推送和偏好")) {
+      if (!sentGuide && stdout.includes("[Enter] 执行  1 查看配置及安装说明")) {
         sentGuide = true;
         child.stdin.write("4\n");
       }
@@ -411,7 +462,7 @@ test("automation wizard writes a prompt file and gives one paste step", async ()
     const promptText = await readFile(automationPromptPath, "utf8");
 
     assert.equal(status, 0);
-    assert.equal(stdout.includes("4 导入自动化"), true);
+    assert.equal(stdout.includes("4 剪切板导入"), true);
     assert.equal(stdout.includes("导入 Codex 自动化配置"), false);
     assert.equal(stdout.includes("🤖 4 导入 Codex 自动化配置"), false);
     assert.equal(stdout.includes("├─ ✓ 准备自动化 Prompt"), true);
@@ -524,7 +575,7 @@ test("automation wizard builds the copied prompt from configurable search scope"
     child.stderr.setEncoding("utf8");
     child.stdout.on("data", (chunk) => {
       stdout += chunk;
-      if (!sentGuide && stdout.includes("[Enter] 执行  1 配置推送和偏好")) {
+      if (!sentGuide && stdout.includes("[Enter] 执行  1 查看配置及安装说明")) {
         sentGuide = true;
         child.stdin.write("4\n");
       }
@@ -587,7 +638,7 @@ test("guide moves away from the final step instead of repeating it on enter", as
     child.stderr.setEncoding("utf8");
     child.stdout.on("data", (chunk) => {
       stdout += chunk;
-      if (!sentInput && stdout.includes("[Enter] 执行  1 配置推送和偏好")) {
+      if (!sentInput && stdout.includes("[Enter] 执行  1 查看配置及安装说明")) {
         sentInput = true;
         child.stdin.write("4\nq\n");
         child.stdin.end();
@@ -605,7 +656,7 @@ test("guide moves away from the final step instead of repeating it on enter", as
     assert.equal((stdout.match(/准备自动化 Prompt/g) ?? []).length <= 2, true);
     assert.equal((stdout.match(/保存 tech-events-assistant\.automation\.md/g) ?? []).length <= 2, true);
     assert.equal(stdout.includes("下一步"), false);
-    assert.equal(stdout.includes("[Enter] 执行  1 配置推送和偏好"), true);
+    assert.equal(stdout.includes("[Enter] 执行  1 查看配置及安装说明"), true);
     assert.equal(stdout.includes("✓ 导入 Codex 自动化配置已完成"), false);
     assert.equal(stdout.includes("🤖 1 配置推送和偏好"), false);
     assert.equal(stderr, "");
@@ -618,60 +669,58 @@ test("guide moves away from the final step instead of repeating it on enter", as
   }
 });
 
-test("status step renders staged success before status details", async () => {
-  const child = spawn(process.execPath, ["scripts/gba.mjs"], {
-    cwd: rootDir,
-    env: { ...process.env, NO_COLOR: "1" },
-  });
-  let stdout = "";
-  let stderr = "";
-  let sentStatus = false;
-  let sentExit = false;
+test("connection step points users back to push preference setup when targets are missing", async () => {
+  const originalLocalConfig = await readOptionalFile(localConfigPath);
+  try {
+    await rm(localConfigPath, { force: true });
+    const child = spawn(process.execPath, ["scripts/gba.mjs"], {
+      cwd: rootDir,
+      env: {
+        ...process.env,
+        NO_COLOR: "1",
+        FEISHU_WEBHOOK_URL: "",
+        SERVERCHAN_SENDKEY: "",
+      },
+    });
+    let stdout = "";
+    let stderr = "";
+    let sentConnection = false;
+    let sentExit = false;
 
-  child.stdout.setEncoding("utf8");
-  child.stderr.setEncoding("utf8");
-  child.stdout.on("data", (chunk) => {
-    stdout += chunk;
-    if (!sentStatus && stdout.includes("[Enter] 执行  1 配置推送和偏好")) {
-      sentStatus = true;
-      child.stdin.write("3\n");
+    child.stdout.setEncoding("utf8");
+    child.stderr.setEncoding("utf8");
+    child.stdout.on("data", (chunk) => {
+      stdout += chunk;
+      if (!sentConnection && stdout.includes("[Enter] 执行  1 查看配置及安装说明")) {
+        sentConnection = true;
+        child.stdin.write("3\n");
+      }
+      if (!sentExit && stdout.includes("未检测到真实 webhook / SendKey")) {
+        sentExit = true;
+        child.stdin.write("q\n");
+        child.stdin.end();
+      }
+    });
+    child.stderr.on("data", (chunk) => {
+      stderr += chunk;
+    });
+
+    const status = await new Promise((resolve) => {
+      child.on("exit", (code) => resolve(code));
+    });
+
+    assert.equal(status, 0);
+    assert.equal(stdout.includes("3 飞书/微信连接"), true);
+    assert.equal(stdout.includes("未检测到真实 webhook / SendKey；请先执行第 2 步配置推送地址偏好"), true);
+    assert.equal(stdout.includes("执行第 2 步测试真实连接"), false);
+    assert.equal(stderr, "");
+  } finally {
+    if (originalLocalConfig === null) {
+      await rm(localConfigPath, { force: true });
+    } else {
+      await writeFile(localConfigPath, originalLocalConfig);
     }
-    if (!sentExit && stdout.includes("Codex：")) {
-      sentExit = true;
-      child.stdin.write("q\n");
-      child.stdin.end();
-    }
-  });
-  child.stderr.on("data", (chunk) => {
-    stderr += chunk;
-  });
-
-  const status = await new Promise((resolve) => {
-    child.on("exit", (code) => resolve(code));
-  });
-
-  assert.equal(status, 0);
-  assert.equal(stdout.includes("🤖 3 查看配置状态"), false);
-  assert.equal(stdout.includes("├─ ✓ 读取配置文件"), true);
-  assert.equal(stdout.includes("├─ ✓ 检查推送通道"), true);
-  assert.equal(stdout.includes("├─ ✓ 检查自动化 Prompt"), true);
-  assert.equal(stdout.includes("└─ ✓ 展示当前状态"), true);
-  assert.equal(stdout.includes("配置状态已生成"), false);
-  assert.equal(stdout.includes("生成状态摘要"), false);
-  assert.equal(stdout.includes("结果  配置状态已生成"), false);
-  assert.equal(stdout.includes("✓ 状态检查完成"), false);
-  assert.equal(stdout.includes("✓ 状态检查已完成"), false);
-  assert.equal(stdout.includes("普通配置（可提交，控制助手偏好）"), false);
-  assert.equal(stdout.includes("本机私密配置（.gitignore，不提交，保存 webhook/SendKey）"), false);
-  assert.equal(stdout.includes("推送通知"), true);
-  assert.match(stdout, /飞书：.*飞书群/);
-  assert.match(stdout, /Server 酱：.*微信/);
-  assert.equal(stdout.includes("自动化"), true);
-  assert.equal(stdout.includes("每天 07:00 自动运行"), true);
-  assert.equal(stdout.includes("接下来"), false);
-  assert.equal(stdout.includes("执行第 2 步测试真实连接"), false);
-  assert.equal(stdout.indexOf("└─ ✓ 展示当前状态") < stdout.indexOf("推送通知"), true);
-  assert.equal(stderr, "");
+  }
 });
 
 test("dry-run prints a completed step flow instead of a digital progress bar", () => {
@@ -715,7 +764,7 @@ test("interactive connection check tests real targets without showing local pref
     stdout += chunk;
     if (!sentCheck && stdout.includes("[Enter] 执行当前步骤")) {
       sentCheck = true;
-      child.stdin.write("2\n");
+      child.stdin.write("3\n");
     }
     if (!sentExit && stdout.includes("已检测到真实配置，未发送测试消息")) {
       sentExit = true;
@@ -733,7 +782,7 @@ test("interactive connection check tests real targets without showing local pref
 
   try {
     assert.equal(status, 0);
-    assert.equal(stdout.includes("测试真实连接"), true);
+    assert.equal(stdout.includes("3 飞书/微信连接"), true);
     assert.equal(stdout.includes("本地预检（不发送）"), false);
     assert.equal(stdout.includes("是否发送一条测试消息到已配置通道"), false);
     assert.equal(stdout.includes(`完成  ${neonBar} 100%`), true);

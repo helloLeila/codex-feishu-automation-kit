@@ -39,12 +39,12 @@ const DEFAULT_AUTOMATION_NAME = "线下技术活动情报晨报";
 const FEISHU_CUSTOM_BOT_DOC_URL = "https://open.feishu.cn/document/client-docs/bot-v3/add-custom-bot";
 const SERVERCHAN_SENDKEY_URL = "https://sct.ftqq.com/login";
 const GUIDE_STEPS = [
-  "配置推送和偏好",
-  "测试真实连接",
-  "查看配置状态",
-  "导入 Codex 自动化配置",
+  "查看配置及安装说明",
+  "配置推送地址偏好",
+  "测试飞书/微信连接",
+  "codex剪切板一键导入任务",
 ];
-const GUIDE_STEP_SHORT_LABELS = ["配置推送偏好", "测试真实连接", "查看配置状态", "导入自动化"];
+const GUIDE_STEP_SHORT_LABELS = ["配置及安装", "推送地址偏好", "飞书/微信连接", "剪切板导入"];
 
 function guideStepTitle(index) {
   return `${index + 1} ${GUIDE_STEPS[index]}`;
@@ -422,7 +422,7 @@ node skills/feishu-automation-reporter/scripts/push-gba-events-to-serverchan.mjs
 
 function copyTextToClipboard(text) {
   if (process.env.TECH_EVENTS_ASSISTANT_SKIP_CLIPBOARD === "1") {
-    return { copied: false, reason: "已按环境变量跳过剪贴板" };
+    return { copied: false, reason: "已按环境变量跳过剪切板" };
   }
 
   const commandSets = {
@@ -440,7 +440,7 @@ function copyTextToClipboard(text) {
     if (result.status === 0) return { copied: true };
   }
 
-  return { copied: false, reason: "未找到可用剪贴板命令" };
+  return { copied: false, reason: "未找到可用剪切板命令" };
 }
 
 function openExternalUrl(url) {
@@ -464,6 +464,26 @@ function openExternalUrl(url) {
   }
 
   return { opened: false, reason: "没有找到可用的浏览器打开命令" };
+}
+
+function openConfigFileInEditor(filePath) {
+  if (process.env.TECH_EVENTS_ASSISTANT_SKIP_EDITOR === "1") {
+    return { opened: false, reason: "已按环境变量跳过编辑器打开" };
+  }
+
+  const commandSets = {
+    darwin: [["code", filePath], ["open", "-a", "Visual Studio Code", filePath], ["open", filePath]],
+    win32: [["code.cmd", filePath], ["cmd", "/c", "start", "", filePath]],
+    linux: [["code", filePath], ["xdg-open", filePath]],
+  };
+  const commands = commandSets[process.platform] ?? commandSets.linux;
+
+  for (const [command, ...args] of commands) {
+    const result = spawnSync(command, args, { stdio: "ignore" });
+    if (result.status === 0) return { opened: true };
+  }
+
+  return { opened: false, reason: "没有找到可用的 VS Code 打开命令" };
 }
 
 function copySetupLinkToClipboard(text) {
@@ -519,9 +539,58 @@ async function prepareConfigFile() {
   console.log(statusLine("配置文件已就绪", "ok"));
 }
 
+function pushSwitchText(value) {
+  return value ? "开启" : "关闭";
+}
+
+function printConfigSummary(config) {
+  const automation = resolveAutomationSettings(config);
+  const eventSearch = resolveEventSearchConfig(config);
+  console.log(color("当前配置", "cyan"));
+  console.log(statusLine(`助手名称：${stringValue(config.assistantName, "技术活动助手")}`, "info"));
+  console.log(statusLine(`时间窗口：${stringValue(config.schedule?.window, "run-day-00:00-plus-15-days")}`, "info"));
+  console.log(statusLine(`自动化：${automation.frequency} ${automation.time} · ${automation.timezone}`, "info"));
+  console.log(statusLine(`活动范围：${eventSearch.regionName} · 未来 ${eventSearch.windowDays} 天`, "info"));
+  console.log(statusLine(
+    `推送开关：飞书${pushSwitchText(config.push?.feishu)}，Server 酱${pushSwitchText(config.push?.serverChan)}`,
+    "info",
+  ));
+}
+
+function printInstallNotes() {
+  console.log(color("安装说明", "cyan"));
+  console.log(statusLine("运行 npm run gba 后按 1-4 选择步骤", "info"));
+  console.log(statusLine("第 2 步保存 webhook / SendKey 到 tech-events-assistant.local.json", "info"));
+  console.log(statusLine("第 4 步生成自动化 Prompt 并复制到剪切板", "info"));
+}
+
+async function showConfigAndInstallGuide() {
+  const configPath = path.join(rootDir, CONFIG_FILE);
+  const config = await loadAssistantConfig(rootDir);
+  const run = printCompletedSteps(
+    guideStepTitle(0),
+    ["读取当前配置", "展示安装说明", "打开配置文件"],
+    "配置及安装说明已展示",
+  );
+  run.showResult = false;
+  console.log("");
+  printConfigSummary(config);
+  console.log("");
+  printInstallNotes();
+  console.log("");
+  console.log(statusLine(`${CONFIG_FILE} 这个配置可以修改；已尝试用 VS Code 打开。`, "info"));
+  const editor = openConfigFileInEditor(configPath);
+  if (editor.opened) {
+    console.log(statusLine(`已打开 ${CONFIG_FILE}`, "ok"));
+  } else {
+    console.log(statusLine(`配置文件未打开：${editor.reason}`, "warn"));
+  }
+  return run;
+}
+
 async function runSaveSteps(resultLabel) {
   const steps = ["读取现有配置", "合并本次输入", "写入本地配置", "准备推送脚本"];
-  return await runAnimatedStepFlow(guideStepTitle(0), steps, resultLabel, {
+  return await runAnimatedStepFlow(guideStepTitle(1), steps, resultLabel, {
     progress: true,
     delayMs: 90,
   });
@@ -586,7 +655,7 @@ async function configurePush(rl) {
   if (!result.saved) {
     console.log(statusLine("未保存，原配置保持不变", "warn"));
     return {
-      title: guideStepTitle(0),
+      title: guideStepTitle(1),
       steps: ["读取现有配置", "等待用户输入", "保持原配置"],
       result: "未保存，原配置保持不变",
     };
@@ -759,9 +828,9 @@ async function runConnectionCheck(rl) {
   ].filter(Boolean);
 
   if (enabledTargets.length === 0) {
-    console.log(statusLine("未检测到真实 webhook / SendKey；请先执行第 1 步配置推送", "warn"));
+    console.log(statusLine("未检测到真实 webhook / SendKey；请先执行第 2 步配置推送地址偏好", "warn"));
     return {
-      title: guideStepTitle(1),
+      title: guideStepTitle(2),
       steps: ["检查推送通道"],
       result: "未检测到真实 webhook / SendKey",
     };
@@ -783,17 +852,17 @@ async function runConnectionCheck(rl) {
     const result = process.env.TECH_EVENTS_ASSISTANT_SKIP_REAL_SEND === "1"
       ? "已检测到真实配置，未发送测试消息"
       : "真实连接测试通过，已发送测试消息";
-    await runAnimatedStepFlow(guideStepTitle(1), steps, result, {
+    await runAnimatedStepFlow(guideStepTitle(2), steps, result, {
       progress: true,
     });
     for (const summary of responseSummaries) {
       console.log(statusLine(summary, "ok"));
     }
-    return { title: guideStepTitle(1), steps, result };
+    return { title: guideStepTitle(2), steps, result };
   } catch (error) {
     console.log(statusLine(`真实连接测试失败：${error.message}`, "error"));
     return {
-      title: guideStepTitle(1),
+      title: guideStepTitle(2),
       steps,
       result: `真实连接测试失败：${error.message}`,
     };
@@ -812,10 +881,10 @@ async function createAutomationWizard() {
   await writeFile(promptPath, promptText);
   const clipboard = copyTextToClipboard(promptText);
   const steps = clipboard.copied
-    ? ["准备自动化 Prompt", `保存 ${AUTOMATION_PROMPT_FILE}`, "检查推送配置", "复制 Prompt 到剪贴板"]
+    ? ["准备自动化 Prompt", `保存 ${AUTOMATION_PROMPT_FILE}`, "检查推送配置", "复制 Prompt 到剪切板"]
     : ["准备自动化 Prompt", `保存 ${AUTOMATION_PROMPT_FILE}`, "检查推送配置", "准备手动复制文件"];
   const result = clipboard.copied
-    ? `Prompt 已保存到 ${AUTOMATION_PROMPT_FILE}，并复制到剪贴板`
+    ? `Prompt 已保存到 ${AUTOMATION_PROMPT_FILE}，并复制到剪切板`
     : `Prompt 已保存到 ${AUTOMATION_PROMPT_FILE}`;
 
   const run = await runAnimatedStepFlow(guideStepTitle(3), steps, result, {
@@ -837,9 +906,9 @@ async function createAutomationWizard() {
     "按 Enter 直接运行",
     "在自动化会看到新增一个自动化推送任务，点击运行查看效果",
   ]).join("\n"));
-  if (!clipboard.copied) console.log(statusLine(`未复制剪贴板：${clipboard.reason}`, "warn"));
+  if (!clipboard.copied) console.log(statusLine(`未复制剪切板：${clipboard.reason}`, "warn"));
   if (!pushConfigured) {
-    console.log(statusLine("当前未检测到推送密钥；可先创建自动化，之后用菜单 1 配置推送", "warn"));
+    console.log(statusLine("当前未检测到推送密钥；可先创建自动化，之后用菜单 2 配置推送地址偏好", "warn"));
   }
   return run;
 }
@@ -852,17 +921,17 @@ function printMenu(options = {}) {
     console.log("");
     console.log(color("手动菜单（g 返回引导，0 退出）", "cyan"));
   }
-  console.log("1. 配置推送和偏好");
-  console.log("2. 测试真实连接");
-  console.log("3. 查看配置状态");
-  console.log("4. 导入 Codex 自动化配置");
+  console.log("1. 查看配置及安装说明");
+  console.log("2. 配置推送地址偏好");
+  console.log("3. 测试飞书/微信连接");
+  console.log("4. codex剪切板一键导入任务");
   console.log("0. 退出");
 }
 
 async function runStepByIndex(index, rl) {
-  if (index === 0) return await configurePush(rl);
-  if (index === 1) return await runConnectionCheck(rl);
-  if (index === 2) return await printStatus({ stepIndex: 2 });
+  if (index === 0) return await showConfigAndInstallGuide();
+  if (index === 1) return await configurePush(rl);
+  if (index === 2) return await runConnectionCheck(rl);
   if (index === 3) return await createAutomationWizard();
   return null;
 }
@@ -870,9 +939,9 @@ async function runStepByIndex(index, rl) {
 async function handleChoice(choice, rl) {
   if (choice === "0") return "exit";
   if (choice.toLowerCase() === "g") return "guide";
-  if (choice === "1") await configurePush(rl);
-  else if (choice === "2") await runConnectionCheck(rl);
-  else if (choice === "3") await printStatus({ stepIndex: 2 });
+  if (choice === "1") await showConfigAndInstallGuide();
+  else if (choice === "2") await configurePush(rl);
+  else if (choice === "3") await runConnectionCheck(rl);
   else if (choice === "4") await createAutomationWizard();
   else {
     console.log(statusLine("没识别这个选项，输入 0 可以退出", "warn"));

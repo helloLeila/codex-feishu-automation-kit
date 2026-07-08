@@ -37,7 +37,7 @@ GitHub：
 npm run gba
 ```
 
-然后在菜单里选择 `配置推送和偏好`。工具会先帮你打开飞书自定义机器人文档和 Server 酱登录页；登录后查看 SendKey。密钥会保存到 `tech-events-assistant.local.json`，这个文件不要提交。
+然后在菜单里选择 `配置推送地址偏好`。工具会先帮你打开飞书自定义机器人文档和 Server 酱登录页；登录后查看 SendKey。密钥会保存到 `tech-events-assistant.local.json`，这个文件不要提交。
 
 旧工作流仍然可以使用 `.env.local`：
 
@@ -139,7 +139,7 @@ node scripts/push-ai-daily-to-serverchan.mjs <生成的Markdown文件路径>
 
 ## 推荐自动化 prompt：线下技术活动
 
-更省事的方式：运行 `npm run gba`，按默认 4 步引导走到 `导入自动化`。工具会读取 `tech-events-assistant.config.json`，生成 `tech-events-assistant.automation.md` 并尽量复制到剪贴板，然后列出要做的事情：打开 Codex 的「自动化（已安排）」、选择「通过聊天添加」、粘贴 Prompt、按 Enter 直接运行，并在自动化列表里点击新任务查看效果。
+更省事的方式：运行 `npm run gba`，按默认 4 步引导走到 `codex剪切板一键导入任务`。工具会读取 `tech-events-assistant.config.json`，生成 `tech-events-assistant.automation.md` 并尽量复制到剪切板，然后列出要做的事情：打开 Codex 的「自动化（已安排）」、选择「通过聊天添加」、粘贴 Prompt、按 Enter 直接运行，并在自动化列表里点击新任务查看效果。
 
 名称、频率、运行时间、时区、检索区域、城市、领域、来源和交通出发点都来自配置文件：
 

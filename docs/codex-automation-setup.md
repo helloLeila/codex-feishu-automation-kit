@@ -57,17 +57,17 @@ SERVERCHAN_SENDKEY="<SERVERCHAN_SENDKEY>"
 
 ## 密钥读取顺序
 
-脚本按顺序读取：
+脚本先合并本地文件，再让进程环境变量覆盖本地值：
 
-1. 进程环境变量：
+1. 当前运行目录下的 `.env.local`。
+2. 当前运行目录下的 `tech-events-assistant.local.json`。
+3. `FEISHU_ENV_FILE` 或 `SERVERCHAN_ENV_FILE` 指向的 env 文件。
+4. 进程环境变量：
    - `FEISHU_WEBHOOK_URL`
    - `FEISHU_WEBHOOK_SECRET`
    - `SERVERCHAN_SENDKEY`
-2. `FEISHU_ENV_FILE` 或 `SERVERCHAN_ENV_FILE` 指向的 env 文件。
-3. 当前运行目录下的 `tech-events-assistant.local.json`。
-4. 当前运行目录下的 `.env.local`。
 
-这样可以避免硬编码本地路径，也能兼容本地目录、git worktree 和 CI。
+后读取的同名值覆盖先读取的值；进程环境变量优先级最高。这样可以避免硬编码本地路径，也能兼容本地目录、git worktree 和 CI。
 
 ## 把脚本复制到已有工作区
 
@@ -139,12 +139,12 @@ node scripts/push-ai-daily-to-serverchan.mjs <生成的Markdown文件路径>
 
 ## 推荐自动化 prompt：大湾区活动
 
-更省事的方式：运行 `npm run gba`，按默认 5 步引导走到 `导入 Codex 自动化配置`。工具会生成 `tech-events-assistant.automation.md` 并尽量复制到剪贴板，然后列出要做的事情：打开 Codex 的「自动化（已安排）」、选择「通过聊天添加」、粘贴 Prompt，名称建议填“线下技术活动情报晨报”，时间设置为每天 07:00（Asia/Shanghai，早上 7 点）。下面的 prompt 仍保留给需要手动复制或二次修改的人。
+更省事的方式：运行 `npm run gba`，按默认 4 步引导走到 `导入自动化`。工具会生成 `tech-events-assistant.automation.md` 并尽量复制到剪贴板，然后列出要做的事情：打开 Codex 的「自动化（已安排）」、选择「通过聊天添加」、粘贴 Prompt、按 Enter 直接运行，并在自动化列表里点击新任务查看效果。名称、频率、运行时间和时区已经写在 Prompt 里，不需要用户再手动填写。下面的 prompt 仍保留给需要手动复制或二次修改的人。
 
 ```text
 建议自动化时间：每天 07:00（Asia/Shanghai，早上 7 点）。
 
-检索未来两周（从本周一 00:00 至下周日 23:59）大湾区值得 AI、互联网、开发者、科研人群关注的线下真实技术活动，生成 Markdown 活动清单文件。
+检索从运行当天 00:00 开始、未来 15 天内大湾区值得 AI、互联网、开发者、科研人群关注的线下真实技术活动，生成 Markdown 活动清单文件。
 
 目标不是只找高校讲座，而是尽量找满 10 个可公开核验、真实可去、技术主题明确的活动。
 

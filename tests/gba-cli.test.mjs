@@ -428,10 +428,10 @@ test("automation wizard writes a prompt file and gives one paste step", async ()
     assert.equal(stdout.includes("2. 点击「通过聊天添加」"), true);
     assert.equal(stdout.includes("3. 打开 tech-events-assistant.automation.md，复制并粘贴 Prompt"), true);
     assert.equal(stdout.includes("4. 按 Enter 直接运行"), true);
+    assert.equal(stdout.includes("5. 在自动化会看到新增一个自动化推送任务，点击运行查看效果"), true);
     assert.equal(stdout.includes("名称填「线下技术活动情报晨报」"), false);
     assert.equal(stdout.includes("运行时间设为每天 07:00 · Asia/Shanghai"), false);
     assert.equal(stdout.includes("保存并运行"), false);
-    assert.equal(stdout.includes("5. "), false);
     assert.equal(stdout.includes("7. Prompt 文件"), false);
     assert.equal(stdout.includes("8. 剪贴板"), false);
     assert.equal(stdout.includes("最近执行"), false);

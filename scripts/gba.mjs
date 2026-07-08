@@ -715,6 +715,7 @@ async function createAutomationWizard() {
       ? "粘贴刚才复制的 Prompt"
       : `打开 ${AUTOMATION_PROMPT_FILE}，复制并粘贴 Prompt`,
     "按 Enter 直接运行",
+    "在自动化会看到新增一个自动化推送任务，点击运行查看效果",
   ]).join("\n"));
   if (!clipboard.copied) console.log(statusLine(`未复制剪贴板：${clipboard.reason}`, "warn"));
   if (!pushConfigured) {

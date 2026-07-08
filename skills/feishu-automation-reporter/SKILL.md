@@ -10,7 +10,7 @@ description: 用于把 Codex 自动化或 Markdown 生成流程接入飞书 / La
 典型场景：
 
 - AI 行业日报生成后推送飞书或 Server 酱。
-- 大湾区活动清单生成后推送飞书或 Server 酱。
+- 线下技术活动清单生成后推送飞书或 Server 酱。
 - 飞书负责完整卡片展示，Server 酱负责手机提醒。
 - 配置 `tech-events-assistant.local.json`、`.env.local`、webhook、SendKey、签名校验、dry-run 验证和未推送排查。
 
@@ -36,8 +36,8 @@ SERVERCHAN_SENDKEY="<SERVERCHAN_SENDKEY>"
 4. 选择脚本：
    - AI 行业日报到飞书：`scripts/push-ai-daily-to-feishu.mjs`
    - AI 行业日报到 Server 酱：`scripts/push-ai-daily-to-serverchan.mjs`
-   - 大湾区活动清单到飞书：`scripts/push-gba-events-to-feishu.mjs`
-   - 大湾区活动清单到 Server 酱：`scripts/push-gba-events-to-serverchan.mjs`
+   - 线下技术活动清单到飞书：`scripts/push-gba-events-to-feishu.mjs`
+   - 线下技术活动清单到 Server 酱：`scripts/push-gba-events-to-serverchan.mjs`
 5. 在自动化 prompt 的 Markdown 生成步骤之后追加推送命令。
 6. 使用 `node --check`、`FEISHU_DRY_RUN=1` 和 `SERVERCHAN_DRY_RUN=1` 验证。
 
@@ -71,6 +71,8 @@ cp skills/feishu-automation-reporter/scripts/push-ai-daily-to-serverchan.mjs scr
 cp skills/feishu-automation-reporter/scripts/push-gba-events-to-serverchan.mjs scripts/
 cp skills/feishu-automation-reporter/scripts/lib/*.mjs scripts/lib/
 ```
+
+活动推送脚本会读取当前工作区的 `tech-events-assistant.config.json`，用 `eventSearch.regionName` 生成飞书卡片头和 Server 酱标题。例如改成 `"regionName": "长三角"` 后，标题会变成 `长三角活动`。
 
 ## 推荐自动化 prompt 片段
 

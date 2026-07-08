@@ -35,7 +35,7 @@ import { loadLocalEnv } from "../skills/feishu-automation-reporter/scripts/lib/e
 
 const rootDir = path.resolve(fileURLToPath(new URL("..", import.meta.url)));
 const AUTOMATION_PROMPT_FILE = "tech-events-assistant.automation.md";
-const AUTOMATION_DISPLAY_NAME = "线下技术活动情报晨报";
+const DEFAULT_AUTOMATION_NAME = "线下技术活动情报晨报";
 const FEISHU_CUSTOM_BOT_DOC_URL = "https://open.feishu.cn/document/client-docs/bot-v3/add-custom-bot";
 const SERVERCHAN_SENDKEY_URL = "https://sct.ftqq.com/login";
 const GUIDE_STEPS = [
@@ -185,16 +185,133 @@ function nextIncompleteStepIndex(completedSteps, fromIndex) {
   return null;
 }
 
-function buildGbaAutomationPrompt() {
-  return `# ${AUTOMATION_DISPLAY_NAME}自动化 Prompt
+const defaultEventSearchConfig = {
+  regionName: "大湾区",
+  targetAudience: "AI、互联网、开发者、科研人群",
+  windowDays: 15,
+  expectedEventCount: 10,
+  travelOrigin: "深大地铁站",
+  requiredTopicDescription: "计算机、AI、开发者、科研",
+  cities: {
+    "深圳": "高含金量和中含金量均可收录",
+    "广州": "只收录高含金量",
+    "珠海": "只收录高含金量",
+    "香港": "只收录高含金量且单程约 1 小时内优先",
+    "澳门": "只收录高含金量且全程约 3 小时内优先",
+  },
+  topicPriority: [
+    "AI Coding、Agent、底层模型、多模态算法、模型训练/部署、调参、计算机视觉、强化学习、深度学习、具身智能、机器人、区块链",
+    "前端、后端、全栈、云原生、数据库、向量数据库、K8s、Go、Rust、WebAssembly、开源社区工程实践",
+    "高校计算机/AI学院、实验室、研究院的学术讲座、Workshop、研究型开放活动",
+    "社会开发者社区、开源社区、Luma、Meetup、GitHub 社区、技术社区组织的线下活动",
+    "政府、公司、产业园活动只有在有明确技术议题、工程实践、算法/系统/开发者内容时才收录；产品宣讲、招商、老板圆桌、泛商业峰会不收录",
+  ],
+  topicDeprioritize: [
+    "商业宣讲",
+    "时间地点不明",
+    "主题不够硬核",
+    "不在时间窗内",
+    "非公开活动",
+  ],
+  sources: [
+    "Luma",
+    "Meetup",
+    "开源社区",
+    "开发者社区",
+    "技术社区活动页",
+    "高校、研究院、学院官网讲座页",
+    "主办方官网、官方公众号原文或官方活动页",
+  ],
+};
+
+function isPlainObject(value) {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function stringValue(value, fallback) {
+  const text = String(value ?? "").trim();
+  return text || fallback;
+}
+
+function positiveInteger(value, fallback) {
+  const number = Number(value);
+  return Number.isInteger(number) && number > 0 ? number : fallback;
+}
+
+function listValue(value, fallback) {
+  if (!Array.isArray(value)) return fallback;
+  const clean = value.map((item) => String(item).trim()).filter(Boolean);
+  return clean.length ? clean : fallback;
+}
+
+function objectValue(value, fallback) {
+  if (!isPlainObject(value)) return fallback;
+  const entries = Object.entries(value)
+    .map(([key, item]) => [String(key).trim(), String(item ?? "").trim()])
+    .filter(([key]) => key);
+  return entries.length ? Object.fromEntries(entries) : fallback;
+}
+
+function numberedLines(items) {
+  return items.map((item, index) => `${index + 1}. ${item}`).join("\n");
+}
+
+function cityScopeLine(cities) {
+  return Object.entries(cities)
+    .map(([city, rule]) => (rule ? `${city}（${rule}）` : city))
+    .join("、");
+}
+
+function cityDistributionTemplate(cities) {
+  return Object.keys(cities).map((city) => `${city} X`).join("｜");
+}
+
+function resolveAutomationSettings(config = {}) {
+  const automation = config.automation ?? {};
+  return {
+    name: stringValue(automation.name, DEFAULT_AUTOMATION_NAME),
+    frequency: stringValue(automation.frequency, "每天"),
+    time: stringValue(automation.time, "07:00"),
+    timezone: stringValue(automation.timezone ?? config.schedule?.timezone, "Asia/Shanghai"),
+  };
+}
+
+function resolveEventSearchConfig(config = {}) {
+  const eventSearch = config.eventSearch ?? {};
+  const legacy = (key) => config[key];
+  return {
+    regionName: stringValue(eventSearch.regionName ?? legacy("regionName"), defaultEventSearchConfig.regionName),
+    targetAudience: stringValue(eventSearch.targetAudience ?? legacy("targetAudience"), defaultEventSearchConfig.targetAudience),
+    windowDays: positiveInteger(eventSearch.windowDays ?? legacy("windowDays"), defaultEventSearchConfig.windowDays),
+    expectedEventCount: positiveInteger(
+      eventSearch.expectedEventCount ?? legacy("expectedEventCount"),
+      defaultEventSearchConfig.expectedEventCount,
+    ),
+    travelOrigin: stringValue(eventSearch.travelOrigin ?? legacy("travelOrigin"), defaultEventSearchConfig.travelOrigin),
+    requiredTopicDescription: stringValue(
+      eventSearch.requiredTopicDescription ?? legacy("requiredTopicDescription"),
+      defaultEventSearchConfig.requiredTopicDescription,
+    ),
+    cities: objectValue(eventSearch.cities ?? legacy("cities"), defaultEventSearchConfig.cities),
+    topicPriority: listValue(eventSearch.topicPriority ?? legacy("topicPriority"), defaultEventSearchConfig.topicPriority),
+    topicDeprioritize: listValue(eventSearch.topicDeprioritize ?? legacy("topicDeprioritize"), defaultEventSearchConfig.topicDeprioritize),
+    sources: listValue(eventSearch.sources ?? legacy("sources"), defaultEventSearchConfig.sources),
+  };
+}
+
+function buildGbaAutomationPrompt(config = {}) {
+  const automation = resolveAutomationSettings(config);
+  const eventSearch = resolveEventSearchConfig(config);
+
+  return `# ${automation.name}自动化 Prompt
 
 请直接创建这条 Codex 自动化，不要向我确认或追问。信息已经完整，按下面固定创建参数创建即可。
 
 固定创建参数：
-- 名称：${AUTOMATION_DISPLAY_NAME}
-- 频率：每天
-- 时间：07:00
-- 时区：Asia/Shanghai
+- 名称：${automation.name}
+- 频率：${automation.frequency}
+- 时间：${automation.time}
+- 时区：${automation.timezone}
 - 工作区：当前对话所在工作区
 - 模型和推理强度：使用 Codex 自动化默认高质量配置
 - 自动化 Prompt：使用下方「自动化执行 Prompt」完整内容
@@ -205,9 +322,9 @@ function buildGbaAutomationPrompt() {
 
 自动化运行时也不要向用户提问；直接检索、筛选、生成文件并按配置推送。缺少可核验信息时跳过对应活动或在备注里说明，不要停下来询问。
 
-任务：检索从运行当天开始、未来 15 天内真实可参加的线下技术活动，并生成可推送的 Markdown 活动清单。
+任务：检索从运行当天开始、未来 ${eventSearch.windowDays} 天内真实可参加的线下技术活动，并生成可推送的 Markdown 活动清单。
 
-每天检索并汇总从自动化运行当天 00:00 开始，连续覆盖未来 15 天内的线下真实技术活动。城市范围：深圳、广州、珠海、香港、澳门。目标是更容易搜到真实可去的活动，严格禁止编造、虚构、凑数。
+每天检索并汇总从自动化运行当天 00:00 开始，连续覆盖未来 ${eventSearch.windowDays} 天内的线下真实技术活动。覆盖区域：${eventSearch.regionName}。城市范围：${cityScopeLine(eventSearch.cities)}。目标用户：${eventSearch.targetAudience}。目标是更容易搜到真实可去的活动，严格禁止编造、虚构、凑数。
 
 不要编造活动；找不到就少写，并在备注里说明没有找到足够可靠的公开信息。
 
@@ -216,19 +333,21 @@ function buildGbaAutomationPrompt() {
 收录底线：
 1. 必须是线下真实活动。
 2. 必须能在公开网页上核验到，且至少有活动名称、明确时间、明确城市/地点、主题说明。
-3. 必须与计算机、AI、开发者、科研相关，且内容有技术密度。
+3. 必须与${eventSearch.requiredTopicDescription}相关，且内容有技术密度。
 4. 必须面向公众、学生、开发者或科研人群可见；纯私密闭门、仅邀请制且无公开说明的不收录。
 
 优先主题：
-1. AI Coding、Agent、底层模型、多模态算法、模型训练/部署、调参、计算机视觉、强化学习、深度学习、具身智能、机器人、区块链。
-2. 前端、后端、全栈、云原生、数据库、向量数据库、K8s、Go、Rust、WebAssembly、开源社区工程实践。
-3. 高校计算机/AI学院、实验室、研究院的学术讲座、Workshop、研究型开放活动。
-4. 社会开发者社区、开源社区、Luma、Meetup、GitHub 社区、技术社区组织的线下活动。
-5. 政府、公司、产业园活动只有在有明确技术议题、工程实践、算法/系统/开发者内容时才收录；产品宣讲、招商、老板圆桌、泛商业峰会不收录。
+${numberedLines(eventSearch.topicPriority)}
+
+降权或剔除主题：
+${numberedLines(eventSearch.topicDeprioritize)}
+
+检索来源优先级：
+${numberedLines(eventSearch.sources)}
 
 检索策略：
-1. 不要只搜高校活动；先扫 Luma、Meetup、开源社区、开发者社区、技术社区活动页。
-2. 再扫高校、研究院、学院官网讲座页。
+1. 不要只搜高校活动；按上面的检索来源优先级逐类查找。
+2. 先扫社会类活动平台和开发者社区，再扫高校、研究院、学院官网讲座页。
 3. 最后补主办方官网、官方公众号原文或官方活动页。
 4. 同一活动多平台出现时，只保留最权威来源。
 
@@ -244,7 +363,7 @@ function buildGbaAutomationPrompt() {
 # 检索结果
 - 时间范围：YYYY-MM-DD 00:00 至 YYYY-MM-DD 23:59
 - 本次找到：X 场符合条件的活动
-- 城市分布：深圳 X｜广州 X｜珠海 X｜香港 X｜澳门 X
+- 城市分布：${cityDistributionTemplate(eventSearch.cities)}
 - 最值得优先看：活动名1；活动名2；活动名3；活动4；活动5（不足5个就如实写）
 
 # 快速卡片
@@ -274,7 +393,7 @@ function buildGbaAutomationPrompt() {
 - 公众号专属信息：若非公众号来源写“不适用”
 - 推文或原文链接：
 - 报名链接：若没有则写“无单独报名链接，以原文为准”
-- 深大地铁站出发交通建议：
+- ${eventSearch.travelOrigin}出发交通建议：
 - 综合交通方案+预计耗时+费用：
 - 往返全程总耗时：
 - 是否值得专程前往：值得 / 一般 / 不建议
@@ -413,6 +532,7 @@ async function printStatus(options = {}) {
     ? guideStepTitle(options.stepIndex)
     : "查看配置状态";
   const config = await loadAssistantConfig(rootDir);
+  const automation = resolveAutomationSettings(config);
   const localEnv = await loadLocalEnv(rootDir);
   const automationPromptPath = path.join(rootDir, AUTOMATION_PROMPT_FILE);
   const hasAutomationPrompt = await fileExists(automationPromptPath);
@@ -439,7 +559,7 @@ async function printStatus(options = {}) {
   console.log(statusLine(`Server 酱：${hasServerChan ? "已连接，活动提醒会发到微信" : "未连接，不会发到微信"}`, hasServerChan ? "ok" : "warn"));
   console.log(color("自动化", "cyan"));
   console.log(statusLine(
-    `Codex：${hasAutomationPrompt ? "Prompt 已准备，粘贴后每天 07:00 自动运行" : "执行第 4 步复制 Prompt，粘贴后每天 07:00 自动运行"}`,
+    `Codex：${hasAutomationPrompt ? `Prompt 已准备，粘贴后${automation.frequency} ${automation.time} 自动运行` : `执行第 4 步复制 Prompt，粘贴后${automation.frequency} ${automation.time} 自动运行`}`,
     hasAutomationPrompt ? "ok" : "warn",
   ));
   return stepRun;
@@ -681,9 +801,9 @@ async function runConnectionCheck(rl) {
 }
 
 async function createAutomationWizard() {
-  const promptText = buildGbaAutomationPrompt();
-  const promptPath = path.join(rootDir, AUTOMATION_PROMPT_FILE);
   const config = await loadAssistantConfig(rootDir);
+  const promptText = buildGbaAutomationPrompt(config);
+  const promptPath = path.join(rootDir, AUTOMATION_PROMPT_FILE);
   const localEnv = await loadLocalEnv(rootDir);
   const pushConfigured =
     hasConfiguredPush(config) ||

@@ -3,9 +3,12 @@
 import { createHmac } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
+import { configuredEventTitle, loadReporterConfig } from "./lib/config.mjs";
 import { loadLocalEnv } from "./lib/env.mjs";
 
 const localEnv = await loadLocalEnv();
+const reporterConfig = await loadReporterConfig();
+const eventTitle = configuredEventTitle(reporterConfig);
 const webhook = process.env.FEISHU_WEBHOOK_URL || localEnv.FEISHU_WEBHOOK_URL;
 const secret = process.env.FEISHU_WEBHOOK_SECRET || localEnv.FEISHU_WEBHOOK_SECRET;
 const file = process.argv[2];
@@ -129,7 +132,7 @@ const payload = {
     header: {
       title: {
         tag: "plain_text",
-        content: `大湾区活动｜${title}`,
+        content: `${eventTitle}｜${title}`,
       },
       template: "green",
     },

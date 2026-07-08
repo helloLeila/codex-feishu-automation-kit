@@ -7,7 +7,7 @@
   "scripts": {
     "gba": "node scripts/gba.mjs",
     "test": "node --test tests/*.test.mjs",
-    "check": "node --check scripts/gba.mjs && node --check scripts/lib/terminal-ui.mjs && node --check scripts/lib/tech-events-config.mjs && node --check skills/feishu-automation-reporter/scripts/lib/env.mjs && node --check skills/feishu-automation-reporter/scripts/lib/markdown-utils.mjs && node --check skills/feishu-automation-reporter/scripts/lib/serverchan.mjs && node --check skills/feishu-automation-reporter/scripts/push-ai-daily-to-feishu.mjs && node --check skills/feishu-automation-reporter/scripts/push-gba-events-to-feishu.mjs && node --check skills/feishu-automation-reporter/scripts/push-ai-daily-to-serverchan.mjs && node --check skills/feishu-automation-reporter/scripts/push-gba-events-to-serverchan.mjs"
+    "check": "node --check scripts/gba.mjs && node --check scripts/lib/terminal-ui.mjs && node --check scripts/lib/tech-events-config.mjs && node --check skills/feishu-automation-reporter/scripts/lib/config.mjs && node --check skills/feishu-automation-reporter/scripts/lib/env.mjs && node --check skills/feishu-automation-reporter/scripts/lib/markdown-utils.mjs && node --check skills/feishu-automation-reporter/scripts/lib/serverchan.mjs && node --check skills/feishu-automation-reporter/scripts/push-ai-daily-to-feishu.mjs && node --check skills/feishu-automation-reporter/scripts/push-gba-events-to-feishu.mjs && node --check skills/feishu-automation-reporter/scripts/push-ai-daily-to-serverchan.mjs && node --check skills/feishu-automation-reporter/scripts/push-gba-events-to-serverchan.mjs"
   },
   "engines": {
     "node": ">=18"

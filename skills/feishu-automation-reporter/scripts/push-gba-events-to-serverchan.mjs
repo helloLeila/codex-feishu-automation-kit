@@ -2,11 +2,14 @@
 
 import { readFile } from "node:fs/promises";
 import path from "node:path";
+import { configuredEventTitle, loadReporterConfig } from "./lib/config.mjs";
 import { loadLocalEnv } from "./lib/env.mjs";
 import { extractTopLevelSection, stripMarkdown, truncate } from "./lib/markdown-utils.mjs";
 import { sendServerChan } from "./lib/serverchan.mjs";
 
 const localEnv = await loadLocalEnv();
+const reporterConfig = await loadReporterConfig();
+const eventTitle = configuredEventTitle(reporterConfig);
 const sendKey = process.env.SERVERCHAN_SENDKEY || localEnv.SERVERCHAN_SENDKEY;
 const file = process.argv[2];
 
@@ -95,6 +98,6 @@ const desp = [
 
 await sendServerChan({
   sendKey,
-  title: "Codex｜大湾区活动",
+  title: `Codex｜${eventTitle}`,
   desp,
 });

@@ -6,6 +6,7 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 const rootDir = path.resolve(fileURLToPath(new URL("..", import.meta.url)));
+const publicConfigPath = path.join(rootDir, "tech-events-assistant.config.json");
 const localConfigPath = path.join(rootDir, "tech-events-assistant.local.json");
 const automationPromptPath = path.join(rootDir, "tech-events-assistant.automation.md");
 const neonBar = "█".repeat(22);
@@ -456,6 +457,117 @@ test("automation wizard writes a prompt file and gives one paste step", async ()
       await rm(automationPromptPath, { force: true });
     } else {
       await writeFile(automationPromptPath, originalAutomationPrompt);
+    }
+  }
+});
+
+test("automation wizard builds the copied prompt from configurable search scope", async () => {
+  const originalConfig = await readOptionalFile(publicConfigPath);
+  const originalPrompt = await readOptionalFile(automationPromptPath);
+
+  try {
+    await writeFile(publicConfigPath, `${JSON.stringify({
+      assistantName: "技术活动助手",
+      schedule: {
+        timezone: "Asia/Shanghai",
+      },
+      automation: {
+        name: "华东技术活动晨报",
+        frequency: "每天",
+        time: "08:30",
+      },
+      eventSearch: {
+        regionName: "长三角",
+        targetAudience: "AI 工程师、数据库开发者",
+        windowDays: 21,
+        expectedEventCount: 6,
+        travelOrigin: "人民广场",
+        cities: {
+          "上海": "高含金量和中含金量均可收录",
+          "杭州": "只收录高含金量",
+        },
+        topicPriority: [
+          "AI Agent 工程化",
+          "数据库内核",
+        ],
+        topicDeprioritize: [
+          "泛商业沙龙",
+        ],
+        sources: [
+          "上海开发者社区",
+          "高校计算机学院",
+        ],
+      },
+      output: {
+        language: "zh-CN",
+      },
+      push: {
+        feishu: true,
+        serverChan: true,
+      },
+    }, null, 2)}\n`);
+
+    const child = spawn(process.execPath, ["scripts/gba.mjs"], {
+      cwd: rootDir,
+      env: {
+        ...process.env,
+        NO_COLOR: "1",
+        TECH_EVENTS_ASSISTANT_SKIP_CLIPBOARD: "1",
+      },
+    });
+    let stdout = "";
+    let stderr = "";
+    let sentGuide = false;
+    let sentExit = false;
+
+    child.stdout.setEncoding("utf8");
+    child.stderr.setEncoding("utf8");
+    child.stdout.on("data", (chunk) => {
+      stdout += chunk;
+      if (!sentGuide && stdout.includes("[Enter] 执行  1 配置推送和偏好")) {
+        sentGuide = true;
+        child.stdin.write("4\n");
+      }
+      if (!sentExit && stdout.includes("在 Codex 中添加自动化")) {
+        sentExit = true;
+        child.stdin.write("0\n");
+        child.stdin.end();
+      }
+    });
+    child.stderr.on("data", (chunk) => {
+      stderr += chunk;
+    });
+
+    const status = await new Promise((resolve) => {
+      child.on("exit", (code) => resolve(code));
+    });
+    const promptText = await readFile(automationPromptPath, "utf8");
+
+    assert.equal(status, 0);
+    assert.equal(stderr, "");
+    assert.equal(promptText.includes("华东技术活动晨报"), true);
+    assert.equal(promptText.includes("- 时间：08:30"), true);
+    assert.equal(promptText.includes("检索从运行当天开始、未来 21 天内"), true);
+    assert.equal(promptText.includes("长三角"), true);
+    assert.equal(promptText.includes("城市范围：上海（高含金量和中含金量均可收录）、杭州（只收录高含金量）"), true);
+    assert.equal(promptText.includes("AI Agent 工程化"), true);
+    assert.equal(promptText.includes("数据库内核"), true);
+    assert.equal(promptText.includes("泛商业沙龙"), true);
+    assert.equal(promptText.includes("上海开发者社区"), true);
+    assert.equal(promptText.includes("人民广场出发交通建议"), true);
+    assert.equal(promptText.includes("深圳、广州、珠海、香港、澳门"), false);
+    assert.equal(promptText.includes("大湾区"), false);
+    assert.equal(promptText.includes("深大地铁站"), false);
+  } finally {
+    if (originalConfig === null) {
+      await rm(publicConfigPath, { force: true });
+    } else {
+      await writeFile(publicConfigPath, originalConfig);
+    }
+    if (originalPrompt === null) {
+      await rm(automationPromptPath, { force: true });
+    } else {
+      await writeFile(automationPromptPath, originalPrompt);
     }
   }
 });

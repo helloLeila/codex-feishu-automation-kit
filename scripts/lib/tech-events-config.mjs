@@ -9,7 +9,7 @@ export const defaultAssistantConfig = {
   assistantName: "技术活动助手",
   schedule: {
     timezone: "Asia/Shanghai",
-    window: "current-monday-00:00-to-next-sunday-23:59",
+    window: "run-day-00:00-plus-15-days",
   },
   output: {
     language: "zh-CN",

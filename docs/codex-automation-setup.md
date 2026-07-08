@@ -137,39 +137,41 @@ node scripts/push-ai-daily-to-serverchan.mjs <生成的Markdown文件路径>
 如果两者都配置，请两个都推送；如果都未配置，请只生成文件并说明未推送。
 ```
 
-## 推荐自动化 prompt：大湾区活动
+## 推荐自动化 prompt：线下技术活动
 
-更省事的方式：运行 `npm run gba`，按默认 4 步引导走到 `导入自动化`。工具会生成 `tech-events-assistant.automation.md` 并尽量复制到剪贴板，然后列出要做的事情：打开 Codex 的「自动化（已安排）」、选择「通过聊天添加」、粘贴 Prompt、按 Enter 直接运行，并在自动化列表里点击新任务查看效果。名称、频率、运行时间和时区已经写在 Prompt 里，不需要用户再手动填写。下面的 prompt 仍保留给需要手动复制或二次修改的人。
+更省事的方式：运行 `npm run gba`，按默认 4 步引导走到 `导入自动化`。工具会读取 `tech-events-assistant.config.json`，生成 `tech-events-assistant.automation.md` 并尽量复制到剪贴板，然后列出要做的事情：打开 Codex 的「自动化（已安排）」、选择「通过聊天添加」、粘贴 Prompt、按 Enter 直接运行，并在自动化列表里点击新任务查看效果。
 
-```text
-建议自动化时间：每天 07:00（Asia/Shanghai，早上 7 点）。
+名称、频率、运行时间、时区、检索区域、城市、领域、来源和交通出发点都来自配置文件：
 
-检索从运行当天 00:00 开始、未来 15 天内大湾区值得 AI、互联网、开发者、科研人群关注的线下真实技术活动，生成 Markdown 活动清单文件。
-
-目标不是只找高校讲座，而是尽量找满 10 个可公开核验、真实可去、技术主题明确的活动。
-
-结果结构尽量按 4:3:3 倾向组织：
-1. 4 个高校 / 研究院 / 学术机构的高含金量技术讲座、研讨会、Workshop。
-2. 3 个社会类开发者社区活动，如 Meetup、Luma、开源社区、独立技术社区线下聚会。
-3. 3 个产业 / 工程实践型但仍然纯技术导向的活动，如 AI 工程、Agent、前端、后端、云原生、数据库、机器人、具身智能等开发者活动。
-
-如果某一类实在找不满，不要编造，也不要凑数；但要先优先补 Luma、Meetup、开源社区、技术社区官方活动页，不要默认只靠学校官网。
-
-检索顺序建议固定为：
-1. 先扫 Luma、Meetup、开源社区、技术社区活动页。
-2. 再扫高校、研究院、学院官网讲座页。
-3. 最后补官方技术社区或主办方官网活动页。
-
-深圳可以同时收录高含金量和中含金量的真实技术社区活动；广州、珠海、香港、澳门仍以高含金量为主。
-
-生成 Markdown 文件后，如果环境变量 FEISHU_WEBHOOK_URL 已配置，或当前目录 tech-events-assistant.local.json / .env.local 中配置了飞书 webhook，请运行：
-node scripts/push-gba-events-to-feishu.mjs <生成的Markdown文件路径>
-
-如果环境变量 SERVERCHAN_SENDKEY 已配置，或当前目录 tech-events-assistant.local.json / .env.local 中配置了 Server 酱 SendKey，请运行：
-node scripts/push-gba-events-to-serverchan.mjs <生成的Markdown文件路径>
-
-如果两者都配置，请两个都推送；如果都未配置，请只生成文件并说明未推送。
+```json
+{
+  "automation": {
+    "name": "线下技术活动情报晨报",
+    "frequency": "每天",
+    "time": "07:00"
+  },
+  "eventSearch": {
+    "regionName": "大湾区",
+    "windowDays": 15,
+    "travelOrigin": "深大地铁站",
+    "cities": {
+      "深圳": "高含金量和中含金量均可收录"
+    },
+    "topicPriority": [
+      "AI Coding",
+      "代码智能体",
+      "云原生 / 数据库 / 后端工程 / 前端工程"
+    ],
+    "sources": [
+      "Luma",
+      "Meetup",
+      "开发者社区"
+    ]
+  }
+}
 ```
+
+要从深圳 / 大湾区改到上海 / 长三角，不要手改生成后的 `tech-events-assistant.automation.md`。请先改 `tech-events-assistant.config.json` 的 `eventSearch`，再重新执行第 4 步生成新的 Prompt。
 
 ## 验证与排查
 

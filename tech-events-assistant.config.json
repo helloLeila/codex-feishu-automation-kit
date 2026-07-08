@@ -2,7 +2,58 @@
   "assistantName": "技术活动助手",
   "schedule": {
     "timezone": "Asia/Shanghai",
-    "window": "current-monday-00:00-to-next-sunday-23:59"
+    "window": "run-day-00:00-plus-15-days"
+  },
+  "automation": {
+    "name": "线下技术活动情报晨报",
+    "frequency": "每天",
+    "time": "07:00"
+  },
+  "eventSearch": {
+    "regionName": "大湾区",
+    "targetAudience": "AI、互联网、开发者、科研人群",
+    "windowDays": 15,
+    "expectedEventCount": 10,
+    "travelOrigin": "深大地铁站",
+    "requiredTopicDescription": "计算机、AI、开发者、科研",
+    "cities": {
+      "深圳": "高含金量和中含金量均可收录",
+      "广州": "只收录高含金量",
+      "珠海": "只收录高含金量",
+      "香港": "只收录高含金量且单程约 1 小时内优先",
+      "澳门": "只收录高含金量且全程约 3 小时内优先"
+    },
+    "topicPriority": [
+      "AI Coding",
+      "代码智能体",
+      "Cursor / Copilot / Claude Code",
+      "大模型训练、微调、推理、部署、调参",
+      "RAG / Agent / 多智能体系统",
+      "多模态算法",
+      "计算机视觉",
+      "强化学习",
+      "深度学习",
+      "具身智能 / 机器人",
+      "区块链 / ZK / 智能合约 / Web3 基础设施",
+      "云原生 / 数据库 / 后端工程 / 前端工程"
+    ],
+    "topicDeprioritize": [
+      "FPCA",
+      "纯计量经济学",
+      "泛商业分析",
+      "没有 AI、工程系统或算法实现关联的普通时序建模"
+    ],
+    "sources": [
+      "Luma",
+      "Meetup",
+      "开源社区",
+      "开发者社区",
+      "公司工程技术社区",
+      "高校计算机 / AI 学院",
+      "研究院 / 实验室",
+      "CCF / ACM / IEEE",
+      "技术园区或政府创新平台的纯技术活动"
+    ]
   },
   "output": {
     "language": "zh-CN",

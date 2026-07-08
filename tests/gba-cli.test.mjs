@@ -520,7 +520,7 @@ test("status step renders staged success before status details", async () => {
       sentStatus = true;
       child.stdin.write("3\n");
     }
-    if (!sentExit && stdout.includes("接下来")) {
+    if (!sentExit && stdout.includes("Codex：")) {
       sentExit = true;
       child.stdin.write("q\n");
       child.stdin.end();
@@ -552,8 +552,8 @@ test("status step renders staged success before status details", async () => {
   assert.match(stdout, /Server 酱：.*微信/);
   assert.equal(stdout.includes("自动化"), true);
   assert.equal(stdout.includes("每天 07:00 自动运行"), true);
-  assert.equal(stdout.includes("接下来"), true);
-  assert.match(stdout, /第 [12] 步/);
+  assert.equal(stdout.includes("接下来"), false);
+  assert.equal(stdout.includes("执行第 2 步测试真实连接"), false);
   assert.equal(stdout.indexOf("└─ ✓ 展示当前状态") < stdout.indexOf("推送通知"), true);
   assert.equal(stderr, "");
 });
@@ -580,6 +580,7 @@ test("interactive connection check tests real targets without showing local pref
   await writeFile(localConfigPath, JSON.stringify({
     push: {
       feishuWebhookUrl: "https://example.test/hook",
+      serverChanSendKey: "SCT123",
     },
   }));
 
@@ -619,8 +620,11 @@ test("interactive connection check tests real targets without showing local pref
     assert.equal(stdout.includes("测试真实连接"), true);
     assert.equal(stdout.includes("本地预检（不发送）"), false);
     assert.equal(stdout.includes("是否发送一条测试消息到已配置通道"), false);
+    assert.equal(stdout.includes(`完成  ${neonBar} 100%`), true);
     assert.equal(stdout.includes("已检测到真实配置，未发送测试消息"), true);
-    assert.equal(stdout.includes("飞书：已检测到配置，按环境变量跳过真实发送"), true);
+    assert.equal(stdout.includes("飞书连接就绪，已检测到配置；本次按环境变量未发送测试消息"), true);
+    assert.equal(stdout.includes("Server 酱连接就绪，已检测到配置；本次按环境变量未发送测试消息"), true);
+    assert.equal(stdout.includes("飞书：已检测到配置，按环境变量跳过真实发送"), false);
     assert.equal(stderr, "");
   } finally {
     if (originalLocalConfig === null) {
@@ -650,7 +654,7 @@ test("feishu connection test returns a readable server response summary", async 
   const { sendFeishuConnectionTest } = await import("../scripts/gba.mjs");
   const summary = await sendFeishuConnectionTest("https://example.test/bot", "");
 
-  assert.equal(summary, "飞书返回：HTTP 200，code 0，msg ok");
+  assert.equal(summary, "飞书连接成功，测试消息已送达飞书群（HTTP 200，code 0，返回成功）");
   assert.equal(requestUrl, "https://example.test/bot");
   assert.equal(requestOptions.method, "POST");
   assert.equal(JSON.parse(requestOptions.body).msg_type, "text");
@@ -673,7 +677,8 @@ test("status prints a user-facing readiness panel instead of raw JSON", () => {
   assert.match(result.stdout, /Server 酱：.*微信/);
   assert.equal(result.stdout.includes("自动化"), true);
   assert.equal(result.stdout.includes("每天 07:00 自动运行"), true);
-  assert.equal(result.stdout.includes("接下来"), true);
+  assert.equal(result.stdout.includes("接下来"), false);
+  assert.equal(result.stdout.includes("执行第 2 步测试真实连接"), false);
   assert.equal(result.stdout.includes("{"), false);
   assert.equal(result.stdout.includes('"push"'), false);
 });

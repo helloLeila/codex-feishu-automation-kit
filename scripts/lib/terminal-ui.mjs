@@ -343,7 +343,9 @@ export function renderGuideDashboardLines(options = {}) {
   if (currentStep !== null) {
     lines.push(avatarCell(2));
   } else {
-    lines.push(`${avatarCell(2)}${avatarGap}${paint("全部步骤已完成", "green", useColor)}`);
+    lines.push(avatarCell(2));
+    lines.push("");
+    lines.push(paint("全部步骤已完成", "green", useColor));
   }
 
   lines.push(`${paint("[Enter]", "cyan", useColor)} 执行当前步骤   ${paint(`[1-${steps.length}]`, "cyan", useColor)} 跳转   ${paint("[b]", "cyan", useColor)} 菜单   ${paint("[q]", "cyan", useColor)} 退出`);

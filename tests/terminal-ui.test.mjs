@@ -231,6 +231,30 @@ test("guide dashboard ignores status rows because status belongs to step three",
   assert.equal(lines.includes("    ✓ Codex：Prompt 已准备，粘贴后每天 07:00 自动运行"), false);
 });
 
+test("completed guide dashboard gives the final state room to breathe", () => {
+  const lines = renderGuideDashboardLines({
+    completedSteps: new Set([0, 1, 2, 3]),
+    currentStep: null,
+    steps: [
+      "配置推送和偏好",
+      "测试真实连接",
+      "查看配置状态",
+      "导入 Codex 自动化配置",
+    ],
+    shortLabels: ["配置推送偏好", "测试真实连接", "查看配置状态", "导入自动化"],
+    color: false,
+  }).map(stripAnsi);
+
+  assert.deepEqual(lines, [
+    "╭─🤖──╮  技术活动助手 · 配置引导 4/4",
+    "│ •ᴗ• │  ● 配置推送偏好   ● 测试真实连接   ● 查看配置状态   ● 导入自动化",
+    "╰─────╯",
+    "",
+    "全部步骤已完成",
+    "[Enter] 执行当前步骤   [1-4] 跳转   [b] 菜单   [q] 退出",
+  ]);
+});
+
 test("banner uses a generic assistant name and wraps every line", () => {
   const lines = renderBannerLines({ color: false }).map(stripAnsi);
   const widths = lines.map(terminalCellWidth);

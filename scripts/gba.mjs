@@ -151,6 +151,11 @@ async function runAnimatedStepFlow(title, steps, result, options = {}) {
     if (index < previousLineCount - 1) output.write("\n");
   }
   if (previousLineCount > 1) output.moveCursor(0, -(previousLineCount - 1));
+  for (const line of finalLines) {
+    output.cursorTo(0);
+    output.clearLine(0);
+    output.write(`${line}\n`);
+  }
   return run;
 }
 
@@ -412,7 +417,6 @@ async function printStatus(options = {}) {
   const hasAutomationPrompt = await fileExists(automationPromptPath);
   const hasFeishu = Boolean(config?.push?.feishuWebhookUrl || localEnv.FEISHU_WEBHOOK_URL);
   const hasServerChan = Boolean(config?.push?.serverChanSendKey || localEnv.SERVERCHAN_SENDKEY);
-  const hasAnyPush = hasFeishu || hasServerChan;
 
   let stepRun = null;
   if (Number.isInteger(options.stepIndex)) {
@@ -437,12 +441,6 @@ async function printStatus(options = {}) {
     `Codex：${hasAutomationPrompt ? "Prompt 已准备，粘贴后每天 07:00 自动运行" : "执行第 4 步复制 Prompt，粘贴后每天 07:00 自动运行"}`,
     hasAutomationPrompt ? "ok" : "warn",
   ));
-  console.log(color("接下来", "cyan"));
-  if (hasAnyPush) {
-    console.log(statusLine("执行第 2 步测试真实连接，确认提醒能收到", "info"));
-  } else {
-    console.log(statusLine("执行第 1 步配置飞书或 Server 酱，否则只会生成文件", "warn"));
-  }
   return stepRun;
 }
 
@@ -554,12 +552,28 @@ function shortText(value, maxLength = 80) {
   return `${text.slice(0, maxLength - 1)}…`;
 }
 
+function successText(value) {
+  const text = String(value ?? "").trim();
+  if (!text) return "返回成功";
+  if (["0", "ok", "success"].includes(text.toLowerCase())) return "返回成功";
+  return `返回 ${shortText(text)}`;
+}
+
 export function formatConnectionResponse(status, result) {
   const parts = [`HTTP ${status}`];
   const code = connectionResponseCode(result);
   const message = connectionResponseMessage(result);
   if (code !== undefined) parts.push(`code ${code}`);
   if (message) parts.push(`msg ${shortText(message)}`);
+  return parts.join("，");
+}
+
+function formatConnectionSuccess(status, result) {
+  const parts = [`HTTP ${status}`];
+  const code = connectionResponseCode(result);
+  const message = connectionResponseMessage(result);
+  if (code !== undefined) parts.push(`code ${code}`);
+  parts.push(successText(message));
   return parts.join("，");
 }
 
@@ -589,7 +603,7 @@ export async function sendFeishuConnectionTest(webhook, secret) {
   if (hasFailureCode(connectionResponseCode(result))) {
     throw new Error(`飞书返回错误：${summary}`);
   }
-  return `飞书返回：${summary}`;
+  return `飞书连接成功，测试消息已送达飞书群（${formatConnectionSuccess(response.status, result)}）`;
 }
 
 async function sendServerChanConnectionTest(sendKey) {
@@ -611,7 +625,7 @@ async function sendServerChanConnectionTest(sendKey) {
   if (hasFailureCode(connectionResponseCode(result))) {
     throw new Error(`Server 酱返回错误：${summary}`);
   }
-  return `Server 酱返回：${summary}`;
+  return `Server 酱连接成功，测试消息已送达微信（${formatConnectionSuccess(response.status, result)}）`;
 }
 
 async function runConnectionCheck(rl) {
@@ -636,7 +650,11 @@ async function runConnectionCheck(rl) {
   try {
     const responseSummaries = [];
     if (process.env.TECH_EVENTS_ASSISTANT_SKIP_REAL_SEND === "1") {
-      responseSummaries.push(...enabledTargets.map((target) => `${target}：已检测到配置，按环境变量跳过真实发送`));
+      responseSummaries.push(...enabledTargets.map((target) => (
+        target === "飞书"
+          ? "飞书连接就绪，已检测到配置；本次按环境变量未发送测试消息"
+          : "Server 酱连接就绪，已检测到配置；本次按环境变量未发送测试消息"
+      )));
     } else {
       if (targets.feishuWebhook) responseSummaries.push(await sendFeishuConnectionTest(targets.feishuWebhook, targets.feishuSecret));
       if (targets.serverChanSendKey) responseSummaries.push(await sendServerChanConnectionTest(targets.serverChanSendKey));
@@ -644,7 +662,9 @@ async function runConnectionCheck(rl) {
     const result = process.env.TECH_EVENTS_ASSISTANT_SKIP_REAL_SEND === "1"
       ? "已检测到真实配置，未发送测试消息"
       : "真实连接测试通过，已发送测试消息";
-    printCompletedSteps(guideStepTitle(1), steps, result);
+    await runAnimatedStepFlow(guideStepTitle(1), steps, result, {
+      progress: true,
+    });
     for (const summary of responseSummaries) {
       console.log(statusLine(summary, "ok"));
     }

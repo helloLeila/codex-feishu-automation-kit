@@ -55,7 +55,7 @@ test("guide starts on configuration after automatic setup", async () => {
   assert.equal((stdout.match(/技术活动助手 · 配置引导/g) ?? []).length, 1);
   assert.equal(stdout.includes("✓ 配置文件已就绪"), true);
   assert.equal(stdout.includes("技术活动助手 · 配置引导 1/4"), true);
-  assert.equal(stdout.includes("│ •ᴗ• │  ◉ 配置推送偏好   ○ 测试真实连接   ○ 查看配置状态   ○ 导入自动化"), true);
+  assert.equal(stdout.includes("│ •ᴗ• │  ◉ 1 配置推送偏好   ○ 2 测试真实连接   ○ 3 查看配置状态   ○ 4 导入自动化"), true);
   assert.equal(stdout.includes("已检测"), false);
   assert.equal(stdout.includes("普通配置"), false);
   assert.equal(stdout.includes("飞书 webhook"), false);
@@ -112,7 +112,7 @@ test("guide advances to the next step and marks previous step complete", async (
   const latestGuide = stdout.slice(stdout.lastIndexOf("╭─🤖──╮  技术活动助手 · 配置引导 2/4"));
   assert.equal(stdout.includes("配置引导"), true);
   assert.equal(stdout.includes("╭─🤖──╮  技术活动助手 · 配置引导 2/4"), true);
-  assert.equal(stdout.includes("│ •ᴗ• │  ● 配置推送偏好   ◉ 测试真实连接"), true);
+  assert.equal(stdout.includes("│ •ᴗ• │  ● 1 配置推送偏好   ◉ 2 测试真实连接"), true);
   assert.equal(stdout.includes("↑ 当前步骤"), false);
   assert.equal(stdout.includes("当前任务\n  测试真实连接"), false);
   assert.equal(stdout.includes("当前任务"), false);
@@ -304,8 +304,11 @@ test("configuration helper can open credential pages or show setup links", async
   assert.equal(stdout.includes("打开取值页面？"), true);
   assert.equal(stdout.includes("飞书自定义机器人文档：https://open.feishu.cn/document/client-docs/bot-v3/add-custom-bot"), true);
   assert.equal(stdout.includes("Server 酱登录页：https://sct.ftqq.com/login"), true);
-  assert.equal(stdout.includes("未自动打开浏览器：已按环境变量跳过浏览器打开"), true);
-  assert.equal(stdout.includes("Server 酱登录页链接已复制到剪贴板"), false);
+  assert.equal(stdout.includes("⚠ 需要手动打开  飞书 · 已按环境变量跳过浏览器打开"), true);
+  assert.equal(stdout.includes("⚠ 需要手动打开  Server 酱 · 已按环境变量跳过浏览器打开"), true);
+  assert.equal(stdout.includes("已打开浏览器："), false);
+  assert.equal(stdout.includes("未自动打开浏览器："), false);
+  assert.equal(stdout.includes("📋 链接已复制    Server 酱 · 登录页链接"), false);
   assert.equal(stderr, "");
 });
 
@@ -407,8 +410,9 @@ test("automation wizard writes a prompt file and gives one paste step", async ()
     const promptText = await readFile(automationPromptPath, "utf8");
 
     assert.equal(status, 0);
-    assert.equal(stdout.includes("导入 Codex 自动化配置"), true);
-    assert.equal(stdout.includes("🤖 4 导入 Codex 自动化配置"), true);
+    assert.equal(stdout.includes("4 导入自动化"), true);
+    assert.equal(stdout.includes("导入 Codex 自动化配置"), false);
+    assert.equal(stdout.includes("🤖 4 导入 Codex 自动化配置"), false);
     assert.equal(stdout.includes("├─ ✓ 准备自动化 Prompt"), true);
     assert.equal(stdout.includes("├─ ✓ 保存 tech-events-assistant.automation.md"), true);
     assert.equal(stdout.includes("└─ ✓ 准备手动复制文件"), true);
@@ -535,7 +539,7 @@ test("status step renders staged success before status details", async () => {
   });
 
   assert.equal(status, 0);
-  assert.equal(stdout.includes("🤖 3 查看配置状态"), true);
+  assert.equal(stdout.includes("🤖 3 查看配置状态"), false);
   assert.equal(stdout.includes("├─ ✓ 读取配置文件"), true);
   assert.equal(stdout.includes("├─ ✓ 检查推送通道"), true);
   assert.equal(stdout.includes("├─ ✓ 检查自动化 Prompt"), true);
@@ -568,7 +572,7 @@ test("dry-run prints a completed step flow instead of a digital progress bar", (
   assert.equal(result.status, 0);
   assert.equal(result.stderr, "");
   assert.equal(result.stdout.includes("完成  ██████████████████████████████ 100%  已完成"), false);
-  assert.equal(result.stdout.includes("推送格式检查（不发送）"), true);
+  assert.equal(result.stdout.includes("推送格式检查（不发送）"), false);
   assert.equal(result.stdout.includes("├─ ✓ 生成飞书卡片预览"), true);
   assert.equal(result.stdout.includes("└─ ✓ 生成 Server 酱消息预览"), true);
   assert.equal(result.stdout.includes(`完成  ${neonBar} 100%`), true);

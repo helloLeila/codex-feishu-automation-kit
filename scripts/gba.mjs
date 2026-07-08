@@ -16,6 +16,7 @@ import {
   renderGuideDashboardLines,
   renderNeonProgressLine,
   renderBannerLines,
+  renderSetupActionLine,
   renderSectionTitle,
   renderStepFlowLines,
   statusLine,
@@ -355,13 +356,13 @@ function printSetupLink(label, url) {
   console.log(statusLine(`${label}：${url}`, "info"));
 }
 
-function openSetupPage(label, url) {
-  printSetupLink(label, url);
+function openSetupPage(service, target, url) {
+  printSetupLink(`${service}${target}`, url);
   const result = openExternalUrl(url);
   if (result.opened) {
-    console.log(statusLine(`已打开浏览器：${label}`, "ok"));
+    console.log(renderSetupActionLine(service, "已打开", target));
   } else {
-    console.log(statusLine(`未自动打开浏览器：${result.reason}`, "warn"));
+    console.log(renderSetupActionLine(service, "未打开", result.reason));
   }
 }
 
@@ -375,16 +376,16 @@ async function offerCredentialSetupHelp(reader) {
   const openServerChan = answer === "" || answer === "s" || answer === "server" || answer === "serverchan" || answer === "both";
 
   if (openFeishu) {
-    openSetupPage("飞书自定义机器人文档", FEISHU_CUSTOM_BOT_DOC_URL);
+    openSetupPage("飞书", "自定义机器人文档", FEISHU_CUSTOM_BOT_DOC_URL);
     console.log(statusLine("飞书取值路径：群聊设置 → 机器人 → 添加机器人 → 自定义机器人 → 复制 webhook", "info"));
   }
   if (openServerChan) {
-    openSetupPage("Server 酱登录页", SERVERCHAN_SENDKEY_URL);
+    openSetupPage("Server 酱", "登录页", SERVERCHAN_SENDKEY_URL);
     const clipboard = copySetupLinkToClipboard(SERVERCHAN_SENDKEY_URL);
     if (clipboard.copied) {
-      console.log(statusLine("Server 酱登录页链接已复制到剪贴板", "ok"));
+      console.log(renderSetupActionLine("Server 酱", "已复制", "登录页链接"));
     } else {
-      console.log(statusLine(`未复制 Server 酱登录页链接：${clipboard.reason}`, "warn"));
+      console.log(renderSetupActionLine("Server 酱", "未复制", clipboard.reason));
     }
   }
 }

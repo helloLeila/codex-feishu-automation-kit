@@ -12,6 +12,7 @@ import {
   renderNeonCompletionLines,
   renderNeonProgressLine,
   renderSectionTitle,
+  renderSetupActionLine,
   renderStepFlowLines,
   stripAnsi,
   terminalCellWidth,
@@ -80,14 +81,10 @@ test("step flow renders an active step and final completed state", () => {
   }).map(stripAnsi);
 
   assert.deepEqual(activeLines, [
-    `${"━".repeat(17)} 🤖 配置推送 ${"━".repeat(18)}`,
-    "│",
     "├─ ✓ 读取现有配置",
     "└─ ⠙ 写入本地配置",
   ]);
   assert.deepEqual(doneLines, [
-    `${"━".repeat(17)} 🤖 配置推送 ${"━".repeat(18)}`,
-    "│",
     "├─ ✓ 读取现有配置",
     "└─ ✓ 写入本地配置",
     `完成  ${NEON_BAR} 100%`,
@@ -166,6 +163,28 @@ test("action panel emphasizes title and key values", () => {
   assert.equal(stripAnsi(colored).includes("你需要做的事情"), true);
 });
 
+test("setup action line highlights credential page status", () => {
+  const opened = stripAnsi(renderSetupActionLine("飞书", "已打开", "自定义机器人文档", {
+    color: false,
+  }));
+  const copied = stripAnsi(renderSetupActionLine("Server 酱", "已复制", "登录页链接", {
+    color: false,
+  }));
+  const skipped = stripAnsi(renderSetupActionLine("Server 酱", "未打开", "已按环境变量跳过浏览器打开", {
+    color: false,
+  }));
+  const colored = renderSetupActionLine("飞书", "已打开", "自定义机器人文档", {
+    color: true,
+  });
+
+  assert.equal(opened, "🌐 浏览器已打开  飞书 · 自定义机器人文档");
+  assert.equal(copied, "📋 链接已复制    Server 酱 · 登录页链接");
+  assert.equal(skipped, "⚠ 需要手动打开  Server 酱 · 已按环境变量跳过浏览器打开");
+  assert.equal(colored.includes("\x1b[1m"), true);
+  assert.equal(colored.includes("\x1b[32m"), true);
+  assert.equal(colored.includes("\x1b[36m"), true);
+});
+
 test("guide dashboard renders a compact execution console overview", () => {
   const lines = renderGuideDashboardLines({
     completedSteps: new Set([0]),
@@ -182,7 +201,7 @@ test("guide dashboard renders a compact execution console overview", () => {
 
   assert.deepEqual(lines, [
     "╭─🤖──╮  技术活动助手 · 配置引导 2/4",
-    "│ •ᴗ• │  ● 配置推送偏好   ◉ 测试真实连接   ○ 查看配置状态   ○ 导入自动化",
+    "│ •ᴗ• │  ● 1 配置推送偏好   ◉ 2 测试真实连接   ○ 3 查看配置状态   ○ 4 导入自动化",
     "╰─────╯",
     "[Enter] 执行当前步骤   [1-4] 跳转   [b] 菜单   [q] 退出",
   ]);
@@ -247,7 +266,7 @@ test("completed guide dashboard gives the final state room to breathe", () => {
 
   assert.deepEqual(lines, [
     "╭─🤖──╮  技术活动助手 · 配置引导 4/4",
-    "│ •ᴗ• │  ● 配置推送偏好   ● 测试真实连接   ● 查看配置状态   ● 导入自动化",
+    "│ •ᴗ• │  ● 1 配置推送偏好   ● 2 测试真实连接   ● 3 查看配置状态   ● 4 导入自动化",
     "╰─────╯",
     "",
     "全部步骤已完成",

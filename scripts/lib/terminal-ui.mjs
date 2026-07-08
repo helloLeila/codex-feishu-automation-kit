@@ -330,9 +330,10 @@ export function renderGuideDashboardLines(options = {}) {
   const avatarGap = "  ";
 
   const railItems = shortLabels.map((label, index) => {
-    if (completedSteps.has(index)) return `${paint("●", "green", useColor)} ${paint(label, "gray", useColor)}`;
-    if (index === currentStep) return `${emphasize("◉", "pink", useColor)} ${emphasize(label, "pink", useColor)}`;
-    return `${paint("○", "gray", useColor)} ${paint(label, "gray", useColor)}`;
+    const numberedLabel = `${index + 1} ${label}`;
+    if (completedSteps.has(index)) return `${paint("●", "green", useColor)} ${paint(numberedLabel, "gray", useColor)}`;
+    if (index === currentStep) return `${emphasize("◉", "pink", useColor)} ${emphasize(numberedLabel, "pink", useColor)}`;
+    return `${paint("○", "gray", useColor)} ${paint(numberedLabel, "gray", useColor)}`;
   });
   const avatarCell = (index) => paint(padToCellWidth(avatarRows[index], avatarWidth), "green", useColor);
   const lines = [
@@ -359,10 +360,13 @@ export function renderStepFlowLines(title, steps, options = {}) {
   const complete = Boolean(options.complete);
   const spinner = options.spinner ?? "⠙";
   const safeSteps = Array.isArray(steps) ? steps : [];
-  const lines = [
-    ...renderSectionTitle(title, { color: useColor }),
-    paint("│", "gray", useColor),
-  ];
+  const showTitle = Boolean(options.showTitle);
+  const lines = showTitle
+    ? [
+        ...renderSectionTitle(title, { color: useColor }),
+        paint("│", "gray", useColor),
+      ]
+    : [];
 
   safeSteps.forEach((step, index) => {
     const connector = index === safeSteps.length - 1 ? "└─" : "├─";
@@ -387,6 +391,21 @@ export function renderStepFlowLines(title, steps, options = {}) {
   }
 
   return lines;
+}
+
+export function renderSetupActionLine(service, state, detail, options = {}) {
+  const useColor = options.color ?? !process.env.NO_COLOR;
+  const actions = {
+    已打开: { icon: "🌐", label: "浏览器已打开", color: "green" },
+    未打开: { icon: "⚠", label: "需要手动打开", color: "yellow" },
+    已复制: { icon: "📋", label: "链接已复制", color: "green" },
+    未复制: { icon: "⚠", label: "需要手动复制", color: "yellow" },
+  };
+  const action = actions[state] ?? { icon: "·", label: state, color: "gray" };
+  const label = emphasize(padToCellWidth(action.label, 12), action.color, useColor);
+  const serviceText = emphasize(service, "cyan", useColor);
+  const detailText = paint(detail, "white", useColor);
+  return `${action.icon} ${label}  ${serviceText} · ${detailText}`;
 }
 
 export function spinnerFrame(index, options = {}) {

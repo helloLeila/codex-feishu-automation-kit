@@ -459,14 +459,11 @@ async function printStatus(options = {}) {
     : "查看配置状态";
   const config = await loadAssistantConfig(rootDir);
   const localEnv = await loadLocalEnv(rootDir);
-  const publicConfigPath = path.join(rootDir, CONFIG_FILE);
-  const localConfigPath = path.join(rootDir, LOCAL_CONFIG_FILE);
   const automationPromptPath = path.join(rootDir, AUTOMATION_PROMPT_FILE);
-  const hasPublicConfig = await fileExists(publicConfigPath);
-  const hasLocalConfig = await fileExists(localConfigPath);
   const hasAutomationPrompt = await fileExists(automationPromptPath);
   const hasFeishu = Boolean(config?.push?.feishuWebhookUrl || localEnv.FEISHU_WEBHOOK_URL);
   const hasServerChan = Boolean(config?.push?.serverChanSendKey || localEnv.SERVERCHAN_SENDKEY);
+  const hasAnyPush = hasFeishu || hasServerChan;
 
   let stepRun = null;
   if (Number.isInteger(options.stepIndex)) {
@@ -482,15 +479,20 @@ async function printStatus(options = {}) {
   } else {
     console.log(renderSectionTitle(title).join("\n"));
   }
-  console.log(statusLine(`普通配置（可提交，控制助手偏好）：${hasPublicConfig ? `${CONFIG_FILE} 已存在` : "缺失，启动引导时会自动准备"}`, hasPublicConfig ? "ok" : "warn"));
-  console.log(statusLine(`本机私密配置（.gitignore，不提交，保存 webhook/SendKey）：${hasLocalConfig ? `${LOCAL_CONFIG_FILE} 已存在` : "未配置，可执行第 1 步"}`, hasLocalConfig ? "ok" : "warn"));
-  console.log(statusLine(`飞书推送：${hasFeishu ? "已配置 webhook" : "未配置 webhook"}`, hasFeishu ? "ok" : "warn"));
-  console.log(statusLine(`Server 酱推送：${hasServerChan ? "已配置 SendKey" : "未配置 SendKey"}`, hasServerChan ? "ok" : "warn"));
-  console.log(statusLine(`自动化 Prompt：${hasAutomationPrompt ? `${AUTOMATION_PROMPT_FILE} 已准备` : "未准备，可执行第 4 步"}`, hasAutomationPrompt ? "ok" : "warn"));
-  if (hasFeishu || hasServerChan) {
-    console.log(statusLine("建议操作：执行第 2 步测试真实连接", "info"));
+
+  console.log(color("推送通知", "cyan"));
+  console.log(statusLine(`飞书：${hasFeishu ? "已连接，活动提醒会发到飞书群" : "未连接，不会发到飞书群"}`, hasFeishu ? "ok" : "warn"));
+  console.log(statusLine(`Server 酱：${hasServerChan ? "已连接，活动提醒会发到微信" : "未连接，不会发到微信"}`, hasServerChan ? "ok" : "warn"));
+  console.log(color("自动化", "cyan"));
+  console.log(statusLine(
+    `Codex：${hasAutomationPrompt ? "Prompt 已准备，粘贴后每天 07:00 自动运行" : "执行第 4 步复制 Prompt，粘贴后每天 07:00 自动运行"}`,
+    hasAutomationPrompt ? "ok" : "warn",
+  ));
+  console.log(color("接下来", "cyan"));
+  if (hasAnyPush) {
+    console.log(statusLine("执行第 2 步测试真实连接，确认提醒能收到", "info"));
   } else {
-    console.log(statusLine("建议操作：执行第 1 步配置飞书 webhook 或 Server 酱 SendKey", "info"));
+    console.log(statusLine("执行第 1 步配置飞书或 Server 酱，否则只会生成文件", "warn"));
   }
   return stepRun;
 }
@@ -742,9 +744,7 @@ async function createAutomationWizard() {
     clipboard.copied
       ? "粘贴刚才复制的 Prompt"
       : `打开 ${AUTOMATION_PROMPT_FILE}，复制并粘贴 Prompt`,
-    `名称填「${AUTOMATION_DISPLAY_NAME}」`,
-    "运行时间设为每天 07:00 · Asia/Shanghai",
-    "保存并运行",
+    "按 Enter 直接运行",
   ]).join("\n"));
   if (!clipboard.copied) console.log(statusLine(`未复制剪贴板：${clipboard.reason}`, "warn"));
   if (!pushConfigured) {

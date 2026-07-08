@@ -418,9 +418,11 @@ test("automation wizard writes a prompt file and gives one paste step", async ()
     assert.equal(stdout.includes("1. 打开左侧「自动化（已安排）」"), true);
     assert.equal(stdout.includes("2. 点击「通过聊天添加」"), true);
     assert.equal(stdout.includes("3. 打开 tech-events-assistant.automation.md，复制并粘贴 Prompt"), true);
-    assert.equal(stdout.includes("4. 名称填「线下技术活动情报晨报」"), true);
-    assert.equal(stdout.includes("5. 运行时间设为每天 07:00 · Asia/Shanghai"), true);
-    assert.equal(stdout.includes("6. 保存并运行"), true);
+    assert.equal(stdout.includes("4. 按 Enter 直接运行"), true);
+    assert.equal(stdout.includes("名称填「线下技术活动情报晨报」"), false);
+    assert.equal(stdout.includes("运行时间设为每天 07:00 · Asia/Shanghai"), false);
+    assert.equal(stdout.includes("保存并运行"), false);
+    assert.equal(stdout.includes("5. "), false);
     assert.equal(stdout.includes("7. Prompt 文件"), false);
     assert.equal(stdout.includes("8. 剪贴板"), false);
     const recentRun = stdout.slice(stdout.lastIndexOf("最近执行"));
@@ -517,7 +519,7 @@ test("status step renders staged success before status details", async () => {
       sentStatus = true;
       child.stdin.write("3\n");
     }
-    if (!sentExit && stdout.includes("普通配置（可提交，控制助手偏好）")) {
+    if (!sentExit && stdout.includes("接下来")) {
       sentExit = true;
       child.stdin.write("q\n");
       child.stdin.end();
@@ -542,7 +544,16 @@ test("status step renders staged success before status details", async () => {
   assert.equal(stdout.includes("结果  配置状态已生成"), false);
   assert.equal(stdout.includes("✓ 状态检查完成"), false);
   assert.equal(stdout.includes("✓ 状态检查已完成"), false);
-  assert.equal(stdout.indexOf("└─ ✓ 展示当前状态") < stdout.indexOf("普通配置（可提交，控制助手偏好）"), true);
+  assert.equal(stdout.includes("普通配置（可提交，控制助手偏好）"), false);
+  assert.equal(stdout.includes("本机私密配置（.gitignore，不提交，保存 webhook/SendKey）"), false);
+  assert.equal(stdout.includes("推送通知"), true);
+  assert.match(stdout, /飞书：.*飞书群/);
+  assert.match(stdout, /Server 酱：.*微信/);
+  assert.equal(stdout.includes("自动化"), true);
+  assert.equal(stdout.includes("每天 07:00 自动运行"), true);
+  assert.equal(stdout.includes("接下来"), true);
+  assert.match(stdout, /第 [12] 步/);
+  assert.equal(stdout.indexOf("└─ ✓ 展示当前状态") < stdout.indexOf("推送通知"), true);
   assert.equal(stderr, "");
 });
 
@@ -644,7 +655,7 @@ test("feishu connection test returns a readable server response summary", async 
   assert.equal(JSON.parse(requestOptions.body).msg_type, "text");
 });
 
-test("status prints a readable panel instead of raw JSON", () => {
+test("status prints a user-facing readiness panel instead of raw JSON", () => {
   const result = spawnSync(process.execPath, ["scripts/gba.mjs", "--status"], {
     cwd: rootDir,
     env: { ...process.env, NO_COLOR: "1" },
@@ -654,11 +665,14 @@ test("status prints a readable panel instead of raw JSON", () => {
   assert.equal(result.status, 0);
   assert.equal(result.stderr, "");
   assert.equal(result.stdout.includes("查看配置状态"), true);
-  assert.equal(result.stdout.includes("普通配置（可提交，控制助手偏好）"), true);
-  assert.equal(result.stdout.includes("本机私密配置（.gitignore，不提交，保存 webhook/SendKey）"), true);
-  assert.equal(result.stdout.includes("飞书推送"), true);
-  assert.equal(result.stdout.includes("Server 酱推送"), true);
-  assert.equal(result.stdout.includes("自动化 Prompt"), true);
+  assert.equal(result.stdout.includes("普通配置（可提交，控制助手偏好）"), false);
+  assert.equal(result.stdout.includes("本机私密配置（.gitignore，不提交，保存 webhook/SendKey）"), false);
+  assert.equal(result.stdout.includes("推送通知"), true);
+  assert.match(result.stdout, /飞书：.*飞书群/);
+  assert.match(result.stdout, /Server 酱：.*微信/);
+  assert.equal(result.stdout.includes("自动化"), true);
+  assert.equal(result.stdout.includes("每天 07:00 自动运行"), true);
+  assert.equal(result.stdout.includes("接下来"), true);
   assert.equal(result.stdout.includes("{"), false);
   assert.equal(result.stdout.includes('"push"'), false);
 });

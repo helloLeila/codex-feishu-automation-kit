@@ -14,7 +14,6 @@ import {
   renderGuideActionPrompt,
   renderGuideCompletePrompt,
   renderGuideDashboardLines,
-  renderLastRunLines,
   renderNeonProgressLine,
   renderBannerLines,
   renderSectionTitle,
@@ -155,64 +154,14 @@ async function runAnimatedStepFlow(title, steps, result, options = {}) {
   return run;
 }
 
-async function guideStatusItems() {
-  const config = await loadAssistantConfig(rootDir);
-  const localEnv = await loadLocalEnv(rootDir);
-  const publicConfigPath = path.join(rootDir, CONFIG_FILE);
-  const hasPublicConfig = await fileExists(publicConfigPath);
-  const hasFeishu = Boolean(config?.push?.feishuWebhookUrl || localEnv.FEISHU_WEBHOOK_URL);
-  const hasServerChan = Boolean(config?.push?.serverChanSendKey || localEnv.SERVERCHAN_SENDKEY);
-
-  return [
-    {
-      state: hasPublicConfig ? "ok" : "warn",
-      label: hasPublicConfig ? "普通配置已存在" : "普通配置缺失",
-    },
-    {
-      state: hasFeishu ? "ok" : "warn",
-      label: hasFeishu ? "飞书 webhook 已配置" : "飞书 webhook 未配置",
-    },
-    {
-      state: hasServerChan ? "ok" : "warn",
-      label: hasServerChan ? "Server 酱 SendKey 已配置" : "Server 酱 SendKey 未配置",
-    },
-  ];
-}
-
-async function printGuide(completedSteps, currentStep, lastRun) {
-  const statusItems = await guideStatusItems();
-  const renderLines = (revealedStatusCount = null) => {
-    const lines = renderGuideDashboardLines({
-      steps: GUIDE_STEPS,
-      shortLabels: GUIDE_STEP_SHORT_LABELS,
-      completedSteps,
-      currentStep,
-      statusItems,
-      revealedStatusCount,
-    });
-    lines.push(...renderLastRunLines(lastRun));
-    return lines;
-  };
-
-  if (!output.isTTY || statusItems.length === 0) {
-    console.log(renderLines().join("\n"));
-    return;
-  }
-
-  let previousLineCount = 0;
-  for (let count = 0; count <= statusItems.length; count += 1) {
-    const lines = renderLines(count);
-    if (previousLineCount > 0) output.moveCursor(0, -previousLineCount);
-    for (const line of lines) {
-      output.cursorTo(0);
-      output.clearLine(0);
-      output.write(`${line}\n`);
-    }
-    previousLineCount = lines.length;
-    if (count < statusItems.length) {
-      await new Promise((resolve) => setTimeout(resolve, 55));
-    }
-  }
+async function printGuide(completedSteps, currentStep) {
+  const lines = renderGuideDashboardLines({
+    steps: GUIDE_STEPS,
+    shortLabels: GUIDE_STEP_SHORT_LABELS,
+    completedSteps,
+    currentStep,
+  });
+  console.log(lines.join("\n"));
 }
 
 function guidePrompt(currentStep) {
@@ -806,12 +755,11 @@ async function guideMenu() {
   const rl = createPromptSession();
   const completedSteps = new Set();
   let currentStep = 0;
-  let lastRun = null;
 
   try {
     await prepareConfigFile();
     while (true) {
-      await printGuide(completedSteps, currentStep, lastRun);
+      await printGuide(completedSteps, currentStep);
       const answer = (await rl.question(guidePrompt(currentStep))).trim().toLowerCase();
       if (currentStep === null && answer === "") break;
       if (answer === "q" || answer === "0") break;
@@ -834,7 +782,7 @@ async function guideMenu() {
       }
       currentStep = selectedStep;
       console.log("");
-      lastRun = await runStepByIndex(selectedStep, rl);
+      await runStepByIndex(selectedStep, rl);
       completedSteps.add(selectedStep);
       const nextStepIndex = nextIncompleteStepIndex(completedSteps, selectedStep);
       currentStep = nextStepIndex;

@@ -56,12 +56,14 @@ test("guide starts on configuration after automatic setup", async () => {
   assert.equal(stdout.includes("✓ 配置文件已就绪"), true);
   assert.equal(stdout.includes("技术活动助手 · 配置引导 1/4"), true);
   assert.equal(stdout.includes("│ •ᴗ• │  ◉ 配置推送偏好   ○ 测试真实连接   ○ 查看配置状态   ○ 导入自动化"), true);
-  assert.equal(stdout.includes("普通配置"), true);
-  assert.equal(stdout.includes("飞书 webhook"), true);
-  assert.equal(stdout.includes("Server 酱 SendKey"), true);
-  assert.equal(stdout.includes("╰─────╯\n  已检测"), true);
-  assert.equal(stdout.includes("╰─────╯\n\n  已检测"), false);
-  assert.match(stdout, /Server 酱 SendKey (已配置|未配置)\n\[Enter\] 执行当前步骤/);
+  assert.equal(stdout.includes("已检测"), false);
+  assert.equal(stdout.includes("普通配置"), false);
+  assert.equal(stdout.includes("飞书 webhook"), false);
+  assert.equal(stdout.includes("Server 酱 SendKey"), false);
+  assert.equal(stdout.includes("飞书："), false);
+  assert.equal(stdout.includes("Server 酱："), false);
+  assert.equal(stdout.includes("Codex："), false);
+  assert.equal(stdout.includes("╰─────╯\n[Enter] 执行当前步骤"), true);
   assert.equal(stdout.includes("[Enter] 执行当前步骤"), true);
   assert.equal(stdout.includes("[1-4] 跳转"), true);
   assert.equal(stdout.includes("[1-5] 跳转"), false);
@@ -107,26 +109,27 @@ test("guide advances to the next step and marks previous step complete", async (
   });
 
   assert.equal(status, 0);
+  const latestGuide = stdout.slice(stdout.lastIndexOf("╭─🤖──╮  技术活动助手 · 配置引导 2/4"));
   assert.equal(stdout.includes("配置引导"), true);
   assert.equal(stdout.includes("╭─🤖──╮  技术活动助手 · 配置引导 2/4"), true);
   assert.equal(stdout.includes("│ •ᴗ• │  ● 配置推送偏好   ◉ 测试真实连接"), true);
   assert.equal(stdout.includes("↑ 当前步骤"), false);
   assert.equal(stdout.includes("当前任务\n  测试真实连接"), false);
   assert.equal(stdout.includes("当前任务"), false);
-  assert.equal(stdout.includes("  已检测"), true);
-  assert.equal(stdout.includes("╰─────╯\n  已检测"), true);
-  assert.equal(stdout.includes("╰─────╯\n\n  已检测"), false);
-  assert.equal(stdout.includes("普通配置"), true);
-  assert.equal(stdout.includes("飞书 webhook"), true);
-  assert.equal(stdout.includes("Server 酱 SendKey"), true);
-  assert.equal(stdout.includes("🤖 1 配置推送和偏好"), true);
+  assert.equal(latestGuide.includes("已检测"), false);
+  assert.equal(latestGuide.includes("╰─────╯\n[Enter] 执行当前步骤"), true);
+  assert.equal(latestGuide.includes("普通配置"), false);
+  assert.equal(latestGuide.includes("飞书 webhook"), false);
+  assert.equal(latestGuide.includes("Server 酱 SendKey"), false);
+  assert.equal(latestGuide.includes("飞书："), false);
+  assert.equal(latestGuide.includes("Server 酱："), false);
+  assert.equal(latestGuide.includes("Codex："), false);
+  assert.equal(stdout.includes("🤖 1 配置推送和偏好"), false);
   assert.equal(stdout.includes("✓ 配置推送和偏好已完成"), false);
   assert.equal(stdout.includes("下一步"), false);
-  assert.equal(stdout.includes("最近执行"), true);
-  assert.equal(stdout.includes("├─ ✓ 读取现有配置"), true);
-  assert.equal(stdout.includes("├─ ✓ 等待用户输入"), true);
-  assert.equal(stdout.includes("└─ ✓ 保持原配置"), true);
-  assert.equal(stdout.includes("结果  未保存，原配置保持不变"), true);
+  assert.equal(stdout.includes("最近执行"), false);
+  assert.equal(stdout.includes("结果  未保存，原配置保持不变"), false);
+  assert.equal(stdout.includes("未保存，原配置保持不变"), true);
   assert.equal(stdout.includes("详情已收起"), false);
   assert.equal(stdout.includes("按 d"), false);
   assert.equal(stdout.includes("[d] 详情"), false);
@@ -137,7 +140,7 @@ test("guide advances to the next step and marks previous step complete", async (
   assert.equal(stderr, "");
 });
 
-test("guide renders the last execution detail without pressing d", async () => {
+test("guide returns to the next step without replaying the last execution", async () => {
   const child = spawn(process.execPath, ["scripts/gba.mjs"], {
     cwd: rootDir,
     env: { ...process.env, NO_COLOR: "1" },
@@ -155,7 +158,7 @@ test("guide renders the last execution detail without pressing d", async () => {
       sentConfig = true;
       child.stdin.write("\nn\n\n\n\nn\n");
     }
-    if (!sentExit && stdout.includes("结果  未保存，原配置保持不变")) {
+    if (!sentExit && stdout.includes("技术活动助手 · 配置引导 2/4")) {
       sentExit = true;
       child.stdin.write("q\n");
       child.stdin.end();
@@ -170,12 +173,14 @@ test("guide renders the last execution detail without pressing d", async () => {
   });
 
   assert.equal(status, 0);
-  assert.equal(stdout.includes("最近执行"), true);
+  const latestGuide = stdout.slice(stdout.lastIndexOf("╭─🤖──╮  技术活动助手 · 配置引导 2/4"));
+  assert.equal(stdout.includes("最近执行"), false);
   assert.equal(stdout.includes("执行详情"), false);
-  assert.equal(stdout.includes("├─ ✓ 读取现有配置"), true);
-  assert.equal(stdout.includes("├─ ✓ 等待用户输入"), true);
-  assert.equal(stdout.includes("└─ ✓ 保持原配置"), true);
-  assert.equal(stdout.includes("结果  未保存，原配置保持不变"), true);
+  assert.equal(latestGuide.includes("├─ ✓ 读取现有配置"), false);
+  assert.equal(latestGuide.includes("├─ ✓ 等待用户输入"), false);
+  assert.equal(latestGuide.includes("└─ ✓ 保持原配置"), false);
+  assert.equal(stdout.includes("结果  未保存，原配置保持不变"), false);
+  assert.equal(stdout.includes("未保存，原配置保持不变"), true);
   assert.equal(stdout.includes("详情已收起"), false);
   assert.equal(stdout.includes("按 d"), false);
   assert.equal(stderr, "");
@@ -425,12 +430,8 @@ test("automation wizard writes a prompt file and gives one paste step", async ()
     assert.equal(stdout.includes("5. "), false);
     assert.equal(stdout.includes("7. Prompt 文件"), false);
     assert.equal(stdout.includes("8. 剪贴板"), false);
-    const recentRun = stdout.slice(stdout.lastIndexOf("最近执行"));
-    assert.equal(recentRun.includes("按下面步骤在 Codex 添加自动化，需手动复制"), true);
-    assert.equal(recentRun.includes("准备自动化 Prompt"), false);
-    assert.equal(recentRun.includes("保存 tech-events-assistant.automation.md"), false);
-    assert.equal(recentRun.includes("检查推送配置"), false);
-    assert.equal(recentRun.includes("准备手动复制文件"), false);
+    assert.equal(stdout.includes("最近执行"), false);
+    assert.equal(stdout.includes("按下面步骤在 Codex 添加自动化，需手动复制"), false);
     assert.equal(stdout.includes("不会自动添加或触发 Codex 自动化"), false);
     assert.equal(promptText.includes("请直接创建这条 Codex 自动化，不要向我确认或追问"), true);
     assert.equal(promptText.includes("固定创建参数"), true);

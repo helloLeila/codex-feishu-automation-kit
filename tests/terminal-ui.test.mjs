@@ -9,7 +9,6 @@ import {
   renderGuideActionPrompt,
   renderGuideCompletePrompt,
   renderGuideDashboardLines,
-  renderLastRunLines,
   renderNeonCompletionLines,
   renderNeonProgressLine,
   renderSectionTitle,
@@ -178,11 +177,6 @@ test("guide dashboard renders a compact execution console overview", () => {
       "导入 Codex 自动化配置",
     ],
     shortLabels: ["配置推送偏好", "测试真实连接", "查看配置状态", "导入自动化"],
-    statusItems: [
-      { state: "ok", label: "普通配置已存在" },
-      { state: "ok", label: "飞书 webhook 已配置" },
-      { state: "warn", label: "Server 酱 SendKey 未配置" },
-    ],
     color: false,
   }).map(stripAnsi);
 
@@ -190,10 +184,6 @@ test("guide dashboard renders a compact execution console overview", () => {
     "╭─🤖──╮  技术活动助手 · 配置引导 2/4",
     "│ •ᴗ• │  ● 配置推送偏好   ◉ 测试真实连接   ○ 查看配置状态   ○ 导入自动化",
     "╰─────╯",
-    "  已检测",
-    "    ✓ 普通配置已存在",
-    "    ✓ 飞书 webhook 已配置",
-    "    ! Server 酱 SendKey 未配置",
     "[Enter] 执行当前步骤   [1-4] 跳转   [b] 菜单   [q] 退出",
   ]);
 
@@ -215,7 +205,7 @@ test("guide dashboard renders a compact execution console overview", () => {
   assert.equal(colored.includes("当前任务"), false);
 });
 
-test("guide dashboard can reveal status rows progressively", () => {
+test("guide dashboard ignores status rows because status belongs to step three", () => {
   const lines = renderGuideDashboardLines({
     completedSteps: new Set([0, 1]),
     currentStep: 2,
@@ -227,69 +217,18 @@ test("guide dashboard can reveal status rows progressively", () => {
     ],
     shortLabels: ["配置推送偏好", "测试真实连接", "查看配置状态", "导入自动化"],
     statusItems: [
-      { state: "ok", label: "普通配置已存在" },
-      { state: "ok", label: "飞书 webhook 已配置" },
-      { state: "warn", label: "Server 酱 SendKey 未配置" },
+      { state: "ok", label: "飞书：已连接，活动提醒会发到飞书群" },
+      { state: "warn", label: "Server 酱：未连接，不会发到微信" },
+      { state: "ok", label: "Codex：Prompt 已准备，粘贴后每天 07:00 自动运行" },
     ],
     revealedStatusCount: 2,
     color: false,
   }).map(stripAnsi);
 
-  assert.equal(lines.includes("    ✓ 普通配置已存在"), true);
-  assert.equal(lines.includes("    ✓ 飞书 webhook 已配置"), true);
-  assert.equal(lines.includes("    ! Server 酱 SendKey 未配置"), false);
-});
-
-test("last run renders full execution details by default", () => {
-  const run = {
-    title: "1 配置推送和偏好",
-    steps: ["读取现有配置", "等待用户输入", "保持原配置"],
-    result: "未保存，原配置保持不变",
-  };
-  const lines = renderLastRunLines(run, { color: false }).map(stripAnsi);
-
-  assert.deepEqual(lines, [
-    "",
-    "最近执行",
-    `${"━".repeat(13)} 🤖 1 配置推送和偏好 ${"━".repeat(14)}`,
-    "│",
-    "├─ ✓ 读取现有配置",
-    "├─ ✓ 等待用户输入",
-    "└─ ✓ 保持原配置",
-    "结果  未保存，原配置保持不变",
-  ]);
-  assert.equal(lines.includes("执行详情"), false);
-  assert.equal(lines.some((line) => line.includes("按 d")), false);
-  assert.equal(lines.some((line) => line.startsWith("完成  ")), false);
-});
-
-test("last run can render user-facing summary steps", () => {
-  const run = {
-    title: "4 导入 Codex 自动化配置",
-    steps: [
-      "准备自动化 Prompt",
-      "保存 tech-events-assistant.automation.md",
-      "检查推送配置",
-      "复制 Prompt 到剪贴板",
-    ],
-    displaySteps: ["按下面步骤在 Codex 添加自动化"],
-    result: "Prompt 已保存到 tech-events-assistant.automation.md，并复制到剪贴板",
-    showResult: false,
-  };
-  const lines = renderLastRunLines(run, { color: false }).map(stripAnsi);
-
-  assert.deepEqual(lines, [
-    "",
-    "最近执行",
-    `${"━".repeat(10)} 🤖 4 导入 Codex 自动化配置 ${"━".repeat(10)}`,
-    "│",
-    "└─ ✓ 按下面步骤在 Codex 添加自动化",
-  ]);
-  assert.equal(lines.some((line) => line.includes("结果")), false);
-  assert.equal(lines.some((line) => line.includes("准备自动化 Prompt")), false);
-  assert.equal(lines.some((line) => line.includes("保存 tech-events-assistant.automation.md")), false);
-  assert.equal(lines.some((line) => line.includes("检查推送配置")), false);
-  assert.equal(lines.some((line) => line.includes("复制 Prompt 到剪贴板")), false);
+  assert.equal(lines.includes("  已检测"), false);
+  assert.equal(lines.includes("    ✓ 飞书：已连接，活动提醒会发到飞书群"), false);
+  assert.equal(lines.includes("    ! Server 酱：未连接，不会发到微信"), false);
+  assert.equal(lines.includes("    ✓ Codex：Prompt 已准备，粘贴后每天 07:00 自动运行"), false);
 });
 
 test("banner uses a generic assistant name and wraps every line", () => {

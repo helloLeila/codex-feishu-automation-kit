@@ -325,10 +325,6 @@ export function renderGuideDashboardLines(options = {}) {
   const activeCount = currentStep === null ? steps.length : currentStep + 1;
   const title = options.title ?? "技术活动助手";
   const mode = options.mode ?? "配置引导";
-  const statusItems = Array.isArray(options.statusItems) ? options.statusItems : null;
-  const revealedStatusCount = Number.isInteger(options.revealedStatusCount)
-    ? Math.max(0, options.revealedStatusCount)
-    : null;
   const avatarRows = options.avatarRows ?? ["╭─🤖──╮", "│ •ᴗ• │", "╰─────╯"];
   const avatarWidth = Math.max(...avatarRows.map((row) => terminalCellWidth(row)));
   const avatarGap = "  ";
@@ -350,56 +346,7 @@ export function renderGuideDashboardLines(options = {}) {
     lines.push(`${avatarCell(2)}${avatarGap}${paint("全部步骤已完成", "green", useColor)}`);
   }
 
-  lines.push(`  ${emphasize("已检测", "cyan", useColor)}`);
-
-  if (statusItems) {
-    const visibleStatusItems = revealedStatusCount === null
-      ? statusItems
-      : statusItems.slice(0, revealedStatusCount);
-    const statusSymbols = {
-      ok: ["✓", "green"],
-      warn: ["!", "yellow"],
-      error: ["×", "red"],
-      active: ["◉", "magenta"],
-      info: ["·", "cyan"],
-    };
-    visibleStatusItems.forEach((item) => {
-      const [symbol, tone] = statusSymbols[item.state] ?? statusSymbols.info;
-      lines.push(`    ${paint(symbol, tone, useColor)} ${item.label}`);
-    });
-  } else {
-    steps.forEach((step, index) => {
-      if (completedSteps.has(index)) {
-        lines.push(`    ${paint("✓", "green", useColor)} ${step}`);
-      } else if (index === currentStep) {
-        lines.push(`    ${emphasize("◉", "pink", useColor)} ${emphasize(step, "pink", useColor)}`);
-      } else {
-        lines.push(`    ${paint("·", "gray", useColor)} ${paint(step, "gray", useColor)}`);
-      }
-    });
-  }
-
   lines.push(`${paint("[Enter]", "cyan", useColor)} 执行当前步骤   ${paint(`[1-${steps.length}]`, "cyan", useColor)} 跳转   ${paint("[b]", "cyan", useColor)} 菜单   ${paint("[q]", "cyan", useColor)} 退出`);
-
-  return lines;
-}
-
-export function renderLastRunLines(run, options = {}) {
-  if (!run) return [];
-  const useColor = options.color ?? !process.env.NO_COLOR;
-  const displaySteps = Array.isArray(run.displaySteps) ? run.displaySteps : run.steps;
-  const lines = [
-    "",
-    emphasize("最近执行", "cyan", useColor),
-    ...renderStepFlowLines(run.title, displaySteps, {
-      complete: true,
-      color: useColor,
-    }),
-  ];
-
-  if (run.result && run.showResult !== false) {
-    lines.push(`${emphasize("结果", "green", useColor)}  ${paint(run.result, "green", useColor)}`);
-  }
 
   return lines;
 }

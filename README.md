@@ -38,7 +38,7 @@ npm run gba
 
 第 1 步会显示当前配置和安装说明，提示 `tech-events-assistant.config.json` 这个配置可以修改，并尝试用默认 VS Code 打开这个文件；打开成功会显示“已打开”。
 
-第 4 步会生成 `tech-events-assistant.automation.md`，并尽量把完整 Prompt 复制到剪切板。工具会明确列出你要做的事情：打开 Codex 的「自动化（已安排）」、选择「通过聊天添加」、粘贴 Prompt，名称填“线下技术活动情报晨报”，时间设为每天 07:00（Asia/Shanghai，早上 7 点）。如果剪切板不可用，直接打开生成的 Markdown 文件复制即可。
+第 4 步会生成 `tech-events-assistant.automation.md`，并尽量把完整 Prompt 复制到剪切板。工具会明确列出你要做的事情：打开 Codex 的「自动化（已安排）」、选择「通过聊天添加」、粘贴 Prompt、按 Enter 直接运行。如果剪切板不可用，直接打开生成的 Markdown 文件复制即可。
 
 第 2 步会先问是否帮你打开取值页面。回车会同时打开飞书自定义机器人文档和 Server 酱登录页；Server 酱登录页链接也会复制到剪切板作为兜底。登录后查看 SendKey，拿到 webhook / SendKey 后回到终端粘贴即可。
 
@@ -51,7 +51,7 @@ npm run gba
 │
 ├─ ✓ 读取现有配置
 ├─ ✓ 合并本次输入
-├─ ✓ 写入本地配置
+├─ ✓ 写入用户级配置
 └─ ✓ 准备推送脚本
 
 完成    ████████████████████████████████████████████████████████ 100%
@@ -69,7 +69,7 @@ bash scripts/setup.sh
 这个脚本会：
 
 1. 检查 Node.js 版本是否为 18 或更高。
-2. 检查是否已有 `tech-events-assistant.local.json`，不会自动写入占位密钥。
+2. 检查是否已有用户级私密配置，位置是 `~/.config/codex-feishu-automation-kit/tech-events-assistant.local.json`。
 3. 运行 `npm run check` 做语法检查。
 4. 运行 `npm test`。
 5. 使用示例 Markdown 做推送格式检查，不会真实发送消息。
@@ -79,12 +79,13 @@ bash scripts/setup.sh
 这个工具包使用三个明显命名的配置文件：
 
 - `tech-events-assistant.config.json`：普通配置，可以提交到 Git；主要放助手名称、时间窗口、输出偏好、默认推送开关等不含密钥的设置。
-- `tech-events-assistant.local.json`：本机私密配置，已在 `.gitignore` 中；保存飞书 webhook、飞书签名密钥、Server 酱 SendKey，不要提交。
+- `~/.config/codex-feishu-automation-kit/tech-events-assistant.local.json`：用户级私密配置；保存飞书 webhook、飞书签名密钥、Server 酱 SendKey。`npm run gba` 默认写这里，并设置文件权限为 `0600`。
+- 工作区内的 `tech-events-assistant.local.json`：兼容旧工作流，也可覆盖用户级配置；已在 `.gitignore` 中，不要提交。
 - `tech-events-assistant.config.example.json`：示例配置，用来给新用户复制参考，不放真实密钥。
 
 推荐在 `npm run gba` 的菜单里选择 `配置推送地址偏好` 输入密钥。它会帮你打开飞书和 Server 酱取值页面；输入留空会保留原值，输入 `clear` 会清空该项；最后选择不保存就不会写入文件。
 
-`.env.local` 仍然兼容旧工作流，但新用户优先使用 `tech-events-assistant.local.json`。
+`.env.local` 仍然兼容旧工作流，但新用户优先使用用户级 `tech-events-assistant.local.json`。
 
 ## 去哪里拿密钥
 
@@ -107,19 +108,15 @@ Server 酱：
 
 ## 在自己的 Codex 工作区使用
 
-如果你的日报和活动文件已经在另一个 Codex 工作区生成，可以把脚本复制过去。从本仓库根目录执行：
+如果你的活动文件已经在另一个 Codex 工作区生成，推荐先把本工具包作为全局命令安装或链接：
 
 ```bash
-mkdir -p /path/to/your-codex-workspace/scripts/lib
-cp skills/feishu-automation-reporter/scripts/push-ai-daily-to-feishu.mjs /path/to/your-codex-workspace/scripts/
-cp skills/feishu-automation-reporter/scripts/push-gba-events-to-feishu.mjs /path/to/your-codex-workspace/scripts/
-cp skills/feishu-automation-reporter/scripts/push-ai-daily-to-serverchan.mjs /path/to/your-codex-workspace/scripts/
-cp skills/feishu-automation-reporter/scripts/push-gba-events-to-serverchan.mjs /path/to/your-codex-workspace/scripts/
-cp skills/feishu-automation-reporter/scripts/lib/*.mjs /path/to/your-codex-workspace/scripts/lib/
-cp tech-events-assistant.config.example.json /path/to/your-codex-workspace/tech-events-assistant.config.json
+npm install -g .
+# 或开发时使用：
+npm link
 ```
 
-把 `/path/to/your-codex-workspace` 替换成你的实际工作区路径。复制完成后，在目标工作区运行 `npm run gba`，用菜单配置真实密钥。
+安装后，任意工作区都可以运行 `codex-feishu-push-gba-events <Markdown文件>`。密钥会从用户级配置读取；同一台电脑、同一个 macOS 用户只需要配置一次。切换 Codex 登录账号后不需要重填密钥，但需要在新账号里重新导入已安排自动化任务。
 
 ## 推送 AI 日报
 
@@ -144,23 +141,10 @@ node scripts/push-ai-daily-to-serverchan.mjs ai-daily/YYYY-MM-DD-ai-daily.md
 
 ## 推送大湾区活动清单
 
-推送到飞书：
+推送到已配置的飞书和 / 或 Server 酱：
 
 ```bash
-node skills/feishu-automation-reporter/scripts/push-gba-events-to-feishu.mjs examples/gba-events-example.md
-```
-
-推送到 Server 酱：
-
-```bash
-node skills/feishu-automation-reporter/scripts/push-gba-events-to-serverchan.mjs examples/gba-events-example.md
-```
-
-如果你已经把脚本复制到自己的工作区 `scripts/` 目录，命令改成：
-
-```bash
-node scripts/push-gba-events-to-feishu.mjs gba-events/YYYY-MM-DD-gba-events.md
-node scripts/push-gba-events-to-serverchan.mjs gba-events/YYYY-MM-DD-gba-events.md
+codex-feishu-push-gba-events examples/gba-events-example.md
 ```
 
 ## Codex 自动化提示词模板
@@ -180,18 +164,12 @@ node scripts/push-ai-daily-to-serverchan.mjs <生成的Markdown文件路径>
 大湾区活动清单：
 
 ```text
-生成 Markdown 文件后，如果环境变量 FEISHU_WEBHOOK_URL 已配置，或当前目录 tech-events-assistant.local.json / .env.local 中配置了飞书 webhook，请运行：
-node scripts/push-gba-events-to-feishu.mjs <生成的Markdown文件路径>
-如果环境变量 SERVERCHAN_SENDKEY 已配置，或当前目录 tech-events-assistant.local.json / .env.local 中配置了 Server 酱 SendKey，请运行：
-node scripts/push-gba-events-to-serverchan.mjs <生成的Markdown文件路径>
-如果两者都配置，请两个都推送；如果都未配置，请只生成文件并说明未推送。
+生成 Markdown 文件后，请运行：
+codex-feishu-push-gba-events <生成的Markdown文件路径>
+这个命令会自动读取环境变量、显式 env 文件、当前工作区配置、用户级配置和 Codex Home 兜底配置；如果飞书和 Server 酱都配置了会两个都推送，如果都未配置会正常跳过并说明未配置推送渠道。
 ```
 
-如果你的自动化运行在 git worktree、CI 或其他目录，推荐把 env 文件路径写清楚：
-
-```text
-如果当前目录读不到 tech-events-assistant.local.json 或 .env.local，请使用 FEISHU_ENV_FILE=/absolute/path/to/.env.local 或 SERVERCHAN_ENV_FILE=/absolute/path/to/.env.local 指定密钥文件。
-```
+读取优先级从高到低是：进程环境变量、`FEISHU_ENV_FILE` / `SERVERCHAN_ENV_FILE`、当前工作区 `.env.local` 和 `tech-events-assistant.local.json`、用户级配置、`$CODEX_HOME/codex-feishu-automation-kit/tech-events-assistant.local.json`。
 
 ## 测试连接
 
@@ -199,9 +177,8 @@ node scripts/push-gba-events-to-serverchan.mjs <生成的Markdown文件路径>
 
 ```bash
 FEISHU_DRY_RUN=1 FEISHU_WEBHOOK_URL=<FEISHU_WEBHOOK_URL> node skills/feishu-automation-reporter/scripts/push-ai-daily-to-feishu.mjs examples/ai-daily-example.md
-FEISHU_DRY_RUN=1 FEISHU_WEBHOOK_URL=<FEISHU_WEBHOOK_URL> node skills/feishu-automation-reporter/scripts/push-gba-events-to-feishu.mjs examples/gba-events-example.md
+codex-feishu-push-gba-events --dry-run examples/gba-events-example.md
 SERVERCHAN_DRY_RUN=1 SERVERCHAN_SENDKEY=<SERVERCHAN_SENDKEY> node skills/feishu-automation-reporter/scripts/push-ai-daily-to-serverchan.mjs examples/ai-daily-example.md
-SERVERCHAN_DRY_RUN=1 SERVERCHAN_SENDKEY=<SERVERCHAN_SENDKEY> node skills/feishu-automation-reporter/scripts/push-gba-events-to-serverchan.mjs examples/gba-events-example.md
 ```
 
 ## 使用 Skill
@@ -211,7 +188,7 @@ SERVERCHAN_DRY_RUN=1 SERVERCHAN_SENDKEY=<SERVERCHAN_SENDKEY> node skills/feishu-
 适合在这些任务中触发：
 
 - 给 Markdown 生成类自动化增加飞书或 Server 酱推送。
-- 配置 `tech-events-assistant.local.json`、`.env.local`、飞书 webhook 和 Server 酱 SendKey。
+- 配置用户级 `tech-events-assistant.local.json`、`.env.local`、飞书 webhook 和 Server 酱 SendKey。
 - 生成或改造飞书 interactive card 脚本。
 - 生成或改造 Server 酱通知脚本。
 - 排查为什么自动化没有推送。
@@ -243,9 +220,9 @@ scripts/
 
 ## 常见问题
 
-`缺少 FEISHU_WEBHOOK_URL`：没有配置飞书 webhook。检查 `tech-events-assistant.local.json` 或 `.env.local` 是否在当前运行目录，或用 `FEISHU_ENV_FILE=/absolute/path/to/.env.local` 指定。
+`缺少 FEISHU_WEBHOOK_URL`：没有配置飞书 webhook。检查用户级配置、当前工作区 `tech-events-assistant.local.json` / `.env.local`，或用 `FEISHU_ENV_FILE=/absolute/path/to/.env.local` 指定。
 
-`缺少 SERVERCHAN_SENDKEY`：没有配置 Server 酱 SendKey。检查 `tech-events-assistant.local.json` 或 `.env.local` 是否在当前运行目录，或用 `SERVERCHAN_ENV_FILE=/absolute/path/to/.env.local` 指定。
+`缺少 SERVERCHAN_SENDKEY`：没有配置 Server 酱 SendKey。检查用户级配置、当前工作区 `tech-events-assistant.local.json` / `.env.local`，或用 `SERVERCHAN_ENV_FILE=/absolute/path/to/.env.local` 指定。
 
 飞书推送失败且提示签名错误：机器人开启了签名校验，但没有配置 `FEISHU_WEBHOOK_SECRET`，或密钥填错。
 
@@ -255,6 +232,7 @@ Server 酱消息不完整：Server 酱适合提醒和摘要，不适合完整替
 
 - 不要提交 `.env.local`。
 - 不要提交 `tech-events-assistant.local.json`。
+- 不要把用户级配置文件复制进仓库。
 - 不要把真实 webhook、SendKey 或签名密钥写进 README、示例、issue、截图或 prompt。
 - 如果密钥泄露，立即在对应平台重置。
 - 开源前运行 `docs/release-checklist.md` 里的扫描命令。

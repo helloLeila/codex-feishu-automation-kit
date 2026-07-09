@@ -29,6 +29,7 @@ import {
   hasConfiguredPush,
   loadAssistantConfig,
   readLocalConfig,
+  resolveUserLocalConfigPath,
   writeLocalConfig,
 } from "./lib/tech-events-config.mjs";
 import { loadLocalEnv } from "../skills/feishu-automation-reporter/scripts/lib/env.mjs";
@@ -410,13 +411,10 @@ ${numberedLines(eventSearch.sources)}
 
 完成活动清单后，在当前工作区生成一份 Markdown 文件保存本次结果。文件名使用 YYYY-MM-DD-gba-tech-events.md，如果已有同名文件则追加 -v2、-v3。
 
-生成 Markdown 文件后，如果环境变量 FEISHU_WEBHOOK_URL 已配置，或当前目录 tech-events-assistant.local.json / .env.local 中配置了飞书 webhook，请运行：
-node skills/feishu-automation-reporter/scripts/push-gba-events-to-feishu.mjs <生成的Markdown文件路径>
+生成 Markdown 文件后，请运行：
+codex-feishu-push-gba-events <生成的Markdown文件路径>
 
-如果环境变量 SERVERCHAN_SENDKEY 已配置，或当前目录 tech-events-assistant.local.json / .env.local 中配置了 Server 酱 SendKey，请运行：
-node skills/feishu-automation-reporter/scripts/push-gba-events-to-serverchan.mjs <生成的Markdown文件路径>
-
-如果两者都配置，请两个都推送；如果都未配置，请只生成文件并说明未推送。
+这个命令会自动读取环境变量、显式 env 文件、当前工作区配置、用户级配置和 Codex Home 兜底配置；如果飞书和 Server 酱都配置了会两个都推送，如果都未配置会正常跳过并说明未配置推送渠道。
 `;
 }
 
@@ -537,6 +535,13 @@ async function prepareConfigFile() {
     await copyFile(examplePath, configPath);
   }
   console.log(statusLine("配置文件已就绪", "ok"));
+  if (isCodexManagedWorktree(rootDir)) {
+    console.log(statusLine("检测到当前目录在 .codex/worktrees 下：这里可以开发代码，但不建议把已安排自动化长期绑定到这里。", "warn"));
+  }
+}
+
+function isCodexManagedWorktree(dir) {
+  return path.resolve(dir).includes(`${path.sep}.codex${path.sep}worktrees${path.sep}`);
 }
 
 function pushSwitchText(value) {
@@ -560,7 +565,7 @@ function printConfigSummary(config) {
 function printInstallNotes() {
   console.log(color("安装说明", "cyan"));
   console.log(statusLine("运行 npm run gba 后按 1-4 选择步骤", "info"));
-  console.log(statusLine("第 2 步保存 webhook / SendKey 到 tech-events-assistant.local.json", "info"));
+  console.log(statusLine(`第 2 步默认保存 webhook / SendKey 到用户级配置：${resolveUserLocalConfigPath()}`, "info"));
   console.log(statusLine("第 4 步生成自动化 Prompt 并复制到剪切板", "info"));
 }
 
@@ -637,13 +642,13 @@ async function printStatus(options = {}) {
 async function configurePush(rl) {
   const ownsReadline = !rl;
   const reader = rl ?? createPromptSession();
-  const current = await readLocalConfig(rootDir);
+  const current = await readLocalConfig();
 
   await offerCredentialSetupHelp(reader);
   const feishuWebhookUrl = await reader.question("飞书 webhook URL（飞书群设置 → 机器人 → 自定义机器人）：");
   const feishuWebhookSecret = await reader.question("飞书签名密钥（可空，开启签名校验才填）：");
   const serverChanSendKey = await reader.question("Server 酱 SendKey（sct.ftqq.com/login → 登录后查看 SendKey）：");
-  const saveAnswer = await reader.question("保存到 tech-events-assistant.local.json？输入 y 保存：");
+  const saveAnswer = await reader.question(`保存到用户级配置 ${resolveUserLocalConfigPath()}？输入 y 保存：`);
   if (ownsReadline) reader.close();
 
   const result = applySecretInputs(
@@ -661,7 +666,7 @@ async function configurePush(rl) {
     };
   }
 
-  const writeResult = await writeLocalConfig(rootDir, result.config);
+  const writeResult = await writeLocalConfig(undefined, result.config);
   const run = await runSaveSteps(`${path.basename(writeResult.filePath)} 已保存`);
   run.showResult = false;
   if (writeResult.backupCreated) {

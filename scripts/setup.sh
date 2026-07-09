@@ -18,10 +18,13 @@ fi
 echo "Node.js: $(node -v)"
 
 echo "==> 检查本地私密配置"
-if [ -f "tech-events-assistant.local.json" ]; then
-  echo "tech-events-assistant.local.json 已存在，后续推送会优先读取它。"
+USER_CONFIG="${XDG_CONFIG_HOME:-$HOME/.config}/codex-feishu-automation-kit/tech-events-assistant.local.json"
+if [ -f "$USER_CONFIG" ]; then
+  echo "用户级配置已存在：$USER_CONFIG"
+elif [ -f "tech-events-assistant.local.json" ]; then
+  echo "当前工作区 tech-events-assistant.local.json 已存在，会覆盖用户级配置。"
 else
-  echo "未创建私密配置。需要推送时请运行 npm run gba，在菜单里配置。"
+  echo "未创建私密配置。需要推送时请运行 npm run gba，在菜单里配置，默认写入：$USER_CONFIG"
 fi
 
 echo "==> 检查脚本语法"

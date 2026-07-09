@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -50,6 +50,92 @@ test("loadLocalEnv ignores placeholder secrets from example env files", async ()
     assert.equal("FEISHU_WEBHOOK_SECRET" in env, false);
     assert.equal("SERVERCHAN_SENDKEY" in env, false);
   } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("loadLocalEnv reads push secrets from the user-level config", async () => {
+  const home = await mkdtemp(path.join(tmpdir(), "tech-events-home-"));
+  const originalHome = process.env.HOME;
+  const originalXdgConfigHome = process.env.XDG_CONFIG_HOME;
+  const originalCodexHome = process.env.CODEX_HOME;
+
+  try {
+    delete process.env.XDG_CONFIG_HOME;
+    delete process.env.CODEX_HOME;
+    process.env.HOME = home;
+    const userConfigDir = path.join(home, ".config", "codex-feishu-automation-kit");
+    await mkdir(userConfigDir, { recursive: true });
+    await writeFile(
+      path.join(userConfigDir, "tech-events-assistant.local.json"),
+      JSON.stringify({
+        push: {
+          feishuWebhookUrl: "https://user.example/webhook",
+          feishuWebhookSecret: "user-secret",
+          serverChanSendKey: "user-sendkey",
+        },
+      }),
+    );
+
+    const env = await loadLocalEnv(await mkdtemp(path.join(tmpdir(), "tech-events-env-")));
+
+    assert.equal(env.FEISHU_WEBHOOK_URL, "https://user.example/webhook");
+    assert.equal(env.FEISHU_WEBHOOK_SECRET, "user-secret");
+    assert.equal(env.SERVERCHAN_SENDKEY, "user-sendkey");
+  } finally {
+    if (originalHome === undefined) delete process.env.HOME;
+    else process.env.HOME = originalHome;
+    if (originalXdgConfigHome === undefined) delete process.env.XDG_CONFIG_HOME;
+    else process.env.XDG_CONFIG_HOME = originalXdgConfigHome;
+    if (originalCodexHome === undefined) delete process.env.CODEX_HOME;
+    else process.env.CODEX_HOME = originalCodexHome;
+    await rm(home, { recursive: true, force: true });
+  }
+});
+
+test("workspace config overrides user-level push secrets", async () => {
+  const home = await mkdtemp(path.join(tmpdir(), "tech-events-home-"));
+  const dir = await mkdtemp(path.join(tmpdir(), "tech-events-env-"));
+  const originalHome = process.env.HOME;
+  const originalXdgConfigHome = process.env.XDG_CONFIG_HOME;
+  const originalCodexHome = process.env.CODEX_HOME;
+
+  try {
+    delete process.env.XDG_CONFIG_HOME;
+    delete process.env.CODEX_HOME;
+    process.env.HOME = home;
+    const userConfigDir = path.join(home, ".config", "codex-feishu-automation-kit");
+    await mkdir(userConfigDir, { recursive: true });
+    await writeFile(
+      path.join(userConfigDir, "tech-events-assistant.local.json"),
+      JSON.stringify({
+        push: {
+          feishuWebhookUrl: "https://user.example/webhook",
+          serverChanSendKey: "user-sendkey",
+        },
+      }),
+    );
+    await writeFile(
+      path.join(dir, "tech-events-assistant.local.json"),
+      JSON.stringify({
+        push: {
+          feishuWebhookUrl: "https://workspace.example/webhook",
+        },
+      }),
+    );
+
+    const env = await loadLocalEnv(dir);
+
+    assert.equal(env.FEISHU_WEBHOOK_URL, "https://workspace.example/webhook");
+    assert.equal(env.SERVERCHAN_SENDKEY, "user-sendkey");
+  } finally {
+    if (originalHome === undefined) delete process.env.HOME;
+    else process.env.HOME = originalHome;
+    if (originalXdgConfigHome === undefined) delete process.env.XDG_CONFIG_HOME;
+    else process.env.XDG_CONFIG_HOME = originalXdgConfigHome;
+    if (originalCodexHome === undefined) delete process.env.CODEX_HOME;
+    else process.env.CODEX_HOME = originalCodexHome;
+    await rm(home, { recursive: true, force: true });
     await rm(dir, { recursive: true, force: true });
   }
 });

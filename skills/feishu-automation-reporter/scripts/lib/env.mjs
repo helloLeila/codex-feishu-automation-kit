@@ -1,5 +1,9 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
+import {
+  resolveCodexHomeLocalConfigPath,
+  resolveUserLocalConfigPath,
+} from "../../../../scripts/lib/tech-events-config.mjs";
 
 export const parseEnvFile = (content) => {
   const values = {};
@@ -58,8 +62,10 @@ const readConfigValues = async (filePath) => {
 };
 
 export const loadLocalEnv = async (baseDir = process.cwd()) => {
-  // 读取顺序：.env.local 兼容旧用户，新 local JSON 覆盖旧值；显式指定的 env 文件优先级最高。
+  // 后读取的同名值覆盖先读取的值；进程环境变量由调用方最终覆盖。
   const envPaths = [
+    resolveCodexHomeLocalConfigPath(),
+    resolveUserLocalConfigPath(),
     path.resolve(baseDir, ".env.local"),
     path.resolve(baseDir, "tech-events-assistant.local.json"),
     process.env.FEISHU_ENV_FILE,

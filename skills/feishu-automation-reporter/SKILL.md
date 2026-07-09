@@ -12,7 +12,7 @@ description: 用于把 Codex 自动化或 Markdown 生成流程接入飞书 / La
 - AI 行业日报生成后推送飞书或 Server 酱。
 - 线下技术活动清单生成后推送飞书或 Server 酱。
 - 飞书负责完整卡片展示，Server 酱负责手机提醒。
-- 配置 `tech-events-assistant.local.json`、`.env.local`、webhook、SendKey、签名校验、dry-run 验证和未推送排查。
+- 配置用户级 `tech-events-assistant.local.json`、`.env.local`、webhook、SendKey、签名校验、dry-run 验证和未推送排查。
 
 ## 官方入口
 
@@ -32,7 +32,7 @@ FEISHU_WEBHOOK_URL="<FEISHU_WEBHOOK_URL>"
 SERVERCHAN_SENDKEY="<SERVERCHAN_SENDKEY>"
 ```
 
-3. 确认 `.gitignore` 忽略 `tech-events-assistant.local.json` 和 `.env.local`。
+3. 新配置优先写入 `~/.config/codex-feishu-automation-kit/tech-events-assistant.local.json`；工作区内的 `tech-events-assistant.local.json` 和 `.env.local` 仍要确认被 `.gitignore` 忽略。
 4. 选择脚本：
    - AI 行业日报到飞书：`scripts/push-ai-daily-to-feishu.mjs`
    - AI 行业日报到 Server 酱：`scripts/push-ai-daily-to-serverchan.mjs`
@@ -89,11 +89,9 @@ node scripts/push-ai-daily-to-serverchan.mjs <生成的Markdown文件路径>
 活动清单：
 
 ```text
-生成 Markdown 文件后，如果环境变量 FEISHU_WEBHOOK_URL 已配置，或当前目录 tech-events-assistant.local.json / .env.local 中配置了飞书 webhook，请运行：
-node scripts/push-gba-events-to-feishu.mjs <生成的Markdown文件路径>
-如果环境变量 SERVERCHAN_SENDKEY 已配置，或当前目录 tech-events-assistant.local.json / .env.local 中配置了 Server 酱 SendKey，请运行：
-node scripts/push-gba-events-to-serverchan.mjs <生成的Markdown文件路径>
-如果两者都配置，请两个都推送；如果都未配置，请只生成文件并说明未推送。
+生成 Markdown 文件后，请运行：
+codex-feishu-push-gba-events <生成的Markdown文件路径>
+这个命令会自动读取环境变量、显式 env 文件、当前工作区配置、用户级配置和 Codex Home 兜底配置；如果飞书和 Server 酱都配置了会两个都推送，如果都未配置会正常跳过并说明未配置推送渠道。
 ```
 
 ## 验证命令
@@ -109,15 +107,14 @@ dry-run：
 
 ```bash
 FEISHU_DRY_RUN=1 node scripts/push-ai-daily-to-feishu.mjs examples/ai-daily-example.md
-FEISHU_DRY_RUN=1 node scripts/push-gba-events-to-feishu.mjs examples/gba-events-example.md
 SERVERCHAN_DRY_RUN=1 SERVERCHAN_SENDKEY=<SERVERCHAN_SENDKEY> node scripts/push-ai-daily-to-serverchan.mjs examples/ai-daily-example.md
-SERVERCHAN_DRY_RUN=1 SERVERCHAN_SENDKEY=<SERVERCHAN_SENDKEY> node scripts/push-gba-events-to-serverchan.mjs examples/gba-events-example.md
+codex-feishu-push-gba-events --dry-run examples/gba-events-example.md
 ```
 
 ## 排查
 
-- `缺少 FEISHU_WEBHOOK_URL`：配置环境变量、创建 `tech-events-assistant.local.json`，或创建 `.env.local`。
-- `缺少 SERVERCHAN_SENDKEY`：配置环境变量、创建 `tech-events-assistant.local.json`，或创建 `.env.local`。
+- `缺少 FEISHU_WEBHOOK_URL`：配置环境变量、用户级 `tech-events-assistant.local.json`、工作区 `tech-events-assistant.local.json`，或 `.env.local`。
+- `缺少 SERVERCHAN_SENDKEY`：配置环境变量、用户级 `tech-events-assistant.local.json`、工作区 `tech-events-assistant.local.json`，或 `.env.local`。
 - 飞书签名错误：机器人开启签名校验时，需要配置 `FEISHU_WEBHOOK_SECRET`。
 - 飞书卡片里 Markdown 标题原样显示：不要整篇 Markdown 直接塞进一个文本块，应拆成多个 card elements。
-- worktree 自动化读不到 `.env.local`：使用 `FEISHU_ENV_FILE=/absolute/path/to/.env.local` 或 `SERVERCHAN_ENV_FILE=/absolute/path/to/.env.local` 指定密钥文件。
+- worktree 自动化读不到 `.env.local`：优先使用用户级配置；如需覆盖，使用 `FEISHU_ENV_FILE=/absolute/path/to/.env.local` 或 `SERVERCHAN_ENV_FILE=/absolute/path/to/.env.local` 指定密钥文件。

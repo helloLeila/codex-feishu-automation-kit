@@ -1,9 +1,11 @@
-import { access, copyFile, readFile, writeFile } from "node:fs/promises";
+import { access, chmod, copyFile, mkdir, readFile, writeFile } from "node:fs/promises";
+import { homedir } from "node:os";
 import path from "node:path";
 
 export const CONFIG_FILE = "tech-events-assistant.config.json";
 export const LOCAL_CONFIG_FILE = "tech-events-assistant.local.json";
 export const EXAMPLE_CONFIG_FILE = "tech-events-assistant.config.example.json";
+export const APP_CONFIG_DIR = "codex-feishu-automation-kit";
 
 export const defaultAssistantConfig = {
   assistantName: "技术活动助手",
@@ -57,6 +59,22 @@ async function readJsonIfExists(filePath) {
   }
 }
 
+export function resolveUserConfigDir() {
+  const xdgConfigHome = String(process.env.XDG_CONFIG_HOME ?? "").trim();
+  const baseDir = xdgConfigHome || path.join(process.env.HOME || homedir(), ".config");
+  return path.join(baseDir, APP_CONFIG_DIR);
+}
+
+export function resolveUserLocalConfigPath() {
+  return path.join(resolveUserConfigDir(), LOCAL_CONFIG_FILE);
+}
+
+export function resolveCodexHomeLocalConfigPath() {
+  const codexHome = String(process.env.CODEX_HOME ?? "").trim();
+  if (!codexHome) return null;
+  return path.join(codexHome, APP_CONFIG_DIR, LOCAL_CONFIG_FILE);
+}
+
 export async function loadAssistantConfig(rootDir = process.cwd()) {
   const publicConfig = await readJsonIfExists(path.join(rootDir, CONFIG_FILE));
   const localConfig = await readJsonIfExists(path.join(rootDir, LOCAL_CONFIG_FILE));
@@ -105,7 +123,9 @@ async function exists(filePath) {
 }
 
 export async function writeLocalConfig(rootDir, config) {
-  const filePath = path.join(rootDir, LOCAL_CONFIG_FILE);
+  const filePath = rootDir
+    ? path.join(rootDir, LOCAL_CONFIG_FILE)
+    : resolveUserLocalConfigPath();
   let backupPath = null;
   let backupCreated = false;
 
@@ -116,7 +136,9 @@ export async function writeLocalConfig(rootDir, config) {
     backupCreated = true;
   }
 
-  await writeFile(filePath, `${JSON.stringify(config, null, 2)}\n`);
+  await mkdir(path.dirname(filePath), { recursive: true });
+  await writeFile(filePath, `${JSON.stringify(config, null, 2)}\n`, { mode: 0o600 });
+  await chmod(filePath, 0o600);
 
   return {
     filePath,
@@ -125,8 +147,11 @@ export async function writeLocalConfig(rootDir, config) {
   };
 }
 
-export async function readLocalConfig(rootDir = process.cwd()) {
-  return readJsonIfExists(path.join(rootDir, LOCAL_CONFIG_FILE));
+export async function readLocalConfig(rootDir) {
+  const filePath = rootDir
+    ? path.join(rootDir, LOCAL_CONFIG_FILE)
+    : resolveUserLocalConfigPath();
+  return readJsonIfExists(filePath);
 }
 
 export function hasConfiguredPush(config) {

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -9,6 +9,7 @@ import {
   LOCAL_CONFIG_FILE,
   applySecretInputs,
   loadAssistantConfig,
+  resolveUserLocalConfigPath,
   writeLocalConfig,
 } from "../scripts/lib/tech-events-config.mjs";
 
@@ -92,5 +93,39 @@ test("writeLocalConfig creates a backup when replacing an existing local config"
     assert.match(path.basename(result.backupPath), /^tech-events-assistant\.local\.json\.bak-/);
   } finally {
     await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("writeLocalConfig defaults to the user-level config path with private permissions", async () => {
+  const home = await mkdtemp(path.join(tmpdir(), "tech-events-home-"));
+  const originalHome = process.env.HOME;
+  const originalXdgConfigHome = process.env.XDG_CONFIG_HOME;
+
+  try {
+    delete process.env.XDG_CONFIG_HOME;
+    process.env.HOME = home;
+
+    const result = await writeLocalConfig(undefined, {
+      push: { serverChanSendKey: "SCT123" },
+    });
+    const expectedPath = path.join(
+      home,
+      ".config",
+      "codex-feishu-automation-kit",
+      LOCAL_CONFIG_FILE,
+    );
+    const written = JSON.parse(await readFile(expectedPath, "utf8"));
+    const mode = (await stat(expectedPath)).mode & 0o777;
+
+    assert.equal(resolveUserLocalConfigPath(), expectedPath);
+    assert.equal(result.filePath, expectedPath);
+    assert.equal(written.push.serverChanSendKey, "SCT123");
+    assert.equal(mode, 0o600);
+  } finally {
+    if (originalHome === undefined) delete process.env.HOME;
+    else process.env.HOME = originalHome;
+    if (originalXdgConfigHome === undefined) delete process.env.XDG_CONFIG_HOME;
+    else process.env.XDG_CONFIG_HOME = originalXdgConfigHome;
+    await rm(home, { recursive: true, force: true });
   }
 });

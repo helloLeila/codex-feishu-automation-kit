@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
 import { readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
@@ -10,6 +11,17 @@ const publicConfigPath = path.join(rootDir, "tech-events-assistant.config.json")
 const localConfigPath = path.join(rootDir, "tech-events-assistant.local.json");
 const automationPromptPath = path.join(rootDir, "tech-events-assistant.automation.md");
 const neonBar = "█".repeat(22);
+let isolatedConfigHomeCounter = 0;
+
+function cliEnv(extra = {}) {
+  isolatedConfigHomeCounter += 1;
+  return {
+    ...process.env,
+    XDG_CONFIG_HOME: path.join(tmpdir(), `codex-feishu-gba-cli-${process.pid}-${isolatedConfigHomeCounter}`),
+    CODEX_HOME: "",
+    ...extra,
+  };
+}
 
 async function readOptionalFile(filePath) {
   try {
@@ -28,7 +40,7 @@ async function listLocalConfigBackups() {
 test("guide starts on configuration overview after automatic setup", async () => {
   const child = spawn(process.execPath, ["scripts/gba.mjs"], {
     cwd: rootDir,
-    env: { ...process.env, NO_COLOR: "1", TECH_EVENTS_ASSISTANT_SKIP_EDITOR: "1" },
+    env: cliEnv({ NO_COLOR: "1", TECH_EVENTS_ASSISTANT_SKIP_EDITOR: "1" }),
   });
   let stdout = "";
   let stderr = "";
@@ -80,7 +92,7 @@ test("guide starts on configuration overview after automatic setup", async () =>
 test("configuration overview displays current config and opens the config file", async () => {
   const child = spawn(process.execPath, ["scripts/gba.mjs"], {
     cwd: rootDir,
-    env: { ...process.env, NO_COLOR: "1", TECH_EVENTS_ASSISTANT_SKIP_EDITOR: "1" },
+    env: cliEnv({ NO_COLOR: "1", TECH_EVENTS_ASSISTANT_SKIP_EDITOR: "1" }),
   });
   let stdout = "";
   let stderr = "";
@@ -131,7 +143,7 @@ test("configuration overview displays current config and opens the config file",
 test("guide advances to the next step and marks previous step complete", async () => {
   const child = spawn(process.execPath, ["scripts/gba.mjs"], {
     cwd: rootDir,
-    env: { ...process.env, NO_COLOR: "1" },
+    env: cliEnv({ NO_COLOR: "1" }),
   });
   let stdout = "";
   let stderr = "";
@@ -195,7 +207,7 @@ test("guide advances to the next step and marks previous step complete", async (
 test("guide returns to the next step without replaying the last execution", async () => {
   const child = spawn(process.execPath, ["scripts/gba.mjs"], {
     cwd: rootDir,
-    env: { ...process.env, NO_COLOR: "1" },
+    env: cliEnv({ NO_COLOR: "1" }),
   });
   let stdout = "";
   let stderr = "";
@@ -241,7 +253,7 @@ test("guide returns to the next step without replaying the last execution", asyn
 test("guide can return to the manual menu", async () => {
   const child = spawn(process.execPath, ["scripts/gba.mjs"], {
     cwd: rootDir,
-    env: { ...process.env, NO_COLOR: "1" },
+    env: cliEnv({ NO_COLOR: "1" }),
   });
   let stdout = "";
   let stderr = "";
@@ -279,7 +291,7 @@ test("guide can return to the manual menu", async () => {
 test("configuration can be skipped without breaking the menu loop", async () => {
   const child = spawn(process.execPath, ["scripts/gba.mjs"], {
     cwd: rootDir,
-    env: { ...process.env, NO_COLOR: "1" },
+    env: cliEnv({ NO_COLOR: "1" }),
   });
   let stdout = "";
   let stderr = "";
@@ -323,7 +335,7 @@ test("configuration can be skipped without breaking the menu loop", async () => 
 test("configuration helper can open credential pages or show setup links", async () => {
   const child = spawn(process.execPath, ["scripts/gba.mjs"], {
     cwd: rootDir,
-    env: { ...process.env, NO_COLOR: "1", TECH_EVENTS_ASSISTANT_SKIP_BROWSER: "1" },
+    env: cliEnv({ NO_COLOR: "1", TECH_EVENTS_ASSISTANT_SKIP_BROWSER: "1" }),
   });
   let stdout = "";
   let stderr = "";
@@ -370,7 +382,7 @@ test("configuration save prints a completed step flow in piped output", async ()
   try {
     const child = spawn(process.execPath, ["scripts/gba.mjs"], {
       cwd: rootDir,
-      env: { ...process.env, NO_COLOR: "1" },
+      env: cliEnv({ NO_COLOR: "1" }),
     });
     let stdout = "";
     let stderr = "";
@@ -431,7 +443,7 @@ test("automation wizard writes a prompt file and gives one paste step", async ()
   try {
     const child = spawn(process.execPath, ["scripts/gba.mjs"], {
       cwd: rootDir,
-      env: { ...process.env, NO_COLOR: "1", TECH_EVENTS_ASSISTANT_SKIP_CLIPBOARD: "1" },
+      env: cliEnv({ NO_COLOR: "1", TECH_EVENTS_ASSISTANT_SKIP_CLIPBOARD: "1" }),
     });
     let stdout = "";
     let stderr = "";
@@ -501,7 +513,9 @@ test("automation wizard writes a prompt file and gives one paste step", async ()
     assert.equal(promptText.includes("时间：07:00"), true);
     assert.equal(promptText.includes("Asia/Shanghai"), true);
     assert.equal(promptText.includes("不要编造"), true);
-    assert.equal(promptText.includes("node skills/feishu-automation-reporter/scripts/push-gba-events-to-feishu.mjs"), true);
+    assert.equal(promptText.includes("codex-feishu-push-gba-events <生成的Markdown文件路径>"), true);
+    assert.equal(promptText.includes("node skills/feishu-automation-reporter/scripts/push-gba-events-to-feishu.mjs"), false);
+    assert.equal(promptText.includes("node skills/feishu-automation-reporter/scripts/push-gba-events-to-serverchan.mjs"), false);
     assert.equal(stderr, "");
   } finally {
     if (originalAutomationPrompt === null) {
@@ -560,11 +574,10 @@ test("automation wizard builds the copied prompt from configurable search scope"
 
     const child = spawn(process.execPath, ["scripts/gba.mjs"], {
       cwd: rootDir,
-      env: {
-        ...process.env,
+      env: cliEnv({
         NO_COLOR: "1",
         TECH_EVENTS_ASSISTANT_SKIP_CLIPBOARD: "1",
-      },
+      }),
     });
     let stdout = "";
     let stderr = "";
@@ -628,7 +641,7 @@ test("guide moves away from the final step instead of repeating it on enter", as
   try {
     const child = spawn(process.execPath, ["scripts/gba.mjs"], {
       cwd: rootDir,
-      env: { ...process.env, NO_COLOR: "1", TECH_EVENTS_ASSISTANT_SKIP_CLIPBOARD: "1" },
+      env: cliEnv({ NO_COLOR: "1", TECH_EVENTS_ASSISTANT_SKIP_CLIPBOARD: "1" }),
     });
     let stdout = "";
     let stderr = "";
@@ -675,12 +688,11 @@ test("connection step points users back to push preference setup when targets ar
     await rm(localConfigPath, { force: true });
     const child = spawn(process.execPath, ["scripts/gba.mjs"], {
       cwd: rootDir,
-      env: {
-        ...process.env,
+      env: cliEnv({
         NO_COLOR: "1",
         FEISHU_WEBHOOK_URL: "",
         SERVERCHAN_SENDKEY: "",
-      },
+      }),
     });
     let stdout = "";
     let stderr = "";
@@ -726,7 +738,7 @@ test("connection step points users back to push preference setup when targets ar
 test("dry-run prints a completed step flow instead of a digital progress bar", () => {
   const result = spawnSync(process.execPath, ["scripts/gba.mjs", "--dry-run"], {
     cwd: rootDir,
-    env: { ...process.env, NO_COLOR: "1" },
+    env: cliEnv({ NO_COLOR: "1" }),
     encoding: "utf8",
   });
 
@@ -751,7 +763,7 @@ test("interactive connection check tests real targets without showing local pref
 
   const child = spawn(process.execPath, ["scripts/gba.mjs"], {
     cwd: rootDir,
-    env: { ...process.env, NO_COLOR: "1", TECH_EVENTS_ASSISTANT_SKIP_REAL_SEND: "1" },
+    env: cliEnv({ NO_COLOR: "1", TECH_EVENTS_ASSISTANT_SKIP_REAL_SEND: "1" }),
   });
   let stdout = "";
   let stderr = "";
@@ -828,7 +840,7 @@ test("feishu connection test returns a readable server response summary", async 
 test("status prints a user-facing readiness panel instead of raw JSON", () => {
   const result = spawnSync(process.execPath, ["scripts/gba.mjs", "--status"], {
     cwd: rootDir,
-    env: { ...process.env, NO_COLOR: "1" },
+    env: cliEnv({ NO_COLOR: "1" }),
     encoding: "utf8",
   });
 

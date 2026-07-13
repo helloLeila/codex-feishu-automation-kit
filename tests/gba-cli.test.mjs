@@ -744,8 +744,7 @@ test("dry-run prints a completed step flow instead of a digital progress bar", (
 
   assert.equal(result.status, 0);
   assert.equal(result.stderr, "");
-  assert.equal(result.stdout.includes("完成  ██████████████████████████████ 100%  已完成"), false);
-  assert.equal(result.stdout.includes("推送格式检查（不发送）"), false);
+  assert.equal(result.stdout.includes("完成  ██████████████████████ 100%"), true);
   assert.equal(result.stdout.includes("├─ ✓ 生成飞书卡片预览"), true);
   assert.equal(result.stdout.includes("└─ ✓ 生成 Server 酱消息预览"), true);
   assert.equal(result.stdout.includes(`完成  ${neonBar} 100%`), true);

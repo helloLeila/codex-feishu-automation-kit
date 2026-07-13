@@ -38,4 +38,10 @@ npm run gba -- --dry-run >/tmp/codex-gba-dry-run.txt
 
 echo "已生成推送格式检查输出：/tmp/codex-gba-dry-run.txt"
 echo
-echo "配置完成。下一步：运行 npm run gba，在菜单里配置飞书 webhook 或 Server 酱 SendKey。"
+echo "配置完成。"
+echo "同一台电脑、同一个 macOS 用户只需配置一次密钥。"
+echo "换项目目录或 worktree 不需要重新填密钥。"
+echo "换 Codex 登录账号后，已安排任务需要在新账号里重新导入 Prompt，但密钥不用重新填写。"
+if [[ "$PWD" == *"/.codex/worktrees/"* ]]; then
+  echo "当前目录位于 Codex 管理的 worktree，不建议把已安排任务长期绑定在这里；密钥仍然可以正常使用。"
+fi

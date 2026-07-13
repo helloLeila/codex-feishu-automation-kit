@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -56,6 +56,49 @@ test("codex-feishu-push-gba-events dry-run reads user-level push config", async 
     assert.equal(result.stdout.includes("https://sctapi.ftqq.com/SCT123.send"), true);
   } finally {
     await rm(home, { recursive: true, force: true });
+  }
+});
+
+test("codex-feishu-push-gba-events dry-run works from an unrelated cwd", async () => {
+  const home = await mkdtemp(path.join(tmpdir(), "tech-events-home-"));
+  const configDir = path.join(home, ".config", "codex-feishu-automation-kit");
+  const launcherDir = await mkdtemp(path.join(tmpdir(), "tech-events-launcher-"));
+  const launcherPath = path.join(launcherDir, "codex-feishu-push-gba-events");
+
+  try {
+    await mkdir(configDir, { recursive: true });
+    await writeFile(
+      path.join(configDir, "tech-events-assistant.local.json"),
+      JSON.stringify({
+        push: {
+          feishuWebhookUrl: "https://user.example/webhook",
+        },
+      }),
+    );
+    await writeFile(
+      launcherPath,
+      `#!/usr/bin/env sh\nexec ${process.execPath} ${JSON.stringify(binScript)} "$@"\n`,
+    );
+    await chmod(launcherPath, 0o755);
+
+    const result = spawnSync("codex-feishu-push-gba-events", ["--dry-run", exampleMarkdown], {
+      cwd: await mkdtemp(path.join(tmpdir(), "tech-events-unrelated-")),
+      env: {
+        ...process.env,
+        HOME: home,
+        XDG_CONFIG_HOME: "",
+        CODEX_HOME: "",
+        PATH: `${launcherDir}:${process.env.PATH}`,
+      },
+      encoding: "utf8",
+    });
+
+    assert.equal(result.status, 0);
+    assert.equal(result.stderr, "");
+    assert.equal(result.stdout.includes("飞书 dry-run 预览"), true);
+  } finally {
+    await rm(home, { recursive: true, force: true });
+    await rm(launcherDir, { recursive: true, force: true });
   }
 });
 

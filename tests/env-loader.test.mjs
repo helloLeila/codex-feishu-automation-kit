@@ -93,16 +93,52 @@ test("loadLocalEnv reads push secrets from the user-level config", async () => {
   }
 });
 
+test("loadLocalEnv reads push secrets from XDG_CONFIG_HOME", async () => {
+  const xdgHome = await mkdtemp(path.join(tmpdir(), "tech-events-xdg-"));
+  const originalXdgConfigHome = process.env.XDG_CONFIG_HOME;
+  const originalCodexHome = process.env.CODEX_HOME;
+
+  try {
+    process.env.XDG_CONFIG_HOME = xdgHome;
+    delete process.env.CODEX_HOME;
+    await mkdir(path.join(xdgHome, "codex-feishu-automation-kit"), { recursive: true });
+    await writeFile(
+      path.join(xdgHome, "codex-feishu-automation-kit", "tech-events-assistant.local.json"),
+      JSON.stringify({
+        push: {
+          feishuWebhookUrl: "https://xdg.example/webhook",
+          serverChanSendKey: "xdg-sendkey",
+        },
+      }),
+    );
+
+    const env = await loadLocalEnv(await mkdtemp(path.join(tmpdir(), "tech-events-env-")));
+
+    assert.equal(env.FEISHU_WEBHOOK_URL, "https://xdg.example/webhook");
+    assert.equal(env.SERVERCHAN_SENDKEY, "xdg-sendkey");
+  } finally {
+    if (originalXdgConfigHome === undefined) delete process.env.XDG_CONFIG_HOME;
+    else process.env.XDG_CONFIG_HOME = originalXdgConfigHome;
+    if (originalCodexHome === undefined) delete process.env.CODEX_HOME;
+    else process.env.CODEX_HOME = originalCodexHome;
+    await rm(xdgHome, { recursive: true, force: true });
+  }
+});
+
 test("workspace config overrides user-level push secrets", async () => {
   const home = await mkdtemp(path.join(tmpdir(), "tech-events-home-"));
   const dir = await mkdtemp(path.join(tmpdir(), "tech-events-env-"));
   const originalHome = process.env.HOME;
   const originalXdgConfigHome = process.env.XDG_CONFIG_HOME;
   const originalCodexHome = process.env.CODEX_HOME;
+  const originalFeishuEnvFile = process.env.FEISHU_ENV_FILE;
+  const originalServerChanEnvFile = process.env.SERVERCHAN_ENV_FILE;
 
   try {
     delete process.env.XDG_CONFIG_HOME;
     delete process.env.CODEX_HOME;
+    delete process.env.FEISHU_ENV_FILE;
+    delete process.env.SERVERCHAN_ENV_FILE;
     process.env.HOME = home;
     const userConfigDir = path.join(home, ".config", "codex-feishu-automation-kit");
     await mkdir(userConfigDir, { recursive: true });
@@ -135,6 +171,10 @@ test("workspace config overrides user-level push secrets", async () => {
     else process.env.XDG_CONFIG_HOME = originalXdgConfigHome;
     if (originalCodexHome === undefined) delete process.env.CODEX_HOME;
     else process.env.CODEX_HOME = originalCodexHome;
+    if (originalFeishuEnvFile === undefined) delete process.env.FEISHU_ENV_FILE;
+    else process.env.FEISHU_ENV_FILE = originalFeishuEnvFile;
+    if (originalServerChanEnvFile === undefined) delete process.env.SERVERCHAN_ENV_FILE;
+    else process.env.SERVERCHAN_ENV_FILE = originalServerChanEnvFile;
     await rm(home, { recursive: true, force: true });
     await rm(dir, { recursive: true, force: true });
   }

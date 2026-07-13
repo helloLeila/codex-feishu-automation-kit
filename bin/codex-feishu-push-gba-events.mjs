@@ -2,14 +2,14 @@
 
 import { spawnSync } from "node:child_process";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 
 import { loadLocalEnv } from "../skills/feishu-automation-reporter/scripts/lib/env.mjs";
+import { resolveRepoRoot } from "../scripts/lib/runtime-paths.mjs";
 
-const rootDir = path.resolve(fileURLToPath(new URL("..", import.meta.url)));
+const rootDir = resolveRepoRoot(import.meta.url);
 
 function printUsage() {
-  console.log("用法：codex-feishu-push-gba-events [--dry-run] <活动Markdown文件>");
+  console.log("用法：codex-feishu-push-gba-events [--dry-run] <Markdown文件路径>");
 }
 
 function runPushScript({ label, script, file, env }) {

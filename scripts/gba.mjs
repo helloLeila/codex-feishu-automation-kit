@@ -32,9 +32,10 @@ import {
   resolveUserLocalConfigPath,
   writeLocalConfig,
 } from "./lib/tech-events-config.mjs";
+import { resolveRepoRoot } from "./lib/runtime-paths.mjs";
 import { loadLocalEnv } from "../skills/feishu-automation-reporter/scripts/lib/env.mjs";
 
-const rootDir = path.resolve(fileURLToPath(new URL("..", import.meta.url)));
+const rootDir = resolveRepoRoot(import.meta.url);
 const AUTOMATION_PROMPT_FILE = "tech-events-assistant.automation.md";
 const DEFAULT_AUTOMATION_NAME = "线下技术活动情报晨报";
 const FEISHU_CUSTOM_BOT_DOC_URL = "https://open.feishu.cn/document/client-docs/bot-v3/add-custom-bot";
@@ -414,7 +415,7 @@ ${numberedLines(eventSearch.sources)}
 生成 Markdown 文件后，请运行：
 codex-feishu-push-gba-events <生成的Markdown文件路径>
 
-这个命令会自动读取环境变量、显式 env 文件、当前工作区配置、用户级配置和 Codex Home 兜底配置；如果飞书和 Server 酱都配置了会两个都推送，如果都未配置会正常跳过并说明未配置推送渠道。
+这个命令会自动读取环境变量、显式 env 文件、当前工作区配置、$CODEX_HOME 配置和用户级配置；如果飞书和 Server 酱都配置了会两个都推送，如果都未配置会正常跳过并说明未配置推送渠道。
 `;
 }
 
@@ -679,26 +680,20 @@ function runLocalPreflight() {
   const commands = [
     {
       env: { FEISHU_DRY_RUN: "1", FEISHU_WEBHOOK_URL: "dry-run-webhook-url" },
-      args: [
-        "skills/feishu-automation-reporter/scripts/push-gba-events-to-feishu.mjs",
-        "examples/gba-events-example.md",
-      ],
+      args: ["bin/codex-feishu-push-gba-events.mjs", "examples/gba-events-example.md"],
     },
     {
       env: { SERVERCHAN_DRY_RUN: "1", SERVERCHAN_SENDKEY: "dry-run-sendkey" },
-      args: [
-        "skills/feishu-automation-reporter/scripts/push-gba-events-to-serverchan.mjs",
-        "examples/gba-events-example.md",
-      ],
+      args: ["bin/codex-feishu-push-gba-events.mjs", "examples/gba-events-example.md"],
     },
   ];
 
   for (const command of commands) {
-    const result = spawnSync(process.execPath, command.args, {
-      cwd: rootDir,
-      env: { ...process.env, ...command.env },
-      encoding: "utf8",
-    });
+  const result = spawnSync(process.execPath, [path.join(rootDir, command.args[0]), ...command.args.slice(1)], {
+    cwd: rootDir,
+    env: { ...process.env, ...command.env },
+    encoding: "utf8",
+  });
     if (result.status !== 0) {
       process.stderr.write(result.stderr);
       process.exitCode = result.status;

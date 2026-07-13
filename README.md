@@ -1,4 +1,4 @@
-# Codex 飞书 / Server 酱自动化工具包
+# Codex 飞书 / Server 酱自动化推送工具包
 
 把 Codex 自动化生成的 Markdown 日报、周报、活动清单等内容，推送到飞书群或 Server 酱。飞书适合展示结构化卡片，Server 酱适合把手机提醒送到微信相关通知通道。
 
@@ -7,7 +7,7 @@ GitHub 仓库地址：<https://github.com/helloLeila/codex-feishu-automation-kit
 适合这些场景：
 
 - AI 行业日报生成后自动推送。
-- 大湾区技术活动清单生成后自动推送。
+- 查看某个地区的技术活动清单生成后自动推送到手机（后续加入日报推送功能）。
 - 周报、监控结果、调研摘要等 Markdown 文件需要变成通知。
 - 想把“配置 webhook / SendKey、测试连接、排查未推送”沉淀成可复用 Codex Skill。
 

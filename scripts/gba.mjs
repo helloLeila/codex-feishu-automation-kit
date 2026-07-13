@@ -605,7 +605,7 @@ async function runSaveSteps(resultLabel) {
 async function printStatus(options = {}) {
   const title = Number.isInteger(options.stepIndex)
     ? guideStepTitle(options.stepIndex)
-    : "查看配置状态";
+    : "查看配置及安装说明";
   const config = await loadAssistantConfig(rootDir);
   const automation = resolveAutomationSettings(config);
   const localEnv = await loadLocalEnv(rootDir);

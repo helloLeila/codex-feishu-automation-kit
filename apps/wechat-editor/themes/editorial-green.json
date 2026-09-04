@@ -1,0 +1,37 @@
+{
+  "id": "editorial-green",
+  "name": "编辑绿",
+  "version": 1,
+  "colors": {
+    "primary": "#2f8a5e",
+    "accent": "#88b998",
+    "text": "#26372c",
+    "muted": "#6e7d72",
+    "surface": "#f4f8f4",
+    "border": "#dbe8dc"
+  },
+  "typography": {
+    "bodySize": 16,
+    "lineHeight": 1.82,
+    "h2Size": 20,
+    "h3Size": 17,
+    "captionSize": 13
+  },
+  "spacing": {
+    "paragraph": 16,
+    "section": 30,
+    "image": 20
+  },
+  "components": {
+    "heading2": {
+      "style": "left-border",
+      "borderWidth": 4
+    },
+    "quote": {
+      "style": "soft-background"
+    },
+    "image": {
+      "borderRadius": 6
+    }
+  }
+}

@@ -1,0 +1,19 @@
+services:
+  editor:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "${PORT:-3210}:3210"
+    environment:
+      PORT: "3210"
+      HOST: "0.0.0.0"
+      OPEN_WECHAT_EDITOR_CONFIG_DIR: "/data/config"
+      WECHAT_APP_ID: "${WECHAT_APP_ID:-}"
+      WECHAT_APP_SECRET: "${WECHAT_APP_SECRET:-}"
+      WECHAT_API_BASE_URL: "${WECHAT_API_BASE_URL:-https://api.weixin.qq.com}"
+      WECHAT_DEFAULT_AUTHOR: "${WECHAT_DEFAULT_AUTHOR:-}"
+      WECHAT_AUTO_SYNC: "${WECHAT_AUTO_SYNC:-false}"
+    volumes:
+      - "./data:/data"
+    restart: unless-stopped

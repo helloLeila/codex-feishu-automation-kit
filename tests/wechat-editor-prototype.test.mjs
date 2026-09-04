@@ -276,6 +276,6 @@ test('editor entry busts the toolbar formatter cache after behavior changes', as
     readFile(new URL('src/app.mjs', editorRoot), 'utf8'),
   ]);
 
-  assert.match(html, /src="\/src\/app\.mjs\?v=20260904-11"/);
+  assert.match(html, /src="\/src\/app\.mjs\?v=20260904-12"/);
   assert.match(app, /toolbar-format\.mjs\?v=20260904-8/);
 });

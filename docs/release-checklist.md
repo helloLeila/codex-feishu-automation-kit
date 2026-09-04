@@ -80,6 +80,9 @@ docker compose down
 
 - [ ] 容器外部端口可通过 `PORT` 调整，容器内部仍使用 `3210`；`./data/config` 在重建容器后仍存在。
 - [ ] 公众号 AppID / AppSecret 没有出现在前端代码、浏览器存储、镜像层、README、截图或测试 fixture 中。
+- [ ] 公网部署已设置 `EDITOR_AUTH_ENABLED=true`、长随机 `EDITOR_AUTH_PASSWORD` 和 `EDITOR_SESSION_SECRET`。
+- [ ] 未登录访客仍能打开编辑器并复制公众号格式；文章、主题、设置和微信草稿 API 未登录返回 `401`。
+- [ ] 未使用公网 HTTP 页面提交 AppSecret；正式环境使用 HTTPS，临时环境把密钥写入服务器 `.env.local`。
 - [ ] 微信后台接口 IP 白名单已配置为实际出口公网 IP；不要把 `127.0.0.1` 当作白名单地址。
 - [ ] 图片同步只接受公网 HTTPS JPG/PNG；发布前用 OSS 或其他图床地址完成一次草稿预览。
 - [ ] 完成文章创建、刷新恢复、草稿同步失败重试、进入审核暂停自动同步和数据目录备份恢复验证。

@@ -1329,3 +1329,45 @@ select:not([multiple]):disabled { cursor: not-allowed; background-color: #f3f6f4
   background: #dbe9e1;
   color: #285042;
 }
+
+/* Guest copy mode and authenticated draft mode stay visible in the title bar. */
+.auth-mode-label {
+  max-width: 150px;
+  overflow: hidden;
+  color: #6f7a74;
+  font-size: 10px;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.auth-login-button,
+.auth-logout-button {
+  padding-right: 7px;
+  padding-left: 7px;
+  color: #3a705e;
+  font-weight: 600;
+}
+
+.auth-login-button:hover,
+.auth-logout-button:hover { background: #edf5f0; color: #285042; }
+
+.login-modal { width: min(460px, calc(100vw - 32px)); }
+.login-card { padding: 28px; }
+.login-heading { padding-right: 22px; }
+.login-kicker { display: block; margin-bottom: 7px; color: #3a705e; font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.login-heading h2 { margin-bottom: 8px; color: #202124; font-size: 22px; font-weight: 500; }
+.login-heading p { margin: 0 0 22px; color: #5f6368; font-size: 12px; line-height: 1.6; }
+.login-card > label { display: grid; gap: 6px; margin: 14px 0; color: #3c4043; font-size: 12px; }
+.login-card input { width: 100%; min-height: 38px; padding: 8px 10px; border: 1px solid #bdc1c6; border-radius: 4px; background: #fff; color: #202124; font-size: 13px; }
+.login-card input:hover { border-color: #80868b; }
+.login-card input:focus-visible { border-color: #1a73e8; outline: 0; box-shadow: 0 0 0 2px rgba(26, 115, 232, .16); }
+.password-field { display: flex; align-items: stretch; }
+.password-field input { border-radius: 4px 0 0 4px; }
+.password-toggle { min-width: 54px; border: 1px solid #bdc1c6; border-left: 0; border-radius: 0 4px 4px 0; background: #f8f9fa; color: #3a705e; font-size: 11px; }
+.password-toggle:hover { background: #edf5f0; }
+.login-error { margin: 14px 0 0; padding: 10px 12px; border: 1px solid #f0b8b8; border-radius: 4px; background: #fff4f4; color: #a33a3a; font-size: 12px; line-height: 1.5; }
+.login-security-note { margin-top: 18px; padding: 10px 12px; border-left: 2px solid #9bbcae; background: #f4f8f5; color: #69766e; font-size: 11px; line-height: 1.6; }
+.login-card .modal-actions { margin-top: 22px; }
+.login-card .modal-actions .primary-button,
+.login-card .modal-actions .secondary-button { min-height: 36px; border-radius: 4px; font-size: 12px; font-weight: 500; }

@@ -14,6 +14,10 @@ services:
       WECHAT_API_BASE_URL: "${WECHAT_API_BASE_URL:-https://api.weixin.qq.com}"
       WECHAT_DEFAULT_AUTHOR: "${WECHAT_DEFAULT_AUTHOR:-}"
       WECHAT_AUTO_SYNC: "${WECHAT_AUTO_SYNC:-false}"
+      EDITOR_AUTH_ENABLED: "${EDITOR_AUTH_ENABLED:-false}"
+      EDITOR_AUTH_USER: "${EDITOR_AUTH_USER:-editor}"
+      EDITOR_AUTH_PASSWORD: "${EDITOR_AUTH_PASSWORD:-}"
+      EDITOR_SESSION_SECRET: "${EDITOR_SESSION_SECRET:-}"
     volumes:
       - "./data:/data"
     restart: unless-stopped

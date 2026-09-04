@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { createConfigStore } from '../apps/wechat-editor/src/server/config-store.mjs';
 import { createArticleStore } from '../apps/wechat-editor/src/server/article-store.mjs';
 import { createWeChatClient } from '../apps/wechat-editor/src/server/wechat-client.mjs';
+import { createAuth, isSecureRequest } from '../apps/wechat-editor/src/server/auth.mjs';
 import { createThemeStore } from '../apps/wechat-editor/src/theme-schema.mjs';
 
 const root = resolve(fileURLToPath(new URL('../apps/wechat-editor/', import.meta.url)));
@@ -35,18 +36,41 @@ async function readBody(request, limit = 2 * 1024 * 1024) {
   }
 }
 
-function json(response, status, payload) {
+function json(response, status, payload, headers = {}) {
   response.writeHead(status, {
     'Content-Type': 'application/json; charset=utf-8',
     'Cache-Control': 'no-store',
+    ...headers,
   });
   response.end(JSON.stringify(payload));
 }
 
-export function createEditorServer({ port = Number(process.env.PORT || 3210), host = process.env.HOST || '127.0.0.1', configDirectory, wechatClientFactory = createWeChatClient } = {}) {
+function requestHost(request) {
+  return String(request.headers?.host || '').split(':')[0].replace(/^\[|\]$/g, '').toLowerCase();
+}
+
+function isLocalHost(request) {
+  return new Set(['localhost', '127.0.0.1', '::1']).has(requestHost(request));
+}
+
+function isSameOriginRequest(request) {
+  const origin = request.headers?.origin || request.headers?.Origin;
+  if (!origin) return true;
+  try {
+    const originUrl = new URL(String(origin));
+    const forwarded = request.headers?.['x-forwarded-proto'] || request.headers?.['X-Forwarded-Proto'];
+    const protocol = forwarded ? String(forwarded).split(',')[0].trim().toLowerCase() : (request.socket?.encrypted ? 'https' : 'http');
+    return originUrl.host.toLowerCase() === String(request.headers?.host || '').toLowerCase() && originUrl.protocol === `${protocol}:`;
+  } catch {
+    return false;
+  }
+}
+
+export function createEditorServer({ port = Number(process.env.PORT || 3210), host = process.env.HOST || '127.0.0.1', configDirectory, wechatClientFactory = createWeChatClient, auth: authOptions } = {}) {
   const configStore = configDirectory ? createConfigStore({ directory: configDirectory }) : createConfigStore();
   const articleStore = createArticleStore({ directory: configStore.directory });
   const themeStore = createThemeStore({ directory: configStore.directory, builtinDirectory: join(root, 'themes') });
+  const auth = createAuth(authOptions || {});
 
   async function getClient() {
     const { settings, credentials } = await configStore.load();
@@ -80,6 +104,42 @@ export function createEditorServer({ port = Number(process.env.PORT || 3210), ho
 
   async function handleApi(request, response, pathname) {
     try {
+      if (request.method === 'GET' && pathname === '/api/health') {
+        json(response, 200, { ok: true, authEnabled: auth.enabled() });
+        return true;
+      }
+
+      if (request.method === 'GET' && pathname === '/api/auth/session') {
+        const session = auth.inspect(request);
+        json(response, 200, { ok: true, authenticated: session.authenticated, ...(session.username ? { username: session.username } : {}) });
+        return true;
+      }
+
+      if (request.method === 'POST' && pathname === '/api/auth/login') {
+        const body = await readBody(request, 32 * 1024);
+        const result = auth.login(request, body.username, body.password);
+        if (!result.ok) {
+          json(response, result.status, { ok: false, code: result.code, message: result.message }, result.retryAfter ? { 'Retry-After': String(result.retryAfter) } : {});
+          return true;
+        }
+        json(response, 200, { ok: true, authenticated: true, ...(result.username ? { username: result.username } : {}) }, result.setCookie ? { 'Set-Cookie': result.setCookie } : {});
+        return true;
+      }
+
+      if (request.method === 'POST' && pathname === '/api/auth/logout') {
+        json(response, 200, { ok: true, authenticated: false }, { 'Set-Cookie': auth.logout(request) });
+        return true;
+      }
+
+      if (auth.enabled() && !auth.inspect(request).authenticated) {
+        json(response, 401, { ok: false, code: 'AUTH_REQUIRED', message: '请先登录编辑器。' }, { 'WWW-Authenticate': 'Cookie' });
+        return true;
+      }
+
+      if (auth.enabled() && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(request.method) && !isSameOriginRequest(request)) {
+        throw Object.assign(new Error('请求来源不匹配，已拒绝本次修改。'), { code: 'CSRF_ORIGIN_MISMATCH', status: 403 });
+      }
+
       if (request.method === 'GET' && pathname === '/api/articles') {
         json(response, 200, { ok: true, articles: await articleStore.list() });
         return true;
@@ -177,6 +237,9 @@ export function createEditorServer({ port = Number(process.env.PORT || 3210), ho
 
       if (request.method === 'PUT' && pathname === '/api/config') {
         const body = await readBody(request, 128 * 1024);
+        if (body.credentials?.appSecret && !isSecureRequest(request) && !isLocalHost(request)) {
+          throw Object.assign(new Error('公网 HTTP 不安全，不能通过网页提交 AppSecret。请改用 HTTPS，或把密钥写入服务器的 .env.local。'), { code: 'INSECURE_CREDENTIAL_TRANSPORT', status: 400 });
+        }
         const saved = await configStore.save({ settings: body.settings || {}, credentials: body.credentials || {} });
         json(response, 200, {
           settings: saved.settings,
@@ -302,7 +365,7 @@ export function createEditorServer({ port = Number(process.env.PORT || 3210), ho
 
       return false;
     } catch (error) {
-      const status = error.status || (error.code === 'THEME_INVALID' ? 400 : error.code === 'THEME_ALREADY_EXISTS' ? 409 : 502);
+      const status = error.status || (error.code === 'INVALID_JSON' ? 400 : error.code === 'PAYLOAD_TOO_LARGE' ? 413 : error.code === 'THEME_INVALID' ? 400 : error.code === 'THEME_ALREADY_EXISTS' ? 409 : 502);
       json(response, status, {
         ok: false,
         code: error.code || 'WECHAT_REQUEST_FAILED',
@@ -312,7 +375,7 @@ export function createEditorServer({ port = Number(process.env.PORT || 3210), ho
     }
   }
 
-  const server = createServer(async (request, response) => {
+  async function handleRequest(request, response) {
     const pathname = decodeURIComponent(new URL(request.url, `http://${request.headers.host}`).pathname);
     if (pathname.startsWith('/api/')) {
       if (await handleApi(request, response, pathname)) return;
@@ -330,9 +393,11 @@ export function createEditorServer({ port = Number(process.env.PORT || 3210), ho
     } catch {
       response.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' }).end('Not found');
     }
-  });
+  }
 
-  return { server, host, port, configStore, articleStore, themeStore, handleApi };
+  const server = createServer(handleRequest);
+
+  return { server, host, port, configStore, articleStore, themeStore, auth, handleApi, handleRequest };
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

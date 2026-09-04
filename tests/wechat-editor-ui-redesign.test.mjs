@@ -27,6 +27,21 @@ test('editor exposes a dense two-pane publishing workbench', async () => {
   }
 });
 
+test('publishing surface separates guest copy mode from authenticated WeChat draft mode', async () => {
+  const html = await readFile(new URL('index.html', editorRoot), 'utf8');
+  const app = await readFile(new URL('src/app.mjs', editorRoot), 'utf8');
+
+  assert.match(html, /id="auth-mode-label"/);
+  assert.match(html, /data-action="login"/);
+  assert.match(html, /id="login-dialog"/);
+  assert.match(html, /id="auth-login-form"/);
+  assert.match(html, /复制公众号格式/);
+  assert.match(html, /创建微信草稿/);
+  assert.match(app, /function loadAuthSession\(/);
+  assert.match(app, /api\/auth\/login/);
+  assert.match(app, /function openLoginDialog\(/);
+});
+
 test('settings center exposes content-tool navigation and grouped controls', async () => {
   const html = await readFile(new URL('index.html', editorRoot), 'utf8');
 
@@ -266,8 +281,8 @@ test('editor action buttons use the editorial green UI accent without recoloring
 test('editor stylesheet cache version advances with the green action-button system', async () => {
   const html = await readFile(new URL('index.html', editorRoot), 'utf8');
 
-  assert.match(html, /styles\.css\?v=20260904-6/);
-  assert.match(html, /src\/app\.mjs\?v=20260904-11/);
+  assert.match(html, /styles\.css\?v=20260904-7/);
+  assert.match(html, /src\/app\.mjs\?v=20260904-12/);
 });
 
 test('preview keeps the article canvas and removes decorative device browser chrome', async () => {

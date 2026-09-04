@@ -262,13 +262,34 @@ npm start
 
 当前实现的凭证与同步设计见 [`docs/superpowers/specs/2026-08-20-wechat-sync-config-design.md`](docs/superpowers/specs/2026-08-20-wechat-sync-config-design.md)。真实微信请求只由本地服务端发起；没有 AppID / AppSecret 时，编辑器仍可作为纯本地 Markdown 预览器使用。
 
+### 两种发布模式
+
+编辑器故意把“复制发布”和“微信草稿同步”分开：
+
+- 访客模式：不登录即可写 Markdown、看右侧 375px 预览、选择主题，并点击“复制公众号格式”。剪贴板会同时写入 `text/html` 和纯文本，粘贴到微信公众号后台后保留当前预览的内联样式；这个流程不调用服务器文章或微信 API。
+- 登录模式：输入部署者设置的编辑器账号后，才开放服务器文章、主题、设置和“创建/更新微信草稿”。微信 API 请求只从 Node 服务发起，AppSecret 保存在服务器 `.env.local` 或 `/data/config/credentials.json`，不会进入 GitHub、浏览器 localStorage 或登录 Cookie。
+
+在公网临时部署时，复制模式仍可直接使用；草稿模式需要登录。设置页的 AppSecret 输入只适合 `localhost` 或 HTTPS。公网 HTTP 请求提交 AppSecret 会被服务端拒绝（`INSECURE_CREDENTIAL_TRANSPORT`）。客户端把密钥“加密后再通过 HTTP 发送”不能解决这个问题，因为攻击者可以篡改 HTTP 页面里的 JavaScript、截获登录会话或替换加密逻辑；正式部署应使用域名 + HTTPS，临时方案则把密钥写入 ECS 上权限为 `0600` 的 `.env.local`。
+
+开启公网登录保护：
+
+```bash
+EDITOR_AUTH_ENABLED=true
+EDITOR_AUTH_USER=editor
+EDITOR_AUTH_PASSWORD='<至少 16 位的长密码>'
+EDITOR_SESSION_SECRET='<随机长字符串>'
+```
+
+未配置 `EDITOR_AUTH_USER` / `EDITOR_AUTH_PASSWORD` 时，默认保持本机免登录行为，方便本地开发。
+
 ### 用 Docker Compose 启动
 
 如果不想在本机安装 Node.js，可以使用仓库自带的容器配置。首次启动：
 
 ```bash
 cp .env.example .env.local
-# 编辑 .env.local，填入自己的 WECHAT_APP_ID / WECHAT_APP_SECRET
+# 编辑 .env.local。公网部署时还要设置 EDITOR_AUTH_ENABLED、EDITOR_AUTH_USER、
+# EDITOR_AUTH_PASSWORD、EDITOR_SESSION_SECRET；AppSecret 优先写在这个文件里。
 docker compose --env-file .env.local up --build
 ```
 
@@ -281,6 +302,8 @@ docker compose down
 `PORT` 只改变宿主机端口映射（例如 `PORT=8080` 会使用 `http://127.0.0.1:8080/`），容器内仍监听 `3210`。`WECHAT_API_BASE_URL`、`WECHAT_DEFAULT_AUTHOR` 和 `WECHAT_AUTO_SYNC` 可在 `.env.local` 中预设；也可以进入编辑器“设置”修改并保存。
 
 Docker 容器通过 `HOST=0.0.0.0` 接收端口转发，本机直接运行时默认仍绑定 `127.0.0.1`。AppSecret 只由服务端读取，不会写入浏览器 `localStorage`，也不会被复制进镜像；`.env.local`、`data/` 已被忽略，禁止提交到 Git。首次调用微信接口前，必须把运行容器所在服务器的出口公网 IP 加入微信公众号后台的接口 IP 白名单。
+
+启用登录后，访问根页面仍然开放给访客复制；只有 `/api/articles`、`/api/config`、`/api/themes` 和 `/api/wechat/*` 等云端 API 需要会话 Cookie。登录失败会进入短暂冷却，服务端不会区分“用户不存在”和“密码错误”。
 
 ### 数据备份与恢复
 

@@ -32,6 +32,10 @@ test("docker compose maps the editor port and keeps local data outside the conta
   assert.match(compose, /OPEN_WECHAT_EDITOR_CONFIG_DIR:\s*"?\/data\/config"?/);
   assert.match(compose, /WECHAT_APP_ID:/);
   assert.match(compose, /WECHAT_APP_SECRET:/);
+  assert.match(compose, /EDITOR_AUTH_ENABLED:/);
+  assert.match(compose, /EDITOR_AUTH_USER:/);
+  assert.match(compose, /EDITOR_AUTH_PASSWORD:/);
+  assert.match(compose, /EDITOR_SESSION_SECRET:/);
 });
 
 test("environment example documents safe placeholders and editor persistence", async () => {
@@ -42,6 +46,10 @@ test("environment example documents safe placeholders and editor persistence", a
   assert.match(envExample, /^WECHAT_APP_SECRET=\s*$/m);
   assert.match(envExample, /^WECHAT_API_BASE_URL=https:\/\/api\.weixin\.qq\.com$/m);
   assert.match(envExample, /^OPEN_WECHAT_EDITOR_CONFIG_DIR=\/data\/config$/m);
+  assert.match(envExample, /^EDITOR_AUTH_ENABLED=false$/m);
+  assert.match(envExample, /^EDITOR_AUTH_USER=editor$/m);
+  assert.match(envExample, /^EDITOR_AUTH_PASSWORD=$/m);
+  assert.match(envExample, /^EDITOR_SESSION_SECRET=$/m);
   assert.doesNotMatch(envExample, /wx[a-zA-Z0-9]{8,}/);
   assert.doesNotMatch(envExample, /^(?!#).*SECRET=.*[A-Za-z0-9]{12,}/m);
 });

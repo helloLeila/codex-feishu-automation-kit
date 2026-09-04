@@ -155,6 +155,7 @@ let runtimeConfig = {
   credentials: { appId: '', secretConfigured: false },
 };
 let wechatBinding = { mediaId: null, index: 0, status: 'local-only', autoSync: false, paused: false };
+let authState = { enabled: false, authenticated: false, username: '' };
 
 function getState() {
   try {
@@ -190,12 +191,108 @@ async function apiFetch(path, options = {}) {
   const { allowOkFalse = false, ...fetchOptions } = options;
   const response = await fetch(path, { ...fetchOptions, headers: { 'content-type': 'application/json', ...(fetchOptions.headers || {}) } });
   const body = await response.json().catch(() => ({}));
+  if (response.status === 401) {
+    authState = { ...authState, authenticated: false, username: '' };
+    updateAuthUi();
+  }
   if (!response.ok || (!allowOkFalse && body.ok === false)) {
     const error = new Error(body.message || `本地 API 请求失败（${response.status}）`);
     error.code = body.code || response.status;
     throw error;
   }
   return body;
+}
+
+function updateAuthUi() {
+  const label = $('#auth-mode-label');
+  const loginButton = document.querySelector('[data-action="login"]');
+  const logoutButton = document.querySelector('[data-action="logout"]');
+  if (!label) return;
+  if (!authState.enabled) {
+    label.textContent = '本机模式 · 无需登录';
+  } else if (authState.authenticated) {
+    label.textContent = `已登录 · ${authState.username || '云端'}`;
+  } else {
+    label.textContent = '访客模式 · 可复制';
+  }
+  if (loginButton) loginButton.hidden = !authState.enabled || authState.authenticated;
+  if (logoutButton) logoutButton.hidden = !authState.enabled || !authState.authenticated;
+}
+
+async function loadAuthSession() {
+  try {
+    const health = await apiFetch('/api/health');
+    const session = await apiFetch('/api/auth/session');
+    authState = { enabled: Boolean(health.authEnabled), authenticated: Boolean(session.authenticated), username: session.username || '' };
+  } catch {
+    authState = { enabled: false, authenticated: false, username: '' };
+  }
+  updateAuthUi();
+  return authState;
+}
+
+function openLoginDialog() {
+  const dialog = $('#login-dialog');
+  if (!dialog) return;
+  $('#auth-login-error').hidden = true;
+  $('#auth-password').value = '';
+  dialog.showModal();
+  $('#auth-username').focus();
+}
+
+function closeLoginDialog() {
+  $('#login-dialog')?.close();
+}
+
+function requireAuthenticated(message = '登录后才能使用云端功能。') {
+  if (!authState.enabled || authState.authenticated) return true;
+  openLoginDialog();
+  showToast(message);
+  return false;
+}
+
+async function submitLogin(event) {
+  event.preventDefault();
+  const submit = $('#auth-login-submit');
+  const errorBox = $('#auth-login-error');
+  submit.disabled = true;
+  errorBox.hidden = true;
+  try {
+    const result = await apiFetch('/api/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ username: $('#auth-username').value.trim(), password: $('#auth-password').value }),
+    });
+    authState = { ...authState, enabled: true, authenticated: true, username: result.username || '' };
+    updateAuthUi();
+    closeLoginDialog();
+    await Promise.all([loadRuntimeConfig(), loadThemes()]);
+    await loadArticleWorkspace();
+    showToast('已登录，微信草稿和云端文章功能已启用');
+  } catch (error) {
+    errorBox.textContent = error.code === 'AUTH_RATE_LIMITED' ? `${error.message} 请稍后再试。` : '用户名或密码不正确。';
+    errorBox.hidden = false;
+  } finally {
+    submit.disabled = false;
+  }
+}
+
+async function logout() {
+  try {
+    await apiFetch('/api/auth/logout', { method: 'POST', body: '{}' });
+  } catch {
+    // A local-only session can still be cleared from the UI when the server is offline.
+  }
+  authState = { ...authState, authenticated: false, username: '' };
+  updateAuthUi();
+  runtimeConfig = {
+    ...runtimeConfig,
+    settings: { ...runtimeConfig.settings, autoSync: false },
+    credentials: { appId: '', secretConfigured: false },
+  };
+  wechatBinding = { ...wechatBinding, mediaId: null, status: 'local-only', autoSync: false };
+  updateSyncAction();
+  syncStatus.textContent = authState.enabled ? '访客模式 · 可复制' : '本机模式';
+  showToast('已退出登录；编辑和复制仍可继续使用');
 }
 
 function themeRecordPayload(record) {
@@ -292,6 +389,7 @@ function themePayloadFromEditor() {
 }
 
 async function saveThemeEditor({ copy = false } = {}) {
+  if (!requireAuthenticated('登录后才能保存自定义主题。')) return;
   const current = currentThemeRecord();
   if (!current) throw new Error('尚未选择主题。');
   const payload = themePayloadFromEditor();
@@ -327,8 +425,8 @@ async function loadRuntimeConfig() {
   try {
     runtimeConfig = await apiFetch('/api/config');
     syncStatus.textContent = runtimeConfig.credentials.secretConfigured ? '微信已配置' : '微信未连接';
-  } catch {
-    syncStatus.textContent = '本地服务未连接';
+  } catch (error) {
+    syncStatus.textContent = error.code === 'AUTH_REQUIRED' ? '访客模式 · 可复制' : '本地服务未连接';
   }
   return runtimeConfig;
 }
@@ -880,6 +978,7 @@ function buildWechatArticle() {
 }
 
 async function inspectWechatImages({ silent = false } = {}) {
+  if (!requireAuthenticated('登录后才能检查微信图片。')) return null;
   const article = buildWechatArticle();
   try {
     const result = await apiFetch('/api/wechat/images/inspect', { method: 'POST', body: JSON.stringify({ content: article.content }), allowOkFalse: true });
@@ -900,6 +999,7 @@ async function inspectWechatImages({ silent = false } = {}) {
 }
 
 async function saveSettings() {
+  if (!requireAuthenticated('登录后才能保存公众号配置。')) return;
   const credentials = {
     appId: $('#settings-app-id').value.trim(),
   };
@@ -950,6 +1050,7 @@ function populateSettings() {
 }
 
 async function testConnection() {
+  if (!requireAuthenticated('登录后才能测试微信连接。')) return;
   const diagnostic = $('#settings-diagnostic');
   diagnostic.className = 'diagnostic-panel';
   diagnostic.textContent = '正在通过本机服务获取 access_token…';
@@ -969,6 +1070,7 @@ async function testConnection() {
 }
 
 async function saveSettingsWithoutClosing() {
+  if (!requireAuthenticated('登录后才能保存公众号配置。')) return runtimeConfig;
   const credentials = { appId: $('#settings-app-id').value.trim() };
   const appSecret = readAppSecretInput();
   if (appSecret) credentials.appSecret = appSecret;
@@ -991,6 +1093,10 @@ async function saveSettingsWithoutClosing() {
 }
 
 async function createWechatDraft() {
+  if (!requireAuthenticated('登录后才能创建或更新微信草稿。')) {
+    $('#draft-dialog')?.close();
+    return;
+  }
   if (wechatBinding.mediaId) {
     $('#draft-dialog')?.close();
     await syncDraft();
@@ -1023,6 +1129,7 @@ async function createWechatDraft() {
 }
 
 async function syncDraft({ silent = false } = {}) {
+  if (!requireAuthenticated('登录后才能同步微信草稿。')) return;
   if (!wechatBinding.mediaId) {
     if (!silent) showToast('请先创建微信草稿');
     return;
@@ -1057,6 +1164,7 @@ async function syncDraft({ silent = false } = {}) {
 }
 
 async function deleteWechatDraft() {
+  if (!requireAuthenticated('登录后才能删除微信草稿。')) return;
   if (!wechatBinding.mediaId) return;
   const title = documentTitle?.value.trim() || currentRender.title || '未命名文章';
   const mediaId = wechatBinding.mediaId;
@@ -1076,6 +1184,7 @@ async function deleteWechatDraft() {
 }
 
 function openDraftDialog() {
+  if (!requireAuthenticated('登录后才能使用微信草稿；不登录可复制公众号格式。')) return;
   $('#draft-title').textContent = documentTitle?.value.trim() || currentRender.title;
   $('#draft-theme').textContent = `${getTheme(themeSelect.value).name} · v${getTheme(themeSelect.value).version || 1}`;
   $('#draft-media-id').textContent = wechatBinding.mediaId ? `${wechatBinding.mediaId.slice(0, 12)}…` : '尚未绑定';
@@ -1140,13 +1249,30 @@ async function resumeReview() {
 }
 
 async function copyRichText() {
-  const html = preview.innerHTML;
-  const text = preview.innerText;
+  // Copy the same inline-styled fragment that is sent to WeChat. The live
+  // preview relies on editor CSS classes, which WeChat does not receive when
+  // only `preview.innerHTML` is placed on the clipboard.
+  const theme = getTheme();
+  const styledContent = inlineWechatHtml(currentRender.html, theme);
+  const html = `<article class="wechat-article" style="max-width:640px;margin:0 auto;padding:24px 18px 42px;color:${theme.text};font:${theme.bodySize}px/${theme.lineHeight} -apple-system,BlinkMacSystemFont,&quot;PingFang SC&quot;,&quot;Microsoft YaHei&quot;,sans-serif">${styledContent}</article>`;
+  const text = currentRender.plainText || preview.innerText;
   try {
     if (navigator.clipboard?.write && window.ClipboardItem) {
       await navigator.clipboard.write([new ClipboardItem({ 'text/html': new Blob([html], { type: 'text/html' }), 'text/plain': new Blob([text], { type: 'text/plain' }) })]);
-    } else if (navigator.clipboard?.writeText) {
-      await navigator.clipboard.writeText(text);
+    } else {
+      const holder = document.createElement('div');
+      holder.contentEditable = 'true';
+      holder.innerHTML = html;
+      holder.style.cssText = 'position:fixed;left:-99999px;top:0;opacity:0;pointer-events:none;';
+      document.body.append(holder);
+      const selection = window.getSelection();
+      const range = document.createRange();
+      range.selectNodeContents(holder);
+      selection.removeAllRanges();
+      selection.addRange(range);
+      if (!document.execCommand('copy')) throw new Error('COPY_NOT_SUPPORTED');
+      selection.removeAllRanges();
+      holder.remove();
     }
     showToast('已复制公众号格式，可粘贴到微信后台');
   } catch {
@@ -1237,6 +1363,9 @@ input.addEventListener('drop', async (event) => {
 
 document.querySelectorAll('[data-action]').forEach((button) => button.addEventListener('click', () => {
   const action = button.dataset.action;
+  if (action === 'login') { openLoginDialog(); return; }
+  if (action === 'logout') { logout().catch(() => {}); return; }
+  if (action === 'close-login') { closeLoginDialog(); return; }
   if (action === 'undo') { restoreHistory(historyIndex - 1); return; }
   if (action === 'redo') { restoreHistory(historyIndex + 1); return; }
   if (action === 'preview') {
@@ -1302,6 +1431,14 @@ $('#md-file-input').addEventListener('change', async (event) => {
   scheduleSave();
   showToast(`已导入 ${file.name}`);
   event.target.value = '';
+});
+
+$('#auth-login-form')?.addEventListener('submit', submitLogin);
+$('#auth-password-toggle')?.addEventListener('click', (event) => {
+  const field = $('#auth-password');
+  const visible = field.type === 'text';
+  field.type = visible ? 'password' : 'text';
+  event.currentTarget.textContent = visible ? '显示' : '隐藏';
 });
 
 $('#settings-app-secret')?.addEventListener('focus', (event) => {
@@ -1370,4 +1507,5 @@ setPreviewZoom(100);
 bindWorkspaceSplitter();
 updateSyncAction();
 updateImageStatus();
-Promise.all([loadRuntimeConfig(), loadThemes()]).then(() => loadArticleWorkspace());
+updateAuthUi();
+loadAuthSession().then(() => Promise.all([loadRuntimeConfig(), loadThemes()]).then(() => loadArticleWorkspace()));

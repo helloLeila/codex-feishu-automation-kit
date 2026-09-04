@@ -293,6 +293,32 @@ cp .env.example .env.local
 docker compose --env-file .env.local up --build
 ```
 
+#### 中国区镜像源
+
+Dockerfile 的 Node 基础镜像通过 `NODE_BASE_IMAGE` 配置，应用代码、端口和数据目录不会因为换镜像源而改变。Docker Hub 访问慢时，在服务器的 `.env.local` 中改这一行即可：
+
+```dotenv
+NODE_BASE_IMAGE=docker.m.daocloud.io/library/node:20-bookworm-slim
+```
+
+然后重新构建：
+
+```bash
+docker compose --env-file .env.local build --pull
+docker compose --env-file .env.local up -d
+```
+
+如果服务器使用 Podman，把命令中的 `docker compose` 换成 `podman-compose`：
+
+```bash
+podman-compose --env-file .env.local build --pull
+podman-compose --env-file .env.local up -d
+```
+
+也可以填写你自己的阿里云 ACR、网易云或其他可访问仓库中的完整镜像地址，例如 `registry.cn-beijing.aliyuncs.com/<命名空间>/node:20-bookworm-slim`。镜像地址必须实际提供 `node:20-bookworm-slim` 对应的 Linux/amd64（或服务器架构）manifest；不要只填镜像站域名。部分旧的公共镜像地址会下线或限流，遇到 `manifest unknown`、`unauthorized` 或超时，只需换成另一个可访问地址，不需要修改项目代码。
+
+镜像源只影响“构建时从哪里拉 Node 基础镜像”，不会把 AppSecret、文章数据或主题写进镜像。真实凭证继续放在未跟踪的 `.env.local` 和 `./data` 中。
+
 浏览器打开 `http://127.0.0.1:3210/`。Compose 会把宿主机的 `./data` 挂载到容器 `/data`，并通过 `OPEN_WECHAT_EDITOR_CONFIG_DIR=/data/config` 指定持久化配置目录；其中 `/data/config` 保存设置、凭证、文章和自定义主题。删除容器不会删除这些文件。停止服务：
 
 ```bash

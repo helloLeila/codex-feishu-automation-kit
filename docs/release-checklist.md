@@ -57,6 +57,7 @@ git push -u origin main
 ## Open WeChat Editor 发布检查
 
 - [ ] `Dockerfile` 使用 Node 18+ 基础镜像，声明 `OPEN_WECHAT_EDITOR_CONFIG_DIR=/data/config`，暴露容器端口 `3210`。
+- [ ] `Dockerfile` 通过 `NODE_BASE_IMAGE` 支持区域镜像源，默认值为 `node:20-bookworm-slim`；中国区部署已在 `.env.local` 填写可访问的完整镜像地址。
 - [ ] `docker-compose.yml` 只把 `./data` 挂载到 `/data`，没有把宿主机私密目录复制进镜像。
 - [ ] `.env.example` 只含空的 `WECHAT_APP_ID` / `WECHAT_APP_SECRET` 占位符和公开 API 地址；真实值只放在未跟踪的 `.env.local`。
 - [ ] `.gitignore` 和 `.dockerignore` 忽略 `.env.*`、`data/`、`node_modules/` 与本地输出目录。
@@ -77,6 +78,8 @@ docker compose --env-file .env.local up -d
 curl --fail http://127.0.0.1:3210/
 docker compose down
 ```
+
+中国区或 Docker Hub 不稳定时，先在 `.env.local` 设置 `NODE_BASE_IMAGE`，再使用 `docker compose ... build --pull`；ECS 若使用 Podman，则使用等价的 `podman-compose` 命令。
 
 - [ ] 容器外部端口可通过 `PORT` 调整，容器内部仍使用 `3210`；`./data/config` 在重建容器后仍存在。
 - [ ] 公众号 AppID / AppSecret 没有出现在前端代码、浏览器存储、镜像层、README、截图或测试 fixture 中。

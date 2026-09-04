@@ -74,7 +74,7 @@ function renderInline(source = '') {
     .replace(/`([^`]+)`/g, (_, code) => hold(`<code>${escapeHtml(code)}</code>`))
     .replace(/!\[([^\]]*)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g, (_, alt, url) =>
       hold(
-        `<img src="${safeUrl(url)}" alt="${escapeHtml(alt)}" loading="lazy">`,
+        `<img src="${safeUrl(url)}" alt="${escapeHtml(alt)}">`,
       ),
     )
     .replace(/\[([^\]]+)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g, (_, label, url) =>
@@ -200,7 +200,7 @@ export function renderMarkdown(source = '') {
     if (standaloneImage) {
       const [, alt, url] = standaloneImage;
       blocks.push(
-        `<figure><img src="${safeUrl(url)}" alt="${escapeHtml(alt)}" loading="lazy">${alt ? `<figcaption>${escapeHtml(alt)}</figcaption>` : ''}</figure>`,
+        `<figure><img src="${safeUrl(url)}" alt="${escapeHtml(alt)}">${alt ? `<figcaption>${escapeHtml(alt)}</figcaption>` : ''}</figure>`,
       );
       index += 1;
       continue;
@@ -208,7 +208,7 @@ export function renderMarkdown(source = '') {
 
     const pastedImageUrl = standaloneImageUrl(line);
     if (pastedImageUrl) {
-      blocks.push(`<figure><img src="${safeUrl(pastedImageUrl)}" alt="" loading="lazy"></figure>`);
+      blocks.push(`<figure><img src="${safeUrl(pastedImageUrl)}" alt=""></figure>`);
       index += 1;
       continue;
     }

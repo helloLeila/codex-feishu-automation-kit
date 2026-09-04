@@ -1,4 +1,7 @@
-FROM node:20-bookworm-slim
+# Keep the base image configurable so deployments can use a reachable regional
+# registry without changing the application image or the editor design.
+ARG NODE_BASE_IMAGE=node:20-bookworm-slim
+FROM ${NODE_BASE_IMAGE}
 
 ENV NODE_ENV=production \
     PORT=3210 \

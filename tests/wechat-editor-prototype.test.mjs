@@ -132,6 +132,7 @@ test('markdown renderer covers article blocks and escapes unsafe raw HTML', asyn
   assert.match(result.html, /<blockquote>/);
   assert.match(result.html, /<ul>/);
   assert.match(result.html, /<figure>/);
+  assert.doesNotMatch(result.html, /loading="lazy"/);
   assert.match(result.html, /<pre><code class="language-js">/);
   assert.doesNotMatch(result.html, /<script>/);
   assert.match(result.html, /&lt;script&gt;/);

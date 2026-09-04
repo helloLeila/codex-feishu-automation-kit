@@ -1,6 +1,6 @@
-import { normalizePastedMarkdown, renderMarkdown } from './markdown-renderer.mjs?v=20260904-2';
+import { normalizePastedMarkdown, renderMarkdown } from './markdown-renderer.mjs?v=20260904-3';
 import { formatMarkdownSelection, normalizeLegacyMultilineFormatting } from './toolbar-format.mjs?v=20260904-8';
-import { inlineWechatHtml } from './wechat-html.mjs?v=20260904-2';
+import { inlineWechatHtml } from './wechat-html.mjs?v=20260904-3';
 
 const STORAGE_KEY = 'open-wechat-editor:prototype:v1';
 const MASKED_APP_SECRET = '••••••••';

@@ -62,6 +62,11 @@ test('wechat html inliner keeps every article block styled without a stylesheet'
   assert.match(result, /background:#eef6f1/);
   assert.match(result, /<u style="text-decoration:underline">强调<\/u>/);
   assert.match(result, /border-collapse:collapse/);
+  assert.match(result, /<h1 style="[^"]*text-align:left/);
+  assert.match(result, /<p style="[^"]*text-align:left/);
+  assert.match(result, /<blockquote style="[^"]*text-align:left/);
+  assert.match(result, /<ul style="[^"]*text-align:left/);
+  assert.doesNotMatch(result, /text-align:(?:start|end|match-parent|-webkit-)/i);
   assert.doesNotMatch(result, /class="table-wrap"/);
 });
 

@@ -13,7 +13,8 @@ async function readRepositoryFile(relativePath) {
 test("Docker image starts the editor on port 3210 with a persistent /data volume", async () => {
   const dockerfile = await readRepositoryFile("Dockerfile");
 
-  assert.match(dockerfile, /^FROM node:\d+[-\w.]+/m);
+  assert.match(dockerfile, /^ARG NODE_BASE_IMAGE=node:20-bookworm-slim$/m);
+  assert.match(dockerfile, /^FROM \$\{NODE_BASE_IMAGE\}$/m);
   assert.match(dockerfile, /WORKDIR\s+\/app/);
   assert.match(dockerfile, /EXPOSE\s+3210/);
   assert.match(dockerfile, /OPEN_WECHAT_EDITOR_CONFIG_DIR=\/data\/config/);
@@ -27,6 +28,7 @@ test("docker compose maps the editor port and keeps local data outside the conta
   assert.match(compose, /services:/);
   assert.match(compose, /editor:/);
   assert.match(compose, /build:\s*[\s\S]*context:\s*\./);
+  assert.match(compose, /args:\s*[\s\S]*NODE_BASE_IMAGE:\s*"?\$\{NODE_BASE_IMAGE:-node:20-bookworm-slim\}"?/);
   assert.match(compose, /\$\{PORT:-3210\}:3210/);
   assert.match(compose, /\.\/data:\/data/);
   assert.match(compose, /OPEN_WECHAT_EDITOR_CONFIG_DIR:\s*"?\/data\/config"?/);
@@ -41,6 +43,7 @@ test("docker compose maps the editor port and keeps local data outside the conta
 test("environment example documents safe placeholders and editor persistence", async () => {
   const envExample = await readRepositoryFile(".env.example");
 
+  assert.match(envExample, /^NODE_BASE_IMAGE=node:20-bookworm-slim$/m);
   assert.match(envExample, /^PORT=3210/m);
   assert.match(envExample, /^WECHAT_APP_ID=\s*$/m);
   assert.match(envExample, /^WECHAT_APP_SECRET=\s*$/m);
@@ -64,6 +67,8 @@ test("README explains both local and Docker startup plus persistent credentials"
   assert.match(readme, /WECHAT_APP_ID/);
   assert.match(readme, /WECHAT_APP_SECRET/);
   assert.match(readme, /不会写入浏览器.*localStorage/);
+  assert.match(readme, /NODE_BASE_IMAGE/);
+  assert.match(readme, /docker\.m\.daocloud\.io\/library\/node:20-bookworm-slim/);
 });
 
 test("release checklist includes editor secret and container checks", async () => {

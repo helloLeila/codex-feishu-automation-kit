@@ -284,6 +284,30 @@ EDITOR_SESSION_SECRET='<随机长字符串>'
 
 ### 用 Docker Compose 启动
 
+#### 一键部署脚本
+
+如果服务器已经安装 Docker 和 Docker Compose，推荐直接执行仓库提供的一键脚本。脚本会自动拉取代码、创建权限为 `0600` 的 `.env.local`、生成编辑器登录配置、构建容器、启动服务并检查 `/api/health`：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/helloLeila/codex-feishu-automation-kit/codex/test-local-commit-flow/scripts/deploy-wechat-editor.sh | bash
+```
+
+默认部署到 `/opt/open-wechat-editor`，使用服务器 80 端口。首次执行会交互式询问编辑器登录密码、AppID 和 AppSecret；AppID/AppSecret 可以留空，之后仍可使用 Markdown 预览和复制公众号格式。脚本不会把 `.env.local` 或 `data/` 上传到 GitHub。
+
+如果服务器不能访问 Docker Hub，可以在执行前指定基础镜像：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/helloLeila/codex-feishu-automation-kit/codex/test-local-commit-flow/scripts/deploy-wechat-editor.sh \
+  | NODE_BASE_IMAGE=docker.m.daocloud.io/library/node:20-bookworm-slim bash
+```
+
+后续更新仍然执行同一条命令即可；脚本检测到 `/opt/open-wechat-editor` 已存在时会执行 `git pull`，重新构建并滚动启动容器。自定义目录、分支或端口时使用环境变量，例如：
+
+```bash
+DEPLOY_DIR=/srv/open-wechat-editor PORT=8080 \
+  curl -fsSL https://raw.githubusercontent.com/helloLeila/codex-feishu-automation-kit/codex/test-local-commit-flow/scripts/deploy-wechat-editor.sh | bash
+```
+
 如果不想在本机安装 Node.js，可以使用仓库自带的容器配置。首次启动：
 
 ```bash

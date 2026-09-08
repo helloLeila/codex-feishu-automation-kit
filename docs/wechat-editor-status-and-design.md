@@ -250,6 +250,14 @@ npm start
 
 ### 9.2 Docker 部署
 
+服务器已安装 Docker 时，最少操作是执行一键脚本：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/helloLeila/codex-feishu-automation-kit/codex/test-local-commit-flow/scripts/deploy-wechat-editor.sh | bash
+```
+
+脚本会自动完成代码克隆或更新、交互式生成 `.env.local`、限制配置文件权限、构建 Docker 镜像、启动 Compose 服务和健康检查。默认目录是 `/opt/open-wechat-editor`，默认端口是 80。后续重复执行同一命令即可更新部署；不会覆盖已有 `.env.local` 或 `/data` 数据。
+
 ```bash
 cp .env.example .env.local
 # 设置 EDITOR_AUTH_ENABLED、EDITOR_AUTH_USER、EDITOR_AUTH_PASSWORD、
@@ -318,4 +326,3 @@ git diff --check
 ## 十五. 维护规则
 
 新能力进入状态总表；有明确限制的能力标记为“部分完成”；决定不做的能力放入“产品边界/不承诺”；API、数据模型、部署命令变更时同步修改本文和测试；真实凭证、用户文章和服务器私有数据只存在运行环境，不进入本文。
-

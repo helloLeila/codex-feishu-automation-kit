@@ -13,4 +13,6 @@ test('deployment script supports clone, update, protected env, compose startup, 
   assert.match(source, /api\/health/);
   assert.match(source, /WECHAT_APP_SECRET/);
   assert.match(source, /EDITOR_SESSION_SECRET/);
+  assert.match(source, /--enable-login/);
+  assert.match(source, /EDITOR_AUTH_ENABLED=true/);
 });

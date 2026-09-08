@@ -308,6 +308,15 @@ DEPLOY_DIR=/srv/open-wechat-editor PORT=8080 \
   curl -fsSL https://raw.githubusercontent.com/helloLeila/codex-feishu-automation-kit/codex/test-local-commit-flow/scripts/deploy-wechat-editor.sh | bash
 ```
 
+如果服务器之前已经部署，但当时没有开启登录，执行下面这一条即可开启线上登录并重启容器：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/helloLeila/codex-feishu-automation-kit/codex/test-local-commit-flow/scripts/deploy-wechat-editor.sh \
+  | bash -s -- --enable-login
+```
+
+脚本会保留其他配置，只替换 `EDITOR_AUTH_ENABLED`、`EDITOR_AUTH_USER`、`EDITOR_AUTH_PASSWORD` 和 `EDITOR_SESSION_SECRET`。
+
 如果不想在本机安装 Node.js，可以使用仓库自带的容器配置。首次启动：
 
 ```bash

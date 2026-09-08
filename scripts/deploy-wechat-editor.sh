@@ -9,6 +9,11 @@ BRANCH="${BRANCH:-codex/test-local-commit-flow}"
 DEPLOY_DIR="${DEPLOY_DIR:-/opt/open-wechat-editor}"
 PORT="${PORT:-80}"
 ENV_FILE="${DEPLOY_DIR}/.env.local"
+ENABLE_LOGIN=false
+
+if [[ "${1:-}" == "--enable-login" ]]; then
+  ENABLE_LOGIN=true
+fi
 
 log() { printf '\n==> %s\n' "$*"; }
 fail() { printf '错误：%s\n' "$*" >&2; exit 1; }
@@ -89,6 +94,28 @@ EOF
   chmod 600 "$ENV_FILE"
 }
 
+enable_existing_login() {
+  [[ "$ENABLE_LOGIN" == true ]] || return 0
+  [[ -f "$ENV_FILE" ]] || return 0
+
+  local username password session_secret tmp
+  if [[ -r /dev/tty ]]; then
+    username="$(prompt_value '线上编辑器登录用户名 [editor]: ')"
+    username="${username:-editor}"
+    password="$(prompt_secret '线上编辑器登录密码（至少 16 位）： ')"
+  else
+    username="${EDITOR_AUTH_USER:-editor}"
+    password="${EDITOR_AUTH_PASSWORD:-}"
+  fi
+  [[ ${#password} -ge 16 ]] || fail '线上编辑器登录密码至少需要 16 位。'
+  session_secret="${EDITOR_SESSION_SECRET:-$(random_secret)}"
+  tmp="$(mktemp)"
+  awk '!/^EDITOR_AUTH_ENABLED=|^EDITOR_AUTH_USER=|^EDITOR_AUTH_PASSWORD=|^EDITOR_SESSION_SECRET=/' "$ENV_FILE" > "$tmp"
+  printf 'EDITOR_AUTH_ENABLED=true\nEDITOR_AUTH_USER=%s\nEDITOR_AUTH_PASSWORD=%s\nEDITOR_SESSION_SECRET=%s\n' "$username" "$password" "$session_secret" >> "$tmp"
+  chmod 600 "$tmp"
+  mv "$tmp" "$ENV_FILE"
+}
+
 sync_source() {
   mkdir -p "$(dirname "$DEPLOY_DIR")"
   if [[ -d "$DEPLOY_DIR/.git" ]]; then
@@ -133,6 +160,7 @@ main() {
 
   log '生成服务器本地配置'
   write_env_file
+  enable_existing_login
 
   log '构建并启动 Docker 容器'
   start_stack

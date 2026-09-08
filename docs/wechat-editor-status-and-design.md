@@ -258,6 +258,15 @@ curl -fsSL https://raw.githubusercontent.com/helloLeila/codex-feishu-automation-
 
 脚本会自动完成代码克隆或更新、交互式生成 `.env.local`、限制配置文件权限、构建 Docker 镜像、启动 Compose 服务和健康检查。默认目录是 `/opt/open-wechat-editor`，默认端口是 80。后续重复执行同一命令即可更新部署；不会覆盖已有 `.env.local` 或 `/data` 数据。
 
+如果旧线上实例已经部署但未开启登录，使用：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/helloLeila/codex-feishu-automation-kit/codex/test-local-commit-flow/scripts/deploy-wechat-editor.sh \
+  | bash -s -- --enable-login
+```
+
+该模式只更新登录四项配置并重启容器，不会覆盖公众号配置、文章或主题数据。
+
 ```bash
 cp .env.example .env.local
 # 设置 EDITOR_AUTH_ENABLED、EDITOR_AUTH_USER、EDITOR_AUTH_PASSWORD、

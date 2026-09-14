@@ -248,6 +248,13 @@ npm start
 
 浏览器打开 `http://127.0.0.1:3210/`，进入“设置”填写公众号 AppID 和 AppSecret。AppSecret 只提交给本机 Node 服务，不会写入浏览器 `localStorage`；保存后点击“测试连接”。如果返回 `40164`，把运行编辑器的服务端出口公网 IP 加入公众号后台的接口 IP 白名单。
 
+设置 → 公众号配置中提供了两个接入入口：
+
+- “查看本机公网 IP”打开 `https://ifconfig.me/ip`。复制显示的公网 IPv4，填入微信公众号后台的 IP 白名单；这里填写的是运行 Node 服务的电脑地址，不是 `127.0.0.1`、内网地址或端口。
+- “打开微信开发者控制台”打开 `https://developers.weixin.qq.com/console/product/mp/wxa89b7304952bc85e?tab1=basicInfo`，用于获取 AppID、AppSecret 并配置白名单。
+
+两个入口会在新标签页打开，不会关闭当前编辑器或丢失 Markdown。AppSecret 只保存在本机服务端配置文件中。
+
 凭证也可以通过环境变量提供：
 
 ```bash

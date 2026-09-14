@@ -64,6 +64,17 @@ test('settings center exposes content-tool navigation and grouped controls', asy
   assert.match(html, /已保存时显示掩码/);
 });
 
+test('wechat settings expose safe setup links for local IP and developer console', async () => {
+  const html = await readFile(new URL('index.html', editorRoot), 'utf8');
+
+  assert.match(html, /href="https:\/\/ifconfig\.me\/ip"/);
+  assert.match(html, /href="https:\/\/developers\.weixin\.qq\.com\/console\/product\/mp\/wxa89b7304952bc85e\?tab1=basicInfo"/);
+  assert.match(html, /target="_blank"/);
+  assert.match(html, /rel="noopener noreferrer"/);
+  assert.match(html, /运行 Node 服务电脑的公网 IPv4/);
+  assert.match(html, /AppSecret[^<]*本机服务端/);
+});
+
 test('editor styling uses an editorial neutral palette instead of AI dashboard effects', async () => {
   const css = await readFile(new URL('styles.css', editorRoot), 'utf8');
 
@@ -281,7 +292,7 @@ test('editor action buttons use the editorial green UI accent without recoloring
 test('editor stylesheet cache version advances with the green action-button system', async () => {
   const html = await readFile(new URL('index.html', editorRoot), 'utf8');
 
-  assert.match(html, /styles\.css\?v=20260904-7/);
+  assert.match(html, /styles\.css\?v=20260914-1/);
   assert.match(html, /src\/app\.mjs\?v=20260904-12/);
 });
 

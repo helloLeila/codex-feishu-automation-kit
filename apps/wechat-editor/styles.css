@@ -226,6 +226,15 @@ legend { margin-bottom: 8px; padding: 0; color: var(--ink-soft); font-size: 10px
 .diagnostic-panel.error { border-color: #e0bfb1; background: #fff3ee; color: #9b4d39; }
 .settings-help, .settings-note { display: grid; gap: 4px; margin-top: 12px; padding: 9px 10px; border-left: 3px solid var(--accent); background: #eef6f1; color: var(--muted); font-size: 9px; line-height: 1.5; }
 .settings-help strong { color: var(--accent-dark); font-size: 10px; }
+.wechat-setup-guide { margin: 0 0 14px; padding: 12px 14px; border: 1px solid #cfe0d5; border-radius: 6px; background: #f4f9f5; color: #52625a; font-size: 11px; line-height: 1.6; }
+.wechat-setup-guide-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 6px; }
+.wechat-setup-guide-heading strong { color: var(--accent-dark); font-size: 12px; }
+.wechat-setup-guide-heading span { color: #819088; font-size: 10px; }
+.wechat-setup-guide ol { margin: 0; padding-left: 18px; }
+.wechat-setup-guide li { margin: 3px 0; }
+.wechat-setup-guide a { color: var(--accent-dark); text-decoration: underline; text-underline-offset: 2px; }
+.wechat-setup-guide a:hover { color: var(--accent); }
+.wechat-setup-guide p { margin: 7px 0 0; color: #819088; font-size: 10px; }
 .shortcut-list { border-top: 1px solid var(--line); }
 .shortcut-list > div, .export-row { display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--line); color: var(--ink-soft); font-size: 11px; }
 .shortcut-list kbd { margin: 0; border-color: var(--line-dark); color: var(--muted); }

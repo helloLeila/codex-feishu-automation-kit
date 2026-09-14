@@ -3,5 +3,6 @@ tech-events-assistant.local.json
 tech-events-assistant.local.json.bak-*
 tech-events-assistant.automation.md
 node_modules/
+data/
 .DS_Store
 *.log

@@ -236,3 +236,148 @@ Server 酱消息不完整：Server 酱适合提醒和摘要，不适合完整替
 - 不要把真实 webhook、SendKey 或签名密钥写进 README、示例、issue、截图或 prompt。
 - 如果密钥泄露，立即在对应平台重置。
 - 开源前运行 `docs/release-checklist.md` 里的扫描命令。
+
+## Open WeChat Editor：微信公众号 Markdown 编辑器
+
+启动本地编辑器：
+
+```bash
+npm install
+npm start
+```
+
+浏览器打开 `http://127.0.0.1:3210/`，进入“设置”填写公众号 AppID 和 AppSecret。AppSecret 只提交给本机 Node 服务，不会写入浏览器 `localStorage`；保存后点击“测试连接”。如果返回 `40164`，把运行编辑器的服务端出口公网 IP 加入公众号后台的接口 IP 白名单。
+
+设置 → 公众号配置中提供了两个接入入口：
+
+- “查看本机公网 IP”打开 `https://ifconfig.me/ip`。复制显示的公网 IPv4，填入微信公众号后台的 IP 白名单；这里填写的是运行 Node 服务的电脑地址，不是 `127.0.0.1`、内网地址或端口。
+- “打开微信开发者控制台”打开 `https://developers.weixin.qq.com/console/product/mp/wxa89b7304952bc85e?tab1=basicInfo`，用于获取 AppID、AppSecret 并配置白名单。
+
+两个入口会在新标签页打开，不会关闭当前编辑器或丢失 Markdown。AppSecret 只保存在本机服务端配置文件中。
+
+凭证也可以通过环境变量提供：
+
+```bash
+WECHAT_APP_ID=wx_your_app_id \
+WECHAT_APP_SECRET=your_app_secret \
+npm start
+```
+
+设置页还可以保存默认作者、封面永久 MediaID、评论开关和自动同步防抖时间。第一次必须手动点击“创建微信草稿”；微信返回 `media_id` 后，编辑阶段停止输入约 15 秒会调用官方更新草稿接口更新同一个草稿。点击“进入审核”后自动同步会暂停，避免覆盖你在微信后台的手工修改。
+
+正文图片可以直接使用 Typora + PicGo 上传到 OSS 的 HTTPS 地址。同步草稿时，本地服务会把 JPG/PNG 图片上传到微信“上传图文消息内图片”接口，并在提交给草稿接口的 HTML 中替换为微信图片地址；同一图片在后续更新中会复用缓存，不会重复上传。已经是 `mmbiz.qpic.cn` 的微信图片会直接保留。图片地址必须是公网 HTTPS，不能使用 `file://`、`/assets/...` 或未公开的本地路径。
+
+当前实现的凭证与同步设计见 [`docs/superpowers/specs/2026-08-20-wechat-sync-config-design.md`](docs/superpowers/specs/2026-08-20-wechat-sync-config-design.md)。真实微信请求只由本地服务端发起；没有 AppID / AppSecret 时，编辑器仍可作为纯本地 Markdown 预览器使用。
+
+### 两种发布模式
+
+编辑器故意把“复制发布”和“微信草稿同步”分开：
+
+- 访客模式：不登录即可写 Markdown、看右侧 375px 预览、选择主题，并点击“复制公众号格式”。剪贴板会同时写入 `text/html` 和纯文本，粘贴到微信公众号后台后保留当前预览的内联样式；这个流程不调用服务器文章或微信 API。
+- 登录模式：输入部署者设置的编辑器账号后，才开放服务器文章、主题、设置和“创建/更新微信草稿”。微信 API 请求只从 Node 服务发起，AppSecret 保存在服务器 `.env.local` 或 `/data/config/credentials.json`，不会进入 GitHub、浏览器 localStorage 或登录 Cookie。
+
+在公网临时部署时，复制模式仍可直接使用；草稿模式需要登录。设置页的 AppSecret 输入只适合 `localhost` 或 HTTPS。公网 HTTP 请求提交 AppSecret 会被服务端拒绝（`INSECURE_CREDENTIAL_TRANSPORT`）。客户端把密钥“加密后再通过 HTTP 发送”不能解决这个问题，因为攻击者可以篡改 HTTP 页面里的 JavaScript、截获登录会话或替换加密逻辑；正式部署应使用域名 + HTTPS，临时方案则把密钥写入 ECS 上权限为 `0600` 的 `.env.local`。
+
+开启公网登录保护：
+
+```bash
+EDITOR_AUTH_ENABLED=true
+EDITOR_AUTH_USER=editor
+EDITOR_AUTH_PASSWORD='<至少 16 位的长密码>'
+EDITOR_SESSION_SECRET='<随机长字符串>'
+```
+
+未配置 `EDITOR_AUTH_USER` / `EDITOR_AUTH_PASSWORD` 时，默认保持本机免登录行为，方便本地开发。
+
+### 用 Docker Compose 启动
+
+#### 一键部署脚本
+
+如果服务器已经安装 Docker 和 Docker Compose，推荐直接执行仓库提供的一键脚本。脚本会自动拉取代码、创建权限为 `0600` 的 `.env.local`、生成编辑器登录配置、构建容器、启动服务并检查 `/api/health`：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/helloLeila/codex-feishu-automation-kit/codex/test-local-commit-flow/scripts/deploy-wechat-editor.sh | bash
+```
+
+默认部署到 `/opt/open-wechat-editor`，使用服务器 80 端口。首次执行会交互式询问编辑器登录密码、AppID 和 AppSecret；AppID/AppSecret 可以留空，之后仍可使用 Markdown 预览和复制公众号格式。脚本不会把 `.env.local` 或 `data/` 上传到 GitHub。
+
+如果服务器不能访问 Docker Hub，可以在执行前指定基础镜像：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/helloLeila/codex-feishu-automation-kit/codex/test-local-commit-flow/scripts/deploy-wechat-editor.sh \
+  | NODE_BASE_IMAGE=docker.m.daocloud.io/library/node:20-bookworm-slim bash
+```
+
+后续更新仍然执行同一条命令即可；脚本检测到 `/opt/open-wechat-editor` 已存在时会执行 `git pull`，重新构建并滚动启动容器。自定义目录、分支或端口时使用环境变量，例如：
+
+```bash
+DEPLOY_DIR=/srv/open-wechat-editor PORT=8080 \
+  curl -fsSL https://raw.githubusercontent.com/helloLeila/codex-feishu-automation-kit/codex/test-local-commit-flow/scripts/deploy-wechat-editor.sh | bash
+```
+
+如果服务器之前已经部署，但当时没有开启登录，执行下面这一条即可开启线上登录并重启容器：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/helloLeila/codex-feishu-automation-kit/codex/test-local-commit-flow/scripts/deploy-wechat-editor.sh \
+  | bash -s -- --enable-login
+```
+
+脚本会保留其他配置，只替换 `EDITOR_AUTH_ENABLED`、`EDITOR_AUTH_USER`、`EDITOR_AUTH_PASSWORD` 和 `EDITOR_SESSION_SECRET`。
+
+如果不想在本机安装 Node.js，可以使用仓库自带的容器配置。首次启动：
+
+```bash
+cp .env.example .env.local
+# 编辑 .env.local。公网部署时还要设置 EDITOR_AUTH_ENABLED、EDITOR_AUTH_USER、
+# EDITOR_AUTH_PASSWORD、EDITOR_SESSION_SECRET；AppSecret 优先写在这个文件里。
+docker compose --env-file .env.local up --build
+```
+
+#### 中国区镜像源
+
+Dockerfile 的 Node 基础镜像通过 `NODE_BASE_IMAGE` 配置，应用代码、端口和数据目录不会因为换镜像源而改变。Docker Hub 访问慢时，在服务器的 `.env.local` 中改这一行即可：
+
+```dotenv
+NODE_BASE_IMAGE=docker.m.daocloud.io/library/node:20-bookworm-slim
+```
+
+然后重新构建：
+
+```bash
+docker compose --env-file .env.local build --pull
+docker compose --env-file .env.local up -d
+```
+
+如果服务器使用 Podman，把命令中的 `docker compose` 换成 `podman-compose`：
+
+```bash
+podman-compose --env-file .env.local build --pull
+podman-compose --env-file .env.local up -d
+```
+
+也可以填写你自己的阿里云 ACR、网易云或其他可访问仓库中的完整镜像地址，例如 `registry.cn-beijing.aliyuncs.com/<命名空间>/node:20-bookworm-slim`。镜像地址必须实际提供 `node:20-bookworm-slim` 对应的 Linux/amd64（或服务器架构）manifest；不要只填镜像站域名。部分旧的公共镜像地址会下线或限流，遇到 `manifest unknown`、`unauthorized` 或超时，只需换成另一个可访问地址，不需要修改项目代码。
+
+镜像源只影响“构建时从哪里拉 Node 基础镜像”，不会把 AppSecret、文章数据或主题写进镜像。真实凭证继续放在未跟踪的 `.env.local` 和 `./data` 中。
+
+浏览器打开 `http://127.0.0.1:3210/`。Compose 会把宿主机的 `./data` 挂载到容器 `/data`，并通过 `OPEN_WECHAT_EDITOR_CONFIG_DIR=/data/config` 指定持久化配置目录；其中 `/data/config` 保存设置、凭证、文章和自定义主题。删除容器不会删除这些文件。停止服务：
+
+```bash
+docker compose down
+```
+
+`PORT` 只改变宿主机端口映射（例如 `PORT=8080` 会使用 `http://127.0.0.1:8080/`），容器内仍监听 `3210`。`WECHAT_API_BASE_URL`、`WECHAT_DEFAULT_AUTHOR` 和 `WECHAT_AUTO_SYNC` 可在 `.env.local` 中预设；也可以进入编辑器“设置”修改并保存。
+
+Docker 容器通过 `HOST=0.0.0.0` 接收端口转发，本机直接运行时默认仍绑定 `127.0.0.1`。AppSecret 只由服务端读取，不会写入浏览器 `localStorage`，也不会被复制进镜像；`.env.local`、`data/` 已被忽略，禁止提交到 Git。首次调用微信接口前，必须把运行容器所在服务器的出口公网 IP 加入微信公众号后台的接口 IP 白名单。
+
+启用登录后，访问根页面仍然开放给访客复制；只有 `/api/articles`、`/api/config`、`/api/themes` 和 `/api/wechat/*` 等云端 API 需要会话 Cookie。登录失败会进入短暂冷却，服务端不会区分“用户不存在”和“密码错误”。
+
+### 数据备份与恢复
+
+停止编辑器后，备份 `data/` 目录即可迁移本机文章和主题：
+
+```bash
+docker compose down
+tar -czf wechat-editor-data-$(date +%Y%m%d).tar.gz data
+```
+
+恢复时先停止服务，再把备份解压回仓库根目录的 `data/`，然后重新执行 `docker compose --env-file .env.local up -d`。不要把 `data/config/credentials.json` 发给他人；其中包含 AppSecret。

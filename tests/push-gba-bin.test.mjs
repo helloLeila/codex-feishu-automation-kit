@@ -113,6 +113,8 @@ test("codex-feishu-push-gba-events exits successfully when no push channel is co
       FEISHU_WEBHOOK_URL: "",
       FEISHU_WEBHOOK_SECRET: "",
       SERVERCHAN_SENDKEY: "",
+      FEISHU_ENV_FILE: path.join(tmpdir(), "missing-feishu-env-file"),
+      SERVERCHAN_ENV_FILE: path.join(tmpdir(), "missing-serverchan-env-file"),
     },
     encoding: "utf8",
   });

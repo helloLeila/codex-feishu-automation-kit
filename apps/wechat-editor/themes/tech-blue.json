@@ -1,0 +1,37 @@
+{
+  "id": "tech-blue",
+  "name": "科技蓝",
+  "version": 1,
+  "colors": {
+    "primary": "#2f6f9d",
+    "accent": "#8fb7d1",
+    "text": "#26333f",
+    "muted": "#71808a",
+    "surface": "#f3f7fa",
+    "border": "#d9e5ec"
+  },
+  "typography": {
+    "bodySize": 16,
+    "lineHeight": 1.78,
+    "h2Size": 20,
+    "h3Size": 17,
+    "captionSize": 13
+  },
+  "spacing": {
+    "paragraph": 16,
+    "section": 30,
+    "image": 20
+  },
+  "components": {
+    "heading2": {
+      "style": "left-border",
+      "borderWidth": 4
+    },
+    "quote": {
+      "style": "soft-background"
+    },
+    "image": {
+      "borderRadius": 4
+    }
+  }
+}

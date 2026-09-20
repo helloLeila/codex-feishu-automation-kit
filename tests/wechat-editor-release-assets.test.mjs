@@ -22,6 +22,17 @@ test("Docker image starts the editor on port 3210 with a persistent /data volume
   assert.match(dockerfile, /VOLUME\s+\[?\s*["']?\/data/);
 });
 
+test("container health checks use a standalone Node script compatible with Podman Compose", async () => {
+  const dockerfile = await readRepositoryFile("Dockerfile");
+  const compose = await readRepositoryFile("docker-compose.yml");
+  const healthcheck = await readRepositoryFile("scripts/healthcheck-wechat-editor.mjs");
+
+  assert.match(dockerfile, /COPY scripts\/healthcheck-wechat-editor\.mjs/);
+  assert.match(dockerfile, /HEALTHCHECK[\s\S]*CMD node scripts\/healthcheck-wechat-editor\.mjs/);
+  assert.match(compose, /test:\s*\["CMD",\s*"node",\s*"scripts\/healthcheck-wechat-editor\.mjs"\]/);
+  assert.match(healthcheck, /fetch\("http:\/\/127\.0\.0\.1:3210\/api\/health"\)/);
+});
+
 test("docker compose maps the editor port and keeps local data outside the container", async () => {
   const compose = await readRepositoryFile("docker-compose.yml");
 

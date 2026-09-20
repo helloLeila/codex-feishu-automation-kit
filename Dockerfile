@@ -25,6 +25,7 @@ COPY --from=0 /app/package.json /app/package-lock.json ./
 COPY --from=0 /app/node_modules ./node_modules
 COPY --from=0 /app/apps/wechat-editor ./apps/wechat-editor
 COPY scripts/start-wechat-editor.mjs ./scripts/start-wechat-editor.mjs
+COPY scripts/healthcheck-wechat-editor.mjs ./scripts/healthcheck-wechat-editor.mjs
 
 RUN mkdir -p /data/config \
     && chown -R node:node /app /data
@@ -34,6 +35,6 @@ USER node
 EXPOSE 3210
 VOLUME ["/data"]
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 CMD node -e "fetch('http://127.0.0.1:3210/api/health').then(r => { if (!r.ok) process.exit(1); }).catch(() => process.exit(1))"
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 CMD node scripts/healthcheck-wechat-editor.mjs
 
 CMD ["node", "scripts/start-wechat-editor.mjs"]

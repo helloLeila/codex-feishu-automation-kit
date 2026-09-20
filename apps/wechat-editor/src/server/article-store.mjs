@@ -12,7 +12,7 @@ function articleId() {
   return `article-${Date.now().toString(36)}-${randomUUID().slice(0, 8)}`;
 }
 
-function normalizeArticle(input = {}, existing = null) {
+function normalizeArticle(input = {}, existing = null, { bumpRevision = true } = {}) {
   const timestamp = now();
   const base = existing || {
     id: articleId(),
@@ -20,6 +20,13 @@ function normalizeArticle(input = {}, existing = null) {
     markdown: '# 新文章\n\n从这里开始写。',
     themeId: 'clear-reading',
     themeVersion: 1,
+    ownerId: null,
+    revision: 1,
+    metadata: {
+      digest: '',
+      coverPrompt: '',
+      coverMediaId: '',
+    },
     createdAt: timestamp,
     updatedAt: timestamp,
     wechat: {
@@ -30,6 +37,13 @@ function normalizeArticle(input = {}, existing = null) {
       paused: false,
     },
   };
+  const contentChanged = Boolean(existing) && (
+    (Object.prototype.hasOwnProperty.call(input, 'title') && String(input.title ?? base.title).trim() !== String(base.title || '').trim())
+    || (Object.prototype.hasOwnProperty.call(input, 'markdown') && String(input.markdown ?? base.markdown) !== String(base.markdown || ''))
+    || (Object.prototype.hasOwnProperty.call(input, 'themeId') && String(input.themeId ?? base.themeId) !== String(base.themeId || ''))
+    || (Object.prototype.hasOwnProperty.call(input, 'themeVersion') && Number(input.themeVersion ?? base.themeVersion) !== Number(base.themeVersion || 1))
+    || Object.prototype.hasOwnProperty.call(input, 'metadata')
+  );
   const next = {
     ...base,
     ...input,
@@ -38,6 +52,9 @@ function normalizeArticle(input = {}, existing = null) {
     markdown: String(input.markdown ?? base.markdown),
     themeId: String(input.themeId ?? base.themeId ?? 'clear-reading'),
     themeVersion: Number.isInteger(input.themeVersion) ? input.themeVersion : (base.themeVersion || 1),
+    ownerId: input.ownerId ?? base.ownerId ?? null,
+    revision: contentChanged && bumpRevision ? Number(base.revision || 1) + 1 : Number(base.revision || 1),
+    metadata: { ...(base.metadata || {}), ...(input.metadata || {}) },
     createdAt: base.createdAt,
     updatedAt: timestamp,
     wechat: { ...base.wechat, ...(input.wechat || {}) },
@@ -64,42 +81,43 @@ async function writeArticles(path, articles) {
   await chmod(path, 0o600);
 }
 
-export function createArticleStore({ directory } = {}) {
+export function createArticleStore({ directory, ownerId: defaultOwnerId = undefined } = {}) {
   if (!directory) throw new Error('文章存储需要配置 directory');
   const path = join(directory, ARTICLE_FILE);
 
   return {
     directory,
-    async list() {
+    async list({ ownerId = defaultOwnerId } = {}) {
       const articles = await readArticles(path);
-      return articles.sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)));
+      const visible = ownerId === undefined ? articles : articles.filter((article) => (article.ownerId ?? null) === ownerId);
+      return visible.sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)));
     },
 
-    async get(id) {
+    async get(id, { ownerId = defaultOwnerId } = {}) {
       const articles = await readArticles(path);
-      return articles.find((article) => article.id === id) || null;
+      return articles.find((article) => article.id === id && (ownerId === undefined || (article.ownerId ?? null) === ownerId)) || null;
     },
 
-    async create(input = {}) {
+    async create(input = {}, { ownerId = defaultOwnerId } = {}) {
       const articles = await readArticles(path);
-      const article = normalizeArticle(input);
+      const article = normalizeArticle({ ...input, ...(ownerId !== undefined ? { ownerId } : {}) });
       await writeArticles(path, [article, ...articles]);
       return article;
     },
 
-    async update(id, input = {}) {
+    async update(id, input = {}, { ownerId = defaultOwnerId, bumpRevision = true } = {}) {
       const articles = await readArticles(path);
-      const index = articles.findIndex((article) => article.id === id);
+      const index = articles.findIndex((article) => article.id === id && (ownerId === undefined || (article.ownerId ?? null) === ownerId));
       if (index === -1) return null;
-      const article = normalizeArticle(input, articles[index]);
+      const article = normalizeArticle({ ...input, ...(ownerId !== undefined ? { ownerId } : {}) }, articles[index], { bumpRevision });
       articles[index] = article;
       await writeArticles(path, articles);
       return article;
     },
 
-    async remove(id) {
+    async remove(id, { ownerId = defaultOwnerId } = {}) {
       const articles = await readArticles(path);
-      const next = articles.filter((article) => article.id !== id);
+      const next = articles.filter((article) => !(article.id === id && (ownerId === undefined || (article.ownerId ?? null) === ownerId)));
       if (next.length === articles.length) return false;
       await writeArticles(path, next);
       return true;

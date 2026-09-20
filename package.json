@@ -9,7 +9,8 @@
     "dev": "node scripts/start-wechat-editor.mjs",
     "gba": "node scripts/gba.mjs",
     "test": "node --test tests/*.test.mjs",
-    "check": "node --check scripts/gba.mjs && node --check scripts/start-wechat-editor.mjs && node --check apps/wechat-editor/src/app.mjs && node --check apps/wechat-editor/src/markdown-renderer.mjs && node --check apps/wechat-editor/src/wechat-html.mjs && node --check apps/wechat-editor/src/server/auth.mjs && node --check apps/wechat-editor/src/server/config-store.mjs && node --check apps/wechat-editor/src/server/wechat-client.mjs && node --check scripts/lib/terminal-ui.mjs && node --check scripts/lib/tech-events-config.mjs && node --check skills/feishu-automation-reporter/scripts/lib/config.mjs && node --check skills/feishu-automation-reporter/scripts/lib/env.mjs && node --check skills/feishu-automation-reporter/scripts/lib/markdown-utils.mjs && node --check skills/feishu-automation-reporter/scripts/lib/serverchan.mjs && node --check skills/feishu-automation-reporter/scripts/push-ai-daily-to-feishu.mjs && node --check skills/feishu-automation-reporter/scripts/push-gba-events-to-feishu.mjs && node --check skills/feishu-automation-reporter/scripts/push-ai-daily-to-serverchan.mjs && node --check skills/feishu-automation-reporter/scripts/push-gba-events-to-serverchan.mjs && node --check bin/codex-feishu-push-gba-events.mjs"
+    "check": "node --check scripts/gba.mjs && node --check scripts/start-wechat-editor.mjs && node --check scripts/build-wechat-editor.mjs && node --check apps/wechat-editor/src/app.mjs && node --check apps/wechat-editor/src/markdown-renderer.mjs && node --check apps/wechat-editor/src/wechat-html.mjs && node --check apps/wechat-editor/src/editor-codemirror.mjs && node --check apps/wechat-editor/src/server/auth.mjs && node --check apps/wechat-editor/src/server/config-store.mjs && node --check apps/wechat-editor/src/server/wechat-client.mjs && node --check apps/wechat-editor/src/server/ai/ai-text-provider.mjs && node --check apps/wechat-editor/src/server/ai/ai-image-provider.mjs && node --check apps/wechat-editor/src/server/ai/metadata-service.mjs && node --check apps/wechat-editor/src/server/media/cover-processor.mjs && node --check apps/wechat-editor/src/server/sync/sync-errors.mjs && node --check apps/wechat-editor/src/server/sync/sync-task-store.mjs && node --check apps/wechat-editor/src/server/email/mailer.mjs && node --check scripts/lib/terminal-ui.mjs && node --check scripts/lib/tech-events-config.mjs && node --check skills/feishu-automation-reporter/scripts/lib/config.mjs && node --check skills/feishu-automation-reporter/scripts/lib/env.mjs && node --check skills/feishu-automation-reporter/scripts/lib/markdown-utils.mjs && node --check skills/feishu-automation-reporter/scripts/lib/serverchan.mjs && node --check skills/feishu-automation-reporter/scripts/push-ai-daily-to-feishu.mjs && node --check skills/feishu-automation-reporter/scripts/push-gba-events-to-feishu.mjs && node --check skills/feishu-automation-reporter/scripts/push-ai-daily-to-serverchan.mjs && node --check skills/feishu-automation-reporter/scripts/push-gba-events-to-serverchan.mjs && node --check bin/codex-feishu-push-gba-events.mjs",
+    "build:editor": "node scripts/build-wechat-editor.mjs"
   },
   "bin": {
     "codex-feishu-automation-kit": "scripts/gba.mjs",
@@ -18,5 +19,13 @@
   },
   "engines": {
     "node": ">=18"
+  },
+  "dependencies": {
+    "@codemirror/lang-markdown": "^6.3.3",
+    "@codemirror/state": "^6.5.2",
+    "@codemirror/view": "^6.36.5",
+    "codemirror": "^6.0.1",
+    "esbuild": "^0.25.0",
+    "sharp": "^0.33.5"
   }
 }

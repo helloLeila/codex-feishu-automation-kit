@@ -10,7 +10,7 @@ const DEFAULT_SETTINGS = {
   needOpenComment: false,
   onlyFansCanComment: false,
   autoSync: false,
-  syncDelayMs: 15000,
+  syncDelayMs: 30000,
   syncPaused: false,
   apiBaseUrl: 'https://api.weixin.qq.com',
 };
@@ -46,15 +46,16 @@ function envCredentials() {
   };
 }
 
-export function createConfigStore({ directory = defaultDirectory() } = {}) {
+export function createConfigStore({ directory = defaultDirectory(), ownerId = null } = {}) {
   const settingsPath = join(directory, 'settings.json');
-  const credentialsPath = join(directory, 'credentials.json');
+  const credentialsPath = join(directory, ownerId ? 'users' : '', ownerId ? `${ownerId}-credentials.json` : 'credentials.json');
+  const effectiveSettingsPath = join(directory, ownerId ? 'users' : '', ownerId ? `${ownerId}-settings.json` : 'settings.json');
 
   return {
     directory,
     async load() {
       const [settings, fileCredentials] = await Promise.all([
-        readJson(settingsPath, {}),
+        readJson(effectiveSettingsPath, {}),
         readJson(credentialsPath, {}),
       ]);
       const env = envCredentials();
@@ -80,7 +81,7 @@ export function createConfigStore({ directory = defaultDirectory() } = {}) {
         appSecret: credentials.appSecret?.trim() || current.credentials.appSecret,
       };
       await Promise.all([
-        writePrivateJson(settingsPath, nextSettings),
+        writePrivateJson(effectiveSettingsPath, nextSettings),
         writePrivateJson(credentialsPath, nextCredentials),
       ]);
       return { settings: nextSettings, credentials: nextCredentials };
@@ -96,7 +97,7 @@ export function createConfigStore({ directory = defaultDirectory() } = {}) {
       };
     },
     async paths() {
-      return { settingsPath, credentialsPath };
+      return { settingsPath: effectiveSettingsPath, credentialsPath, ownerId };
     },
   };
 }

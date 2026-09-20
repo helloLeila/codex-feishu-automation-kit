@@ -28,6 +28,19 @@ test('configuration storage never returns AppSecret in public config', async () 
   }
 });
 
+test('new configuration uses the 30 second body-only auto-sync default', async () => {
+  const { createConfigStore } = await import('../apps/wechat-editor/src/server/config-store.mjs');
+  const directory = await mkdtemp(join(tmpdir(), 'open-wechat-editor-defaults-'));
+  try {
+    const store = createConfigStore({ directory });
+    const publicConfig = await store.getPublicConfig();
+    assert.equal(publicConfig.settings.syncDelayMs, 30000);
+    assert.equal(publicConfig.settings.autoSync, false);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
 test('environment credentials override file credentials without exposing the secret', async () => {
   const { createConfigStore } = await import('../apps/wechat-editor/src/server/config-store.mjs');
   const directory = await mkdtemp(join(tmpdir(), 'open-wechat-editor-env-'));
@@ -128,4 +141,21 @@ test('wechat client uploads OSS article images once and reuses the WeChat image 
   assert.match(updateCall.options.body, new RegExp(wechatImage.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
   assert.doesNotMatch(addCall.options.body, new RegExp(ossImage.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
   assert.equal(imageUploadCount, 1);
+});
+
+test('wechat client uploads a processed cover as a permanent thumb material', async () => {
+  const { createWeChatClient } = await import('../apps/wechat-editor/src/server/wechat-client.mjs');
+  const calls = [];
+  const fetchMock = async (url, options = {}) => {
+    calls.push({ url: String(url), options });
+    if (String(url).includes('/cgi-bin/token')) return new Response(JSON.stringify({ access_token: 'token-1', expires_in: 7200 }), { status: 200 });
+    if (String(url).includes('/cgi-bin/material/add_material')) return new Response(JSON.stringify({ media_id: 'thumb-1', url: 'https://mmbiz.qpic.cn/thumb-1' }), { status: 200 });
+    return new Response(JSON.stringify({ errcode: 0, errmsg: 'ok' }), { status: 200 });
+  };
+  const client = createWeChatClient({ appId: 'wx-test', appSecret: 'secret-test', fetchImpl: fetchMock });
+  const result = await client.uploadPermanentImage(Buffer.from([1, 2, 3]), 'cover.jpg', 'image/jpeg');
+  assert.equal(result.media_id, 'thumb-1');
+  const upload = calls.find(({ url }) => url.includes('/cgi-bin/material/add_material'));
+  assert.equal(upload.options.method, 'POST');
+  assert.ok(upload.options.body instanceof FormData);
 });

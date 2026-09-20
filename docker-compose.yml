@@ -16,10 +16,30 @@ services:
       WECHAT_API_BASE_URL: "${WECHAT_API_BASE_URL:-https://api.weixin.qq.com}"
       WECHAT_DEFAULT_AUTHOR: "${WECHAT_DEFAULT_AUTHOR:-}"
       WECHAT_AUTO_SYNC: "${WECHAT_AUTO_SYNC:-false}"
+      DEEPSEEK_API_KEY: "${DEEPSEEK_API_KEY:-}"
+      DEEPSEEK_BASE_URL: "${DEEPSEEK_BASE_URL:-https://api.deepseek.com}"
+      DEEPSEEK_MODEL: "${DEEPSEEK_MODEL:-deepseek-chat}"
+      GLM_IMAGE_API_KEY: "${GLM_IMAGE_API_KEY:-}"
+      GLM_IMAGE_BASE_URL: "${GLM_IMAGE_BASE_URL:-https://open.bigmodel.cn/api/paas/v4}"
+      GLM_IMAGE_MODEL: "${GLM_IMAGE_MODEL:-cogview-3-flash}"
+      GLM_IMAGE_SIZE: "${GLM_IMAGE_SIZE:-900x383}"
+      MAIL_ENABLED: "${MAIL_ENABLED:-false}"
+      MAIL_ALERT_TO: "${MAIL_ALERT_TO:-}"
+      MAIL_VERIFICATION_FROM: "${MAIL_VERIFICATION_FROM:-}"
+      MAIL_DEV_RETURN_CODE: "${MAIL_DEV_RETURN_CODE:-false}"
+      MAIL_SEND_URL: "${MAIL_SEND_URL:-}"
+      MAIL_SEND_TOKEN: "${MAIL_SEND_TOKEN:-}"
       EDITOR_AUTH_ENABLED: "${EDITOR_AUTH_ENABLED:-false}"
       EDITOR_AUTH_USER: "${EDITOR_AUTH_USER:-editor}"
       EDITOR_AUTH_PASSWORD: "${EDITOR_AUTH_PASSWORD:-}"
       EDITOR_SESSION_SECRET: "${EDITOR_SESSION_SECRET:-}"
+      EDITOR_REGISTRATION_ENABLED: "${EDITOR_REGISTRATION_ENABLED:-false}"
     volumes:
       - "./data:/data"
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3210/api/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3

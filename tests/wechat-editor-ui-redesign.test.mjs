@@ -42,6 +42,18 @@ test('publishing surface separates guest copy mode from authenticated WeChat dra
   assert.match(app, /function openLoginDialog\(/);
 });
 
+test('login surface exposes opt-in email registration without exposing credentials', async () => {
+  const [html, app] = await Promise.all([
+    readFile(new URL('index.html', editorRoot), 'utf8'),
+    readFile(new URL('src/app.mjs', editorRoot), 'utf8'),
+  ]);
+  assert.match(html, /data-action="open-register"/);
+  assert.match(html, /id="register-dialog"/);
+  assert.match(html, /id="auth-register-form"/);
+  assert.match(app, /api\/auth\/register\/request/);
+  assert.match(app, /api\/auth\/register\/verify/);
+});
+
 test('settings center exposes content-tool navigation and grouped controls', async () => {
   const html = await readFile(new URL('index.html', editorRoot), 'utf8');
 

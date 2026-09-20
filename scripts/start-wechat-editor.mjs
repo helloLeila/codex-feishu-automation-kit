@@ -6,7 +6,17 @@ import { createConfigStore } from '../apps/wechat-editor/src/server/config-store
 import { createArticleStore } from '../apps/wechat-editor/src/server/article-store.mjs';
 import { createWeChatClient } from '../apps/wechat-editor/src/server/wechat-client.mjs';
 import { createAuth, isSecureRequest } from '../apps/wechat-editor/src/server/auth.mjs';
+import { createUserStore } from '../apps/wechat-editor/src/server/auth/user-store.mjs';
+import { createVerificationStore } from '../apps/wechat-editor/src/server/auth/email-verification.mjs';
 import { createThemeStore } from '../apps/wechat-editor/src/theme-schema.mjs';
+import { createAiTextProvider } from '../apps/wechat-editor/src/server/ai/ai-text-provider.mjs';
+import { createAiImageProvider } from '../apps/wechat-editor/src/server/ai/ai-image-provider.mjs';
+import { createMetadataService } from '../apps/wechat-editor/src/server/ai/metadata-service.mjs';
+import { createCoverProcessor } from '../apps/wechat-editor/src/server/media/cover-processor.mjs';
+import { createSyncTaskStore } from '../apps/wechat-editor/src/server/sync/sync-task-store.mjs';
+import { createSyncService } from '../apps/wechat-editor/src/server/sync/sync-service.mjs';
+import { createMailer } from '../apps/wechat-editor/src/server/email/mailer.mjs';
+import { renderArticle } from '../apps/wechat-editor/src/server/render-service.mjs';
 
 const root = resolve(fileURLToPath(new URL('../apps/wechat-editor/', import.meta.url)));
 const mimeTypes = {
@@ -66,30 +76,52 @@ function isSameOriginRequest(request) {
   }
 }
 
-export function createEditorServer({ port = Number(process.env.PORT || 3210), host = process.env.HOST || '127.0.0.1', configDirectory, wechatClientFactory = createWeChatClient, auth: authOptions } = {}) {
-  const configStore = configDirectory ? createConfigStore({ directory: configDirectory }) : createConfigStore();
-  const articleStore = createArticleStore({ directory: configStore.directory });
-  const themeStore = createThemeStore({ directory: configStore.directory, builtinDirectory: join(root, 'themes') });
-  const auth = createAuth(authOptions || {});
+export function createEditorServer({ port = Number(process.env.PORT || 3210), host = process.env.HOST || '127.0.0.1', configDirectory, wechatClientFactory = createWeChatClient, auth: authOptions, mailer: mailerOptions, userStore: userStoreOption, verificationStore: verificationStoreOption } = {}) {
+  const baseConfigStore = configDirectory ? createConfigStore({ directory: configDirectory }) : createConfigStore();
+  const textProvider = createAiTextProvider();
+  const imageProvider = createAiImageProvider();
+  const coverProcessor = createCoverProcessor();
+  const metadataService = createMetadataService({ textProvider, imageProvider, coverProcessor });
+  const mailer = createMailer(mailerOptions || {});
+  const userStore = userStoreOption || createUserStore({ directory: baseConfigStore.directory });
+  const verificationStore = verificationStoreOption || createVerificationStore({ directory: baseConfigStore.directory });
+  const auth = createAuth({ ...(authOptions || {}), userStore, verificationStore, mailer });
+  const workspaceCache = new Map();
 
-  async function getClient() {
-    const { settings, credentials } = await configStore.load();
-    return wechatClientFactory({
-      appId: credentials.appId,
-      appSecret: credentials.appSecret,
-      apiBaseUrl: settings.apiBaseUrl,
-    });
+  function createWorkspace(ownerId = null) {
+    const configStore = ownerId ? createConfigStore({ directory: baseConfigStore.directory, ownerId }) : baseConfigStore;
+    const articleStore = createArticleStore({ directory: baseConfigStore.directory, ownerId: ownerId ?? undefined });
+    const themeStore = createThemeStore({ directory: ownerId ? join(baseConfigStore.directory, 'users', ownerId) : baseConfigStore.directory, builtinDirectory: join(root, 'themes') });
+    const taskStore = ownerId ? createSyncTaskStore({ directory: join(baseConfigStore.directory, 'users', ownerId) }) : createSyncTaskStore({ directory: baseConfigStore.directory });
+    async function getClient() {
+      const { settings, credentials } = await configStore.load();
+      return wechatClientFactory({ appId: credentials.appId, appSecret: credentials.appSecret, apiBaseUrl: settings.apiBaseUrl });
+    }
+    const syncService = createSyncService({ articleStore, taskStore, getClient, metadataService, coverProcessor, mailer });
+    return { ownerId, configStore, articleStore, themeStore, taskStore, syncService, getClient };
   }
 
-  async function updateArticleWechat(articleId, patch) {
+  const baseWorkspace = createWorkspace(null);
+  workspaceCache.set('__base__', baseWorkspace);
+
+  function workspaceFor(request) {
+    const session = auth.inspect(request);
+    const ownerId = session.authenticated && session.ownerId && !String(session.ownerId).startsWith('legacy:') ? session.ownerId : null;
+    if (!ownerId) return baseWorkspace;
+    const key = `owner:${ownerId}`;
+    if (!workspaceCache.has(key)) workspaceCache.set(key, createWorkspace(ownerId));
+    return workspaceCache.get(key);
+  }
+
+  async function updateArticleWechat(workspace, articleId, patch) {
     if (!articleId) return null;
-    return articleStore.update(articleId, { wechat: patch });
+    return workspace.articleStore.update(articleId, { wechat: patch }, { ownerId: workspace.ownerId ?? undefined });
   }
 
-  async function updateArticlesByMediaId(mediaId, patch) {
-    const articles = await articleStore.list();
+  async function updateArticlesByMediaId(workspace, mediaId, patch) {
+    const articles = await workspace.articleStore.list({ ownerId: workspace.ownerId ?? undefined });
     const matches = articles.filter((article) => article.wechat?.mediaId === mediaId);
-    for (const article of matches) await articleStore.update(article.id, { wechat: patch });
+    for (const article of matches) await workspace.articleStore.update(article.id, { wechat: patch }, { ownerId: workspace.ownerId ?? undefined });
     return matches.length;
   }
 
@@ -117,7 +149,7 @@ export function createEditorServer({ port = Number(process.env.PORT || 3210), ho
 
       if (request.method === 'POST' && pathname === '/api/auth/login') {
         const body = await readBody(request, 32 * 1024);
-        const result = auth.login(request, body.username, body.password);
+        const result = await auth.login(request, body.username || body.email, body.password);
         if (!result.ok) {
           json(response, result.status, { ok: false, code: result.code, message: result.message }, result.retryAfter ? { 'Retry-After': String(result.retryAfter) } : {});
           return true;
@@ -131,6 +163,26 @@ export function createEditorServer({ port = Number(process.env.PORT || 3210), ho
         return true;
       }
 
+      if (request.method === 'POST' && pathname === '/api/auth/register/request') {
+        const body = await readBody(request, 32 * 1024);
+        const result = await auth.requestRegistration(body.email, body.password);
+        json(response, 202, { ok: true, email: result.user.email, expiresAt: result.expiresAt, ...(result.devCode ? { devCode: result.devCode } : {}) });
+        return true;
+      }
+
+      if (request.method === 'POST' && pathname === '/api/auth/register/verify') {
+        const body = await readBody(request, 32 * 1024);
+        const user = await auth.verifyRegistration(body.email, body.code);
+        json(response, 201, { ok: true, user });
+        return true;
+      }
+
+      if (request.method === 'POST' && pathname === '/api/render') {
+        const body = await readBody(request, 2 * 1024 * 1024);
+        json(response, 200, { ok: true, render: renderArticle({ markdown: body.markdown || '', theme: body.theme || {} }) });
+        return true;
+      }
+
       if (auth.enabled() && !auth.inspect(request).authenticated) {
         json(response, 401, { ok: false, code: 'AUTH_REQUIRED', message: '请先登录编辑器。' }, { 'WWW-Authenticate': 'Cookie' });
         return true;
@@ -139,6 +191,9 @@ export function createEditorServer({ port = Number(process.env.PORT || 3210), ho
       if (auth.enabled() && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(request.method) && !isSameOriginRequest(request)) {
         throw Object.assign(new Error('请求来源不匹配，已拒绝本次修改。'), { code: 'CSRF_ORIGIN_MISMATCH', status: 403 });
       }
+
+      const workspace = workspaceFor(request);
+      const { configStore, articleStore, themeStore, taskStore, syncService, getClient } = workspace;
 
       if (request.method === 'GET' && pathname === '/api/articles') {
         json(response, 200, { ok: true, articles: await articleStore.list() });
@@ -248,6 +303,59 @@ export function createEditorServer({ port = Number(process.env.PORT || 3210), ho
         return true;
       }
 
+      if (request.method === 'POST' && pathname === '/api/ai/metadata') {
+        const body = await readBody(request, 2 * 1024 * 1024);
+        const result = await metadataService.generate({ markdown: body.markdown || '', title: body.title || '', tone: body.tone || '克制、清晰、专业', includeCover: false });
+        json(response, 200, { ok: true, metadata: result });
+        return true;
+      }
+
+      if (request.method === 'POST' && pathname === '/api/ai/cover') {
+        const body = await readBody(request, 128 * 1024);
+        const generated = await imageProvider.generateCover({ prompt: body.prompt, size: body.size });
+        const processed = await coverProcessor.processUrl(generated.url);
+        json(response, 200, { ok: true, generated: { requestId: generated.requestId, model: generated.model }, cover: { mime: processed.mime, width: processed.width, height: processed.height, size: processed.size, sourceUrl: processed.sourceUrl } });
+        return true;
+      }
+
+      if (request.method === 'POST' && pathname === '/api/sync/tasks') {
+        const body = await readBody(request, 2 * 1024 * 1024);
+        if (!body.articleId) {
+          json(response, 400, { ok: false, code: 'ARTICLE_REQUIRED', message: '创建同步任务需要 articleId。' });
+          return true;
+        }
+        const result = await syncService.enqueue({ articleId: body.articleId, mode: body.mode || 'full', payload: body.article || {}, ownerId: workspace.ownerId || auth.inspect(request).username || null });
+        if (body.execute !== false) {
+          try { await syncService.executeWithRetry(result.task.id); } catch { /* task status is persisted for the client */ }
+        }
+        json(response, result.created ? 202 : 200, { ok: true, created: result.created, task: await taskStore.get(result.task.id), article: result.article });
+        return true;
+      }
+
+      const syncTaskMatch = pathname.match(/^\/api\/sync\/tasks\/([^/]+)$/);
+      const syncResolveMatch = pathname.match(/^\/api\/sync\/tasks\/([^/]+)\/resolve$/);
+      if (syncResolveMatch && request.method === 'POST') {
+        const taskId = decodeURIComponent(syncResolveMatch[1]);
+        const body = await readBody(request, 32 * 1024);
+        const task = await syncService.resolveSubmittedUnknown(taskId, { mediaId: body.mediaId });
+        json(response, 200, { ok: true, task });
+        return true;
+      }
+      if (syncTaskMatch && request.method === 'GET') {
+        const task = await taskStore.get(decodeURIComponent(syncTaskMatch[1]));
+        if (!task) {
+          json(response, 404, { ok: false, code: 'SYNC_TASK_NOT_FOUND', message: '同步任务不存在。' });
+          return true;
+        }
+        json(response, 200, { ok: true, task });
+        return true;
+      }
+
+      if (request.method === 'GET' && pathname === '/api/sync/tasks') {
+        json(response, 200, { ok: true, tasks: await taskStore.list() });
+        return true;
+      }
+
       if (request.method === 'POST' && pathname === '/api/wechat/diagnose') {
         const client = await getClient();
         const result = await client.diagnose();
@@ -270,27 +378,13 @@ export function createEditorServer({ port = Number(process.env.PORT || 3210), ho
           return true;
         }
         const articleId = body.articleId || body.article?.id;
-        await updateArticleWechat(articleId, {
-          status: 'creating',
-          lastSyncError: null,
-          retryable: false,
-        });
-        try {
-          const result = await (await getClient()).addDraft(body.article);
-          if (!result?.media_id) throw Object.assign(new Error('微信未返回草稿 media_id。'), { code: 'DRAFT_MEDIA_ID_MISSING' });
-          await updateArticleWechat(articleId, {
-            mediaId: result.media_id,
-            index: Number.isInteger(body.index) ? body.index : 0,
-            status: 'synced',
-            lastSyncError: null,
-            retryable: false,
-            syncedAt: new Date().toISOString(),
-          });
-          json(response, 200, { ok: true, mediaId: result.media_id, articleId: articleId || null });
-        } catch (error) {
-          await updateArticleWechat(articleId, lifecycleErrorPatch(error));
-          throw error;
-        }
+        if (!articleId) throw Object.assign(new Error('创建草稿需要 articleId。'), { code: 'ARTICLE_REQUIRED', status: 400 });
+        await updateArticleWechat(workspace, articleId, { status: 'creating', lastSyncError: null, retryable: false });
+        const queued = await syncService.enqueue({ articleId, mode: 'full', payload: body.article });
+        await syncService.executeWithRetry(queued.task.id);
+        const task = await taskStore.get(queued.task.id);
+        if (!task?.mediaId) throw Object.assign(new Error('微信未返回草稿 media_id。'), { code: 'DRAFT_MEDIA_ID_MISSING' });
+        json(response, 200, { ok: true, mediaId: task.mediaId, articleId });
         return true;
       }
 
@@ -301,32 +395,13 @@ export function createEditorServer({ port = Number(process.env.PORT || 3210), ho
           return true;
         }
         const articleId = body.articleId || body.article?.id;
-        await updateArticleWechat(articleId, {
-          mediaId: body.mediaId,
-          index: Number.isInteger(body.index) ? body.index : 0,
-          status: 'syncing',
-          lastSyncError: null,
-          retryable: false,
-        });
-        try {
-          await (await getClient()).updateDraft(body.mediaId, body.article, Number.isInteger(body.index) ? body.index : 0);
-          await updateArticleWechat(articleId, {
-            mediaId: body.mediaId,
-            index: Number.isInteger(body.index) ? body.index : 0,
-            status: 'synced',
-            lastSyncError: null,
-            retryable: false,
-            syncedAt: new Date().toISOString(),
-          });
-          json(response, 200, { ok: true, mediaId: body.mediaId, articleId: articleId || null });
-        } catch (error) {
-          await updateArticleWechat(articleId, {
-            mediaId: body.mediaId,
-            index: Number.isInteger(body.index) ? body.index : 0,
-            ...lifecycleErrorPatch(error),
-          });
-          throw error;
-        }
+        if (!articleId) throw Object.assign(new Error('更新草稿需要 articleId。'), { code: 'ARTICLE_REQUIRED', status: 400 });
+        await updateArticleWechat(workspace, articleId, { mediaId: body.mediaId, index: Number.isInteger(body.index) ? body.index : 0, status: 'syncing', lastSyncError: null, retryable: false });
+        const queued = await syncService.enqueue({ articleId, mode: 'body_only', payload: body.article });
+        await syncService.executeWithRetry(queued.task.id);
+        const task = await taskStore.get(queued.task.id);
+        if (task?.status !== 'synced') throw Object.assign(new Error(task?.error?.message || '微信草稿更新失败。'), { code: task?.error?.code || 'DRAFT_UPDATE_FAILED' });
+        json(response, 200, { ok: true, mediaId: body.mediaId, articleId });
         return true;
       }
 
@@ -338,8 +413,8 @@ export function createEditorServer({ port = Number(process.env.PORT || 3210), ho
           await (await getClient()).deleteDraft(mediaId);
         } catch (error) {
           const patch = { mediaId, ...lifecycleErrorPatch(error) };
-          if (body.articleId) await updateArticleWechat(body.articleId, patch);
-          else await updateArticlesByMediaId(mediaId, patch);
+          if (body.articleId) await updateArticleWechat(workspace, body.articleId, patch);
+          else await updateArticlesByMediaId(workspace, mediaId, patch);
           throw error;
         }
         const patch = {
@@ -350,8 +425,8 @@ export function createEditorServer({ port = Number(process.env.PORT || 3210), ho
           retryable: false,
           deletedAt: new Date().toISOString(),
         };
-        if (body.articleId) await updateArticleWechat(body.articleId, patch);
-        else await updateArticlesByMediaId(mediaId, patch);
+        if (body.articleId) await updateArticleWechat(workspace, body.articleId, patch);
+        else await updateArticlesByMediaId(workspace, mediaId, patch);
         json(response, 200, { ok: true, mediaId, articleId: body.articleId || null });
         return true;
       }
@@ -397,7 +472,19 @@ export function createEditorServer({ port = Number(process.env.PORT || 3210), ho
 
   const server = createServer(handleRequest);
 
-  return { server, host, port, configStore, articleStore, themeStore, auth, handleApi, handleRequest };
+  return {
+    server,
+    host,
+    port,
+    configStore: baseWorkspace.configStore,
+    articleStore: baseWorkspace.articleStore,
+    themeStore: baseWorkspace.themeStore,
+    taskStore: baseWorkspace.taskStore,
+    syncService: baseWorkspace.syncService,
+    auth,
+    handleApi,
+    handleRequest,
+  };
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

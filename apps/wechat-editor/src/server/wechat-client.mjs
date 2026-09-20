@@ -173,6 +173,16 @@ export function createWeChatClient({ appId, appSecret, apiBaseUrl = DEFAULT_API_
     };
   }
 
+  async function uploadPermanentImage(buffer, filename = 'cover.jpg', contentType = 'image/jpeg') {
+    const token = await accessToken();
+    const form = new FormData();
+    form.append('media', new Blob([buffer], { type: contentType }), filename);
+    const url = `${apiBaseUrl}/cgi-bin/material/add_material?${encodeQuery({ access_token: token, type: 'thumb' })}`;
+    const uploaded = await readResponse(await fetchImpl(url, { method: 'POST', body: form }));
+    if (!uploaded.media_id) throw Object.assign(new Error('微信未返回封面永久素材 media_id。'), { code: 'THUMB_MEDIA_ID_MISSING' });
+    return uploaded;
+  }
+
   return {
     async diagnose() {
       const token = await accessToken();
@@ -184,6 +194,7 @@ export function createWeChatClient({ appId, appSecret, apiBaseUrl = DEFAULT_API_
     async updateDraft(mediaId, article, index = 0) {
       return jsonPost('/cgi-bin/draft/update', { media_id: mediaId, index, articles: { article_type: 'news', ...(await prepareArticle(article)) } });
     },
+    uploadPermanentImage,
     async deleteDraft(mediaId) {
       if (!mediaId) throw Object.assign(new Error('删除微信草稿需要 media_id。'), { code: 'DRAFT_MEDIA_ID_REQUIRED' });
       return jsonPost('/cgi-bin/draft/delete', { media_id: mediaId });

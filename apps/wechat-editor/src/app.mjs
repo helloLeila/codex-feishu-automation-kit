@@ -125,6 +125,8 @@ function applyTheme(themeId = themeSelect?.value) {
 
 const $ = (selector) => document.querySelector(selector);
 const input = $('#markdown-input');
+const editorMount = $('#markdown-editor');
+const editorSurface = $('.editor-surface');
 const documentTitle = $('#document-title');
 const preview = $('#wechat-preview');
 const previewFrame = $('#preview-frame');
@@ -150,8 +152,43 @@ let restoringHistory = false;
 let previewZoom = 100;
 let syncingPaneScroll = false;
 let resizingWorkspace = false;
+let editorAdapter = null;
+let serverRenderTimer;
+let serverRenderSequence = 0;
+
+function markdownValue() {
+  return editorAdapter?.getValue?.() ?? input.value;
+}
+
+function setMarkdownValue(value) {
+  const next = String(value ?? '');
+  input.value = next;
+  editorAdapter?.setValue?.(next);
+}
+
+function markdownSelection() {
+  return editorAdapter?.getSelection?.() || { start: input.selectionStart, end: input.selectionEnd };
+}
+
+function replaceMarkdownSelection(value) {
+  if (editorAdapter?.replaceSelection) {
+    editorAdapter.replaceSelection(value);
+    input.value = markdownValue();
+    return;
+  }
+  input.setRangeText(value, input.selectionStart, input.selectionEnd, 'select');
+}
+
+function focusMarkdownInput() {
+  if (editorAdapter?.focus) editorAdapter.focus();
+  else input.focus({ preventScroll: true });
+}
+
+function markdownScrollElement() {
+  return editorAdapter?.scrollElement || input;
+}
 let runtimeConfig = {
-  settings: { defaultAuthor: 'Open WeChat Editor', defaultTheme: 'clear-reading', defaultThumbMediaId: '', autoSync: false, syncDelayMs: 15000, syncPaused: false },
+  settings: { defaultAuthor: 'Open WeChat Editor', defaultTheme: 'clear-reading', defaultThumbMediaId: '', autoSync: false, syncDelayMs: 30000, syncPaused: false },
   credentials: { appId: '', secretConfigured: false },
 };
 let wechatBinding = { mediaId: null, index: 0, status: 'local-only', autoSync: false, paused: false };
@@ -242,6 +279,69 @@ function openLoginDialog() {
 
 function closeLoginDialog() {
   $('#login-dialog')?.close();
+}
+
+function openRegisterDialog() {
+  closeLoginDialog();
+  const dialog = $('#register-dialog');
+  if (!dialog) return;
+  $('#auth-register-error').hidden = true;
+  $('#auth-register-code-label').hidden = true;
+  $('#auth-register-verify').hidden = true;
+  $('#auth-register-request').hidden = false;
+  $('#auth-register-status').textContent = '验证码只保存哈希，密码使用 scrypt 保存；页面不会显示密码。';
+  dialog.showModal();
+  $('#auth-register-email').focus();
+}
+
+function closeRegisterDialog() {
+  $('#register-dialog')?.close();
+}
+
+async function requestRegistrationCode() {
+  const errorBox = $('#auth-register-error');
+  const button = $('#auth-register-request');
+  errorBox.hidden = true;
+  button.disabled = true;
+  try {
+    const result = await apiFetch('/api/auth/register/request', {
+      method: 'POST',
+      body: JSON.stringify({ email: $('#auth-register-email').value.trim(), password: $('#auth-register-password').value }),
+    });
+    $('#auth-register-code-label').hidden = false;
+    $('#auth-register-verify').hidden = false;
+    button.hidden = true;
+    $('#auth-register-status').textContent = result.devCode ? `开发模式验证码：${result.devCode}` : '验证码已发送到邮箱，10 分钟内有效。';
+    $('#auth-register-code').focus();
+  } catch (error) {
+    errorBox.textContent = error.message;
+    errorBox.hidden = false;
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function verifyRegistration() {
+  const errorBox = $('#auth-register-error');
+  const button = $('#auth-register-verify');
+  errorBox.hidden = true;
+  button.disabled = true;
+  try {
+    await apiFetch('/api/auth/register/verify', {
+      method: 'POST',
+      body: JSON.stringify({ email: $('#auth-register-email').value.trim(), code: $('#auth-register-code').value.trim() }),
+    });
+    const email = $('#auth-register-email').value.trim();
+    closeRegisterDialog();
+    openLoginDialog();
+    $('#auth-username').value = email;
+    showToast('注册完成，请使用邮箱和密码登录');
+  } catch (error) {
+    errorBox.textContent = error.message;
+    errorBox.hidden = false;
+  } finally {
+    button.disabled = false;
+  }
 }
 
 function requireAuthenticated(message = '登录后才能使用云端功能。') {
@@ -435,7 +535,7 @@ function setState() {
   try {
     localStorage.setItem(
       STORAGE_KEY,
-      JSON.stringify({ articleId: currentArticleId, title: documentTitle?.value.trim() || currentRender.title, markdown: input.value, theme: normalizeThemeId(themeSelect.value), width: previewFrame.dataset.previewWidth, savedAt: Date.now(), settingsSavedAt: localStorage.getItem(`${STORAGE_KEY}:settingsSavedAt`) || '', wechat: wechatBinding }),
+      JSON.stringify({ articleId: currentArticleId, title: documentTitle?.value.trim() || currentRender.title, markdown: markdownValue(), theme: normalizeThemeId(themeSelect.value), width: previewFrame.dataset.previewWidth, savedAt: Date.now(), settingsSavedAt: localStorage.getItem(`${STORAGE_KEY}:settingsSavedAt`) || '', wechat: wechatBinding }),
     );
   } catch {
     // Private browsing or a restricted browser can disable localStorage; editing still works.
@@ -445,7 +545,7 @@ function setState() {
 async function persistCurrentArticle() {
   const payload = {
     title: documentTitle?.value.trim() || currentRender.title || '未命名文章',
-    markdown: input.value,
+    markdown: markdownValue(),
     themeId: normalizeThemeId(themeSelect.value),
     themeVersion: Number(getTheme(themeSelect.value)?.version || 1),
     wechat: wechatBinding,
@@ -514,7 +614,7 @@ function applyArticleRecord(article, { preserveLocalIfNewer = false } = {}) {
   const useLocal = Boolean(local?.markdown) && (localIsNewer || !String(article.markdown || '').trim());
   currentArticleId = article.id;
   documentTitle.value = useLocal ? (local.title || '') : (article.title || '');
-  input.value = normalizeLegacyMultilineFormatting(useLocal ? local.markdown || '' : article.markdown || '');
+  setMarkdownValue(normalizeLegacyMultilineFormatting(useLocal ? local.markdown || '' : article.markdown || ''));
   themeSelect.value = normalizeThemeId(useLocal ? local.theme || article.themeId : article.themeId);
   wechatBinding = { ...wechatBinding, ...(useLocal ? local.wechat || {} : article.wechat || {}) };
   applyTheme(themeSelect.value);
@@ -577,7 +677,7 @@ async function createNewArticle({ saveCurrent = true } = {}) {
   if (saveCurrent) await persistCurrentArticle();
   currentArticleId = null;
   documentTitle.value = '新文章';
-  input.value = '# 新文章\n\n从这里开始写。';
+  setMarkdownValue('# 新文章\n\n从这里开始写。');
   wechatBinding = { mediaId: null, index: 0, status: 'local-only', autoSync: false, paused: false };
   themeSelect.value = normalizeThemeId(runtimeConfig.settings.defaultTheme || 'clear-reading');
   render();
@@ -661,9 +761,9 @@ function updateMeta() {
 }
 
 function captureHistory() {
-  if (restoringHistory || historyStack[historyIndex] === input.value) return;
+  if (restoringHistory || historyStack[historyIndex] === markdownValue()) return;
   historyStack = historyStack.slice(0, historyIndex + 1);
-  historyStack.push(input.value);
+  historyStack.push(markdownValue());
   historyIndex = historyStack.length - 1;
   if (historyStack.length > 60) {
     historyStack.shift();
@@ -675,7 +775,7 @@ function restoreHistory(nextIndex) {
   if (nextIndex < 0 || nextIndex >= historyStack.length) return;
   restoringHistory = true;
   historyIndex = nextIndex;
-  input.value = historyStack[historyIndex];
+  setMarkdownValue(historyStack[historyIndex]);
   restoringHistory = false;
   render();
   scheduleSave();
@@ -742,10 +842,34 @@ function bindPreviewComponents() {
 
 function render() {
   applyTheme(themeSelect.value);
-  currentRender = renderMarkdown(input.value);
+  currentRender = renderMarkdown(markdownValue());
   preview.innerHTML = `<article class="wechat-article">${currentRender.html}</article>`;
   bindPreviewComponents();
   updateMeta();
+  queueServerRender(markdownValue(), getTheme(themeSelect.value));
+}
+
+function queueServerRender(markdown, theme) {
+  const sequence = ++serverRenderSequence;
+  clearTimeout(serverRenderTimer);
+  serverRenderTimer = setTimeout(async () => {
+    try {
+      const response = await fetch('/api/render', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ markdown, theme }),
+      });
+      if (!response.ok) return;
+      const body = await response.json();
+      if (sequence !== serverRenderSequence || !body.ok || !body.render) return;
+      currentRender = body.render;
+      preview.innerHTML = `<article class="wechat-article">${currentRender.html}</article>`;
+      bindPreviewComponents();
+      updateMeta();
+    } catch {
+      // The local renderer remains the offline fallback for file previews and development.
+    }
+  }, 120);
 }
 
 function scheduleSave() {
@@ -765,25 +889,24 @@ function scheduleAutoSync() {
   clearTimeout(syncTimer);
   const settings = runtimeConfig.settings || {};
   if (!settings.autoSync || settings.syncPaused || wechatBinding.paused || !wechatBinding.mediaId) return;
-  syncTimer = setTimeout(() => syncDraft({ silent: true }), Number(settings.syncDelayMs || 15000));
+  syncTimer = setTimeout(() => syncDraft({ silent: true }), Number(settings.syncDelayMs || 30000));
 }
 
 function insertAtSelection(snippet) {
   const formatted = formatMarkdownSelection({
     snippet,
-    value: input.value,
-    start: input.selectionStart,
-    end: input.selectionEnd,
+    value: markdownValue(),
+    ...markdownSelection(),
   });
-  input.setRangeText(formatted.replacement, formatted.start, formatted.end, 'select');
-  input.focus();
+  replaceMarkdownSelection(formatted.replacement);
+  focusMarkdownInput();
   captureHistory();
   render();
   scheduleSave();
 }
 
 function focusMarkdownEditor() {
-  input.focus({ preventScroll: true });
+  focusMarkdownInput();
   $('#canvas-mode-label').textContent = '画布模式';
   showToast('已定位 Markdown 原文');
 }
@@ -808,8 +931,8 @@ function applyScrollRatio(element, ratio) {
 
 function syncPaneScroll(source) {
   if (syncingPaneScroll) return;
-  const from = source === 'editor' ? input : canvasStage;
-  const to = source === 'editor' ? canvasStage : input;
+  const from = source === 'editor' ? markdownScrollElement() : canvasStage;
+  const to = source === 'editor' ? canvasStage : markdownScrollElement();
   if (!from || !to) return;
   syncingPaneScroll = true;
   applyScrollRatio(to, scrollRatio(from));
@@ -928,7 +1051,7 @@ function resetSettings() {
   $('#settings-app-secret').value = '';
   $('#settings-thumb-media-id').value = runtimeConfig.settings.defaultThumbMediaId || '';
   $('#settings-auto-sync').checked = false;
-  $('#settings-sync-delay').value = '15000';
+  $('#settings-sync-delay').value = '30000';
   $('#settings-diagnostic').className = 'diagnostic-panel';
   $('#settings-diagnostic').textContent = '已恢复默认设置，点击保存后生效。';
   showToast('设置已恢复默认值');
@@ -1041,7 +1164,7 @@ function populateSettings() {
   $('#settings-digest').value = settings.defaultDigest || '';
   $('#settings-thumb-media-id').value = settings.defaultThumbMediaId || '';
   $('#settings-auto-sync').checked = Boolean(settings.autoSync);
-  $('#settings-sync-delay').value = String(settings.syncDelayMs || 15000);
+  $('#settings-sync-delay').value = String(settings.syncDelayMs || 30000);
   $('#settings-diagnostic').textContent = runtimeConfig.credentials.secretConfigured ? '凭证已配置；尚未进行连接诊断。' : '尚未配置 AppID / AppSecret。';
   $('#settings-diagnostic').className = 'diagnostic-panel';
   const stored = getState();
@@ -1299,7 +1422,7 @@ function loadMarkdown() {
   if (stored?.wechat) wechatBinding = { ...wechatBinding, ...stored.wechat };
   if (stored?.markdown) {
     const repairedMarkdown = normalizeLegacyMultilineFormatting(stored.markdown);
-    input.value = repairedMarkdown;
+    setMarkdownValue(repairedMarkdown);
     if (documentTitle && stored.title) documentTitle.value = stored.title;
     if (stored.theme) {
       pendingThemeId = stored.theme;
@@ -1311,7 +1434,7 @@ function loadMarkdown() {
     if (repairedMarkdown !== stored.markdown) setState();
     return;
   }
-  input.value = DEFAULT_MARKDOWN;
+  setMarkdownValue(DEFAULT_MARKDOWN);
   applyTheme(themeSelect.value);
 }
 
@@ -1332,8 +1455,9 @@ document.querySelectorAll('[data-component-type]').forEach((button) => button.ad
   insertAtSelection(button.dataset.componentType === 'quote' ? '> 一段值得强调的话\n\n' : button.dataset.componentType === 'heading' ? '## 小节标题\n\n' : '\n');
 }));
 
-input.addEventListener('input', () => { captureHistory(); render(); scheduleSave(); });
+input.addEventListener('input', () => { if (editorAdapter) return; captureHistory(); render(); scheduleSave(); });
 input.addEventListener('paste', (event) => {
+  if (editorAdapter) return;
   const clipboardText = event.clipboardData?.getData('text/plain') || '';
   if (!clipboardText) return;
   const normalizedText = normalizePastedMarkdown(clipboardText);
@@ -1353,7 +1477,7 @@ input.addEventListener('drop', async (event) => {
   event.preventDefault();
   const file = event.dataTransfer.files?.[0];
   if (file?.name.endsWith('.md') || file?.name.endsWith('.markdown')) {
-    input.value = await file.text();
+    setMarkdownValue(await file.text());
     captureHistory();
     render();
     scheduleSave();
@@ -1364,8 +1488,10 @@ input.addEventListener('drop', async (event) => {
 document.querySelectorAll('[data-action]').forEach((button) => button.addEventListener('click', () => {
   const action = button.dataset.action;
   if (action === 'login') { openLoginDialog(); return; }
+  if (action === 'open-register') { openRegisterDialog(); return; }
   if (action === 'logout') { logout().catch(() => {}); return; }
   if (action === 'close-login') { closeLoginDialog(); return; }
+  if (action === 'close-register') { closeRegisterDialog(); return; }
   if (action === 'undo') { restoreHistory(historyIndex - 1); return; }
   if (action === 'redo') { restoreHistory(historyIndex + 1); return; }
   if (action === 'preview') {
@@ -1414,10 +1540,10 @@ document.querySelectorAll('[data-action]').forEach((button) => button.addEventLi
   }
   if (action === 'sync') { if (wechatBinding.mediaId) syncDraft(); else openDraftDialog(); return; }
   if (action === 'import') $('#md-file-input').click();
-  if (action === 'export-md') { download(`${currentRender.title || 'article'}.md`, input.value, 'text/markdown;charset=utf-8'); showToast('Markdown 已导出'); }
+  if (action === 'export-md') { download(`${currentRender.title || 'article'}.md`, markdownValue(), 'text/markdown;charset=utf-8'); showToast('Markdown 已导出'); }
   if (action === 'export-html') { download(`${currentRender.title || 'article'}.html`, articleExportHtml(), 'text/html;charset=utf-8'); showToast('微信兼容 HTML 已导出'); }
   if (action === 'copy') copyRichText();
-  if (action === 'new') { input.value = '# 新文章\n\n从这里开始写。'; captureHistory(); render(); scheduleSave(); showToast('已创建本地新文章'); }
+  if (action === 'new') { setMarkdownValue('# 新文章\n\n从这里开始写。'); captureHistory(); render(); scheduleSave(); showToast('已创建本地新文章'); }
 }));
 
 document.querySelectorAll('[data-settings-section]').forEach((button) => button.addEventListener('click', () => activateSettingsSection(button.dataset.settingsSection)));
@@ -1425,7 +1551,7 @@ document.querySelectorAll('[data-settings-section]').forEach((button) => button.
 $('#md-file-input').addEventListener('change', async (event) => {
   const file = event.target.files?.[0];
   if (!file) return;
-  input.value = await file.text();
+  setMarkdownValue(await file.text());
   captureHistory();
   render();
   scheduleSave();
@@ -1434,8 +1560,16 @@ $('#md-file-input').addEventListener('change', async (event) => {
 });
 
 $('#auth-login-form')?.addEventListener('submit', submitLogin);
+$('#auth-register-request')?.addEventListener('click', requestRegistrationCode);
+$('#auth-register-verify')?.addEventListener('click', verifyRegistration);
 $('#auth-password-toggle')?.addEventListener('click', (event) => {
   const field = $('#auth-password');
+  const visible = field.type === 'text';
+  field.type = visible ? 'password' : 'text';
+  event.currentTarget.textContent = visible ? '显示' : '隐藏';
+});
+$('#auth-register-password-toggle')?.addEventListener('click', (event) => {
+  const field = $('#auth-register-password');
   const visible = field.type === 'text';
   field.type = visible ? 'password' : 'text';
   event.currentTarget.textContent = visible ? '显示' : '隐藏';
@@ -1488,6 +1622,38 @@ $('#settings-save').addEventListener('click', async () => {
   try { await saveSettings(); } catch (error) { showToast(error.message); }
 });
 
+async function mountMarkdownEditor() {
+  if (!editorMount) return;
+  try {
+    const module = await import('/dist/editor.js');
+    editorAdapter = module.mountCodeMirror({
+      parent: editorMount,
+      value: markdownValue(),
+      onChange(next) {
+        input.value = next;
+        captureHistory();
+        render();
+        scheduleSave();
+      },
+      onScroll: () => syncPaneScroll('editor'),
+      onPaste({ view, text }) {
+        const normalizedText = normalizePastedMarkdown(text);
+        if (normalizedText === text) return false;
+        const selection = view.state.selection.main;
+        view.dispatch({ changes: { from: selection.from, to: selection.to, insert: normalizedText }, selection: { anchor: selection.from + normalizedText.length } });
+        showToast('已识别粘贴的图片地址');
+        return true;
+      },
+    });
+    input.hidden = true;
+    editorMount.hidden = false;
+    $('#editor-fallback-note').hidden = true;
+  } catch {
+    editorMount.hidden = true;
+    $('#editor-fallback-note').hidden = false;
+  }
+}
+
 $('#inspector-color').addEventListener('input', (event) => { $('#inspector-color-value').value = event.target.value; });
 $('#inspector-color-value').addEventListener('change', (event) => { if (/^#[0-9a-f]{6}$/i.test(event.target.value)) $('#inspector-color').value = event.target.value; });
 document.addEventListener('keydown', (event) => {
@@ -1508,4 +1674,5 @@ bindWorkspaceSplitter();
 updateSyncAction();
 updateImageStatus();
 updateAuthUi();
+mountMarkdownEditor();
 loadAuthSession().then(() => Promise.all([loadRuntimeConfig(), loadThemes()]).then(() => loadArticleWorkspace()));

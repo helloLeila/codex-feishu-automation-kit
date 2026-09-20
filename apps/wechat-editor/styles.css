@@ -306,6 +306,14 @@ legend { margin-bottom: 8px; padding: 0; color: var(--ink-soft); font-size: 10px
 .small-text-button.active { border-bottom-color: var(--accent); color: var(--accent-dark); background: var(--accent-pale); }
 .editor-surface { background: #fbfcfb; }
 #markdown-input { padding: 19px 20px; background: #fbfcfb; color: #293731; font-size: 14px; line-height: 1.8; }
+.markdown-editor { min-height: 100%; height: 100%; overflow: hidden; background: #fbfcfb; }
+.markdown-editor .cm-editor { height: 100%; background: transparent; color: #293731; font: 14px/1.8 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+.markdown-editor .cm-scroller { overflow: auto; padding: 18px 20px 36px; }
+.markdown-editor .cm-content { min-height: 100%; caret-color: #2f8a5e; }
+.markdown-editor .cm-gutters { background: transparent; border: 0; color: #9aa69f; }
+.markdown-editor .cm-activeLine, .markdown-editor .cm-activeLineGutter { background: rgba(47, 138, 94, .055); }
+.markdown-editor .cm-focused { outline: none; }
+.editor-fallback-note { display: block; padding: 6px 12px; color: #8a6b2d; background: #fff8e7; border-top: 1px solid #ead9aa; font-size: 12px; }
 .writing-footer { min-height: 38px; padding: 0 18px; background: #fff; border-top-color: #e5e9ed; }
 
 .canvas-panel { background: #f2f5f3; }

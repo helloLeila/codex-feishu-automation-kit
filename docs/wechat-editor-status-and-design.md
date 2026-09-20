@@ -2,7 +2,7 @@
 
 > 文档状态：当前实现基线
 >
-> 更新时间：2026-09-05
+> 更新时间：2026-09-20
 >
 > 适用仓库：`codex-feishu-automation-kit`
 
@@ -56,7 +56,7 @@ Open WeChat Editor 是一个本地优先、可自托管的微信公众号文章�
 | OSS 图片上传到微信 | 已完成 | 同步前把公网 HTTPS 图片上传到微信正文图片接口 | `wechat-client.mjs` |
 | 创建微信草稿 | 已完成 | 用户明确确认后调用 `draft/add` | `app.mjs`、服务端路由 |
 | 更新同一个草稿 | 已完成 | 保存 `media_id`，后续调用 `draft/update` | `app.mjs`、服务端路由 |
-| 自动同步防抖 | 已完成 | 编辑停止约 15 秒后更新绑定草稿 | `app.mjs` |
+| 自动同步防抖 | 已完成 | 默认编辑停止 30 秒后只以 `body_only` 更新绑定草稿 | `app.mjs`、`config-store.mjs` |
 | 审核状态暂停同步 | 已完成 | 进入审核后不覆盖微信后台手工修改 | `app.mjs` |
 | 默认手动发布 | 已完成 | 打开微信后台，用户人工审核并发布 | 产品流程 |
 | 微信后台反向同步 Markdown | 未完成 | 微信后台修改不能自动还原为 Markdown | 产品边界 |
@@ -67,6 +67,16 @@ Open WeChat Editor 是一个本地优先、可自托管的微信公众号文章�
 | HTTPS 域名部署 | 未完成 | 当前公网验证为 HTTP IP 入口 | 部署限制 |
 | GitHub Actions 自动部署 | 未完成 | 当前需要服务器手动拉取和 Compose 重建 | 后续 P1 |
 | 官方 API 自动发布 | 部分完成/默认关闭 | 发布权限、接口和账号能力需单独验证 | 后续 P1 |
+| CodeMirror 6 | 已完成 | 构建后挂载 CodeMirror；构建产物缺失时回退 textarea | `editor-codemirror.mjs` |
+| 服务端 HTML 渲染 | 已完成 | `/api/render` 返回带内联样式的 HTML，预览/复制/草稿共用 | `render-service.mjs` |
+| DeepSeek 文本适配器 | 已完成 | 生成标题、摘要、封面提示词并校验 JSON；已有用户标题由服务端强制保留 | `server/ai/ai-text-provider.mjs` |
+| GLM-Image 图片适配器 | 已完成 | 生成封面临时 URL | `server/ai/ai-image-provider.mjs` |
+| Sharp 封面处理 | 已完成 | 下载、裁剪、JPEG 转换、压缩、尺寸校验 | `server/media/cover-processor.mjs` |
+| revision 并发保护 | 已完成 | 执行前后检查 revision，旧任务进入 `stale` | `server/sync/` |
+| 活动任务去重 | 已完成 | 同一 `articleId + revision` 只保留一个活动任务 | `sync-task-store.mjs` |
+| 三种同步模式 | 已完成 | `full`、`body_only`、`regenerate_metadata` | `sync-service.mjs` |
+| 三次失败告警 | 已完成 | 第三次可重试失败后暂停并发送一次邮件 | `sync-service.mjs`、`email/mailer.mjs` |
+| `submitted_unknown` | 已完成 | `draft/add` 响应丢失时禁止自动重复创建 | `sync-service.mjs` |
 
 ## 三. 已完成能力的详细说明
 
@@ -159,7 +169,7 @@ Markdown -> Markdown AST/HTML -> 主题 token 渲染 -> 微信兼容内联 HTML
 
 #### 2. 登录同步模式
 
-登录编辑器账号，设置 AppID、AppSecret、默认作者和封面 MediaID，测试连接并确认服务器出口 IP 已加入微信白名单，点击“创建微信草稿”，后续编辑停止约 15 秒后自动更新同一个草稿，点击“进入审核”暂停同步，在微信公众平台人工检查、调整并发布。
+登录编辑器账号，设置 AppID、AppSecret、默认作者和封面 MediaID，测试连接并确认服务器出口 IP 已加入微信白名单，点击“创建微信草稿”，后续编辑停止约 30 秒后以 `body_only` 更新同一个草稿，点击“进入审核”暂停同步，在微信公众平台人工检查、调整并发布。
 
 ## 六. 系统架构与数据流
 
@@ -225,8 +235,16 @@ Node.js 单体服务 -> 静态文件、渲染、JSON 存储、认证、微信 AP
 | DELETE | `/api/themes/:id` | 删除自定义主题 | 是 |
 | POST | `/api/wechat/diagnose` | 测试 token 与连接 | 是 |
 | POST | `/api/wechat/images/inspect` | 检查正文图片 | 是 |
+| POST | `/api/render` | 服务端 Markdown -> 内联 HTML | 按访客策略开放 |
+| POST | `/api/ai/metadata` | DeepSeek 生成标题、摘要、封面提示词 | 是 |
+| POST | `/api/ai/cover` | GLM-Image 生成并由 Sharp 处理封面 | 是 |
+| POST | `/api/sync/tasks` | 创建或复用同步任务 | 是 |
+| GET | `/api/sync/tasks` | 查看同步任务列表 | 是 |
+| GET | `/api/sync/tasks/:id` | 查看同步任务状态 | 是 |
+| POST | `/api/sync/tasks/:id/resolve` | 为 `submitted_unknown` 任务绑定已存在的 `media_id` | 是 |
 | POST | `/api/wechat/draft/add` | 创建微信草稿 | 是 |
 | POST | `/api/wechat/draft/update` | 更新微信草稿 | 是 |
+| GET | `/api/wechat/draft/:mediaId` | 查询微信草稿 | 是 |
 | DELETE | `/api/wechat/draft/:mediaId` | 删除微信草稿 | 是 |
 
 ## 八. 图片与 OSS 设计
@@ -326,12 +344,77 @@ git diff --check
 完成后说明修改文件和行为变化，运行 npm run check、npm test、git diff --check；涉及 UI 时启动本地服务并验证关键交互；更新本文状态；不声称执行过未执行的命令或完成未验证的部署。
 ```
 
-## 十四. 当前公网部署记录
+## 十四. 当前运行与部署验证记录
 
-截至 2026-09-05，已验证部署基线：ECS 公网 IP `47.115.33.37`；项目目录 `/opt/open-wechat-editor`；入口 `http://47.115.33.37/`；健康接口 `http://47.115.33.37/api/health`；宿主机端口 `80 -> 容器 3210`；容器运行正常，`authEnabled: true`；已验证提交 `4db7c49`。
+截至 2026-09-20，已验证本地 Node 服务的 `/api/health`、`/api/render`、CodeMirror 挂载、服务端内联 HTML 和邮箱注册测试。Dockerfile、Compose 和部署脚本已经有自动化测试；本次记录不把 Docker daemon 未启动时的静态检查写成 Docker 实机部署成功。
 
-该入口仍是 HTTP IP 访问，不等同于正式 HTTPS 生产环境。长期公网使用应补齐域名、HTTPS、反向代理、备份和自动部署回滚。
+公网部署的事实来源必须是服务器上实际执行的：
+
+```bash
+docker compose --env-file .env.local up --build -d
+docker compose ps
+curl -fsS http://127.0.0.1:3210/api/health
+```
+
+只有健康检查成功、容器处于运行状态、外部端口可访问时，才可以把公网入口写入本节。正式公网使用仍应补齐域名、HTTPS、反向代理、备份和自动部署回滚。
 
 ## 十五. 维护规则
 
 新能力进入状态总表；有明确限制的能力标记为“部分完成”；决定不做的能力放入“产品边界/不承诺”；API、数据模型、部署命令变更时同步修改本文和测试；真实凭证、用户文章和服务器私有数据只存在运行环境，不进入本文。
+
+## 十六. 最终定稿同步方案（2026-09-20）
+
+本节把本次定稿中的同步规则固化成后续实现不可改变的契约。
+
+### 16.1 触发与模式
+
+| 触发 | 模式 | 允许改变的内容 |
+| --- | --- | --- |
+| 首次创建草稿 | `full` | 标题、摘要、封面、正文、正文图片 |
+| 已绑定草稿后的 30 秒自动同步 | `body_only` | 正文和正文图片；不生成新标题、摘要或封面 |
+| 用户明确点击重新生成元数据 | `regenerate_metadata` | DeepSeek 标题/摘要/提示词，GLM-Image 封面，然后进入 `full` |
+| 用户手动同步 | `full` 或 `body_only` | 由按钮语义明确显示，不能隐式改变模式 |
+| 进入审核 | 无 | 保存本机状态并暂停自动同步 |
+
+### 16.2 任务执行不变量
+
+1. 每个任务记录 `articleId`、`revision`、`mode`、`requestFingerprint` 和 `attempts`。
+2. 同一 `articleId + revision` 只有一个活动任务。
+3. 执行前读取当前文章，revision 不匹配立即进入 `stale`。
+4. 微信请求返回后再次读取文章，revision 不匹配时丢弃结果，不写回新文章。
+5. 失败重试只针对明确的临时错误；凭证、白名单、权限、图片格式和模型鉴权错误立即停止。
+6. 第三次可重试失败后进入 `failed_permanent`，服务端按退避执行最多三次，发送一次邮件，文章进入暂停状态。
+7. `submitted_unknown` 只能人工确认或通过草稿查询收敛，禁止自动重新执行 `draft/add`。
+
+### 16.3 适配器边界
+
+```text
+DeepSeek
+  -> title / digest / coverPrompt
+
+GLM-Image
+  -> temporary cover URL
+
+Sharp
+  -> download / validate / crop / JPEG / compress / dimension check
+
+WeChat Client
+  -> access_token / article images / permanent cover / draft add/update/delete
+```
+
+适配器之间只通过结构化数据交互，不能在适配器内部互相读取 `.env.local`、文章文件或浏览器状态。密钥由服务端启动时通过环境变量或配置存储注入。
+
+### 16.4 响应丢失处理
+
+```text
+draft/add request
+  ├─ 明确成功 -> 保存 media_id -> synced
+  ├─ 明确失败 -> 按错误分类重试或永久失败
+  └─ 超时/连接重置/响应不可解析
+       -> submitted_unknown
+       -> 禁止第二次 draft/add
+       -> 查询微信草稿或人工确认
+       -> 绑定 media_id / 确认不存在后人工重试
+```
+
+这是草稿同步最重要的幂等边界。不能用“请求失败”简单推导“微信一定没有创建”，也不能用新的 `draft/add` 覆盖未知结果。

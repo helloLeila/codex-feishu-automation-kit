@@ -314,6 +314,7 @@ legend { margin-bottom: 8px; padding: 0; color: var(--ink-soft); font-size: 10px
 .markdown-editor .cm-activeLine, .markdown-editor .cm-activeLineGutter { background: rgba(47, 138, 94, .055); }
 .markdown-editor .cm-focused { outline: none; }
 .editor-fallback-note { display: block; padding: 6px 12px; color: #8a6b2d; background: #fff8e7; border-top: 1px solid #ead9aa; font-size: 12px; }
+.editor-fallback-note[hidden] { display: none !important; }
 .writing-footer { min-height: 38px; padding: 0 18px; background: #fff; border-top-color: #e5e9ed; }
 
 .canvas-panel { background: #f2f5f3; }
